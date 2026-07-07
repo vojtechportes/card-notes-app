@@ -2,19 +2,19 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ColumnTypeEnum } from './column-type-enum';
 
 export class UpdateColumnDto {
-  @ApiPropertyOptional({ description: 'Unique machine-readable column name.' })
+  @ApiPropertyOptional({ type: String, description: 'Unique machine-readable column name.' })
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Human-readable column title.' })
+  @ApiPropertyOptional({ type: String, description: 'Human-readable column title.' })
   title?: string;
 
   @ApiPropertyOptional({ enum: ColumnTypeEnum, description: 'Column value type.' })
   type?: ColumnTypeEnum;
 
-  @ApiPropertyOptional({ description: 'Column display order.' })
+  @ApiPropertyOptional({ type: Number, description: 'Column display order.' })
   sortOrder?: number;
 
-  @ApiPropertyOptional({ description: 'Whether the column should be hidden.' })
+  @ApiPropertyOptional({ type: Boolean, description: 'Whether the column should be hidden.' })
   isHidden?: boolean;
 
   @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true, description: 'Column-specific configuration.' })

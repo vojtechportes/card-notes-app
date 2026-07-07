@@ -1,6 +1,6 @@
-﻿import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class HealthStatusDto {
-  @ApiProperty({ example: 'ok' })
+  @ApiProperty({ type: String, example: 'ok' })
   status!: 'ok';
 }

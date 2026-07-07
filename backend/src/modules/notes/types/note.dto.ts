@@ -23,7 +23,7 @@ const noteValueSchema = {
 };
 
 export class NoteDto {
-  @ApiProperty({ description: 'Stable note id.' })
+  @ApiProperty({ type: String, description: 'Stable note id.' })
   id: string;
 
   @ApiProperty({
@@ -33,9 +33,9 @@ export class NoteDto {
   })
   values: Record<string, unknown>;
 
-  @ApiProperty({ description: 'ISO timestamp when the note was created.' })
+  @ApiProperty({ type: String, description: 'ISO timestamp when the note was created.' })
   createdAt: string;
 
-  @ApiProperty({ description: 'ISO timestamp when the note was last updated.' })
+  @ApiProperty({ type: String, description: 'ISO timestamp when the note was last updated.' })
   updatedAt: string;
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Database } from 'better-sqlite3';
 import { DatabaseService } from '../database/database.service';
 import type { DefaultNoteColumn } from './constants/default-note-columns';
@@ -28,7 +28,7 @@ interface DeleteColumnOptions {
 
 @Injectable()
 export class ColumnsRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(@Inject(DatabaseService) private readonly databaseService: DatabaseService) {}
 
   ensureDefaultColumns(defaultColumns: DefaultNoteColumn[]): void {
     const database = this.getDatabase();
