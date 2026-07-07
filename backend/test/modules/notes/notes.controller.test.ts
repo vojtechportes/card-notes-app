@@ -93,6 +93,15 @@ describe(NotesController.name, () => {
     expect(() => notesController.getNote(note.id)).toThrow(NotFoundException);
   });
 
+  it('deletes all notes through the explicit destructive API surface', () => {
+    notesController.createNote({});
+    notesController.createNote({});
+
+    expect(notesController.deleteAllNotes()).toEqual({ deletedCount: 2 });
+    expect(notesController.listNotes({})).toEqual([]);
+    expect(notesController.deleteAllNotes()).toEqual({ deletedCount: 0 });
+  });
+
   it('rejects malformed create and update request bodies', () => {
     const note = notesController.createNote({});
 

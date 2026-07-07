@@ -61,6 +61,10 @@ export class NotesService {
     }
   }
 
+  deleteAllNotes(): number {
+    return this.notesRepository.deleteAll();
+  }
+
   deleteValuesForColumn(columnId: string): number {
     return this.notesRepository.deleteValuesForColumn(columnId);
   }
