@@ -95,6 +95,10 @@ export class NotesRepository {
     return result.changes > 0;
   }
 
+  deleteAll(): number {
+    return this.getDatabase().prepare('DELETE FROM notes').run().changes;
+  }
+
   deleteValuesForColumn(columnId: string): number {
     return this.getDatabase().prepare('DELETE FROM note_values WHERE column_id = ?').run(columnId).changes;
   }

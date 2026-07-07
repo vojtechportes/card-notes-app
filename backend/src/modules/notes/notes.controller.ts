@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, P
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './types/create-note.dto';
+import { DeleteAllNotesResultDto } from './types/delete-all-notes-result.dto';
 import { ListNotesQueryDto } from './types/list-notes-query.dto';
 import { NoteDto } from './types/note.dto';
 import { NoteSortDirectionEnum } from './types/note-sort-direction-enum';
@@ -47,6 +48,14 @@ export class NotesController {
   @ApiOkResponse({ description: 'Updated note.', type: NoteDto })
   updateNote(@Param('id') id: string, @Body() body: UpdateNoteDto = {}): NoteDto {
     return this.notesService.updateNote(id, { values: this.resolveNoteValuePatch(body) });
+  }
+
+  @Delete()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Delete all notes' })
+  @ApiOkResponse({ description: 'All notes were deleted. Destructive operation; frontend confirmation is required before calling.', type: DeleteAllNotesResultDto })
+  deleteAllNotes(): DeleteAllNotesResultDto {
+    return { deletedCount: this.notesService.deleteAllNotes() };
   }
 
   @Delete(':id')

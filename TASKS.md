@@ -67,7 +67,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Import the same JSON format without deleting existing notes.
   - Add validation for import payloads.
 
-- [ ] T17. Backend danger-zone API
+- [x] T17. Backend danger-zone API
   - Delete all notes endpoint.
   - Keep destructive operation semantics explicit for frontend confirmation.
 

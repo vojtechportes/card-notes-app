@@ -262,4 +262,22 @@ describe(NotesService.name, () => {
     expect(notesService.listNotes()).toEqual([]);
     expect(() => notesService.getNote(note.id)).toThrow(NotFoundException);
   });
+
+  it('deletes all notes, cascades their values, and preserves settings', () => {
+    const summaryColumn = settingsService.createColumn({ name: 'summary', title: 'Summary', type: ColumnTypeEnum.Text });
+    const firstNote = notesService.createNote({ values: { [summaryColumn.id]: 'First' } });
+    const secondNote = notesService.createNote({ values: { [summaryColumn.id]: 'Second' } });
+
+    expect(notesService.deleteAllNotes()).toBe(2);
+
+    expect(notesService.listNotes()).toEqual([]);
+    expect(() => notesService.getNote(firstNote.id)).toThrow(NotFoundException);
+    expect(() => notesService.getNote(secondNote.id)).toThrow(NotFoundException);
+    expect(settingsService.listColumns().map((column) => column.id)).toContain(summaryColumn.id);
+    expect(databaseService.getConnection().prepare('SELECT COUNT(*) as count FROM note_values').get()).toEqual({ count: 0 });
+  });
+
+  it('returns zero when deleting all notes from an empty collection', () => {
+    expect(notesService.deleteAllNotes()).toBe(0);
+  });
 });
