@@ -69,6 +69,13 @@ Structure of frontend should be
 ```
 /frontend
   /src
+    /api
+      /settings
+        /requests.ts
+      /notes
+        /requests.ts
+      /export-import
+        /requests.ts
     /components // shared UI components
       /component-name
         /component-name.tsx
@@ -93,6 +100,24 @@ Structure of frontend should be
     /i18n.ts
 
 ```
+
+Example of function in /api/*/requests.ts
+
+```
+import type { AxiosResponse } from 'axios';
+import { apiClient } from '../../utils/api-client';
+import type { NoteDto } from '../../types/api';
+
+export const getNotes = (
+  signal?: AbortSignal,
+): Promise<AxiosResponse<NoteDto[]>> => {
+  return apiClient.get<NoteDto[]>('/notes', {
+    signal,
+  });
+};
+```
+
+Request functions in `/api/*/requests.ts` should return the full Axios promise directly. Do not `await` inside these request functions; response mapping belongs in query hooks or callers.
 
 Default theme configuration should be as follows:
 
