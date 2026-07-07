@@ -45,7 +45,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Include ordering, hidden state, and non-removable default columns for `createdAt` and `updatedAt`.
   - Use `uuid/v4` for generated IDs.
 
-- [ ] T13. Model notes domain
+- [x] T13. Model notes domain
   - Notes must support structured values keyed by configured columns.
   - Notes must track `createdAt` and `updatedAt`.
   - Preserve note data when columns are removed unless the user explicitly chooses to delete associated data.
