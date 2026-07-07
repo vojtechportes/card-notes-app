@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidV4 } from 'uuid';
 import { SettingsService } from '../settings/settings.service';
 import { ColumnTypeEnum } from '../settings/types/column-type-enum';
@@ -11,7 +11,9 @@ import type { NoteImageValue, NoteValue, NoteValuePatch, NoteValues } from './ty
 @Injectable()
 export class NotesService {
   constructor(
+    @Inject(NotesRepository)
     private readonly notesRepository: NotesRepository,
+    @Inject(SettingsService)
     private readonly settingsService: SettingsService,
   ) {}
 

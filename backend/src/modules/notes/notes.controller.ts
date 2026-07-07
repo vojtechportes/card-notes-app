@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './types/create-note.dto';
@@ -17,7 +17,7 @@ interface NoteSortOptions {
 @ApiTags('notes')
 @Controller('notes')
 export class NotesController {
-  constructor(private readonly notesService: NotesService) {}
+  constructor(@Inject(NotesService) private readonly notesService: NotesService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a note' })

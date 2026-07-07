@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Database } from 'better-sqlite3';
 import { DatabaseService } from '../database/database.service';
 import type { Note } from './types/note';
@@ -21,7 +21,7 @@ interface NoteValueRow {
 
 @Injectable()
 export class NotesRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(@Inject(DatabaseService) private readonly databaseService: DatabaseService) {}
 
   create(id: string, values: NoteValues, timestamp: string): Note {
     const database = this.getDatabase();

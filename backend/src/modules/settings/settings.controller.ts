@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { ColumnDeleteModeEnum } from './types/column-delete-mode-enum';
@@ -15,7 +15,7 @@ import { UpdateGeneralSettingsDto } from './types/update-general-settings.dto';
 @ApiTags('settings')
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(@Inject(SettingsService) private readonly settingsService: SettingsService) {}
 
   @Get('columns')
   @ApiOperation({ summary: 'List note columns' })
@@ -189,4 +189,3 @@ export class SettingsController {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }
-

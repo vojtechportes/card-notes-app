@@ -62,7 +62,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Column delete must support two modes: remove definition only, or remove definition plus associated note data.
   - Persist general settings for optional truncation length and optional card field display count.
 
-- [ ] T16. Backend export/import API
+- [x] T16. Backend export/import API
   - Export all notes/settings/columns data as JSON.
   - Import the same JSON format without deleting existing notes.
   - Add validation for import payloads.

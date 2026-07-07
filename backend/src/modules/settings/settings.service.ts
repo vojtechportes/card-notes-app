@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { v4 as uuidV4 } from 'uuid';
 import { ColumnsRepository } from './columns.repository';
 import { defaultNoteColumns } from './constants/default-note-columns';
@@ -17,7 +17,9 @@ const cardFieldDisplayCountSettingKey = 'cardFieldDisplayCount';
 @Injectable()
 export class SettingsService implements OnModuleInit {
   constructor(
+    @Inject(ColumnsRepository)
     private readonly columnsRepository: ColumnsRepository,
+    @Inject(GeneralSettingsRepository)
     private readonly generalSettingsRepository: GeneralSettingsRepository,
   ) {}
 
