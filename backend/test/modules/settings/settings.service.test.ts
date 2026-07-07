@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DatabaseService } from '../../../src/modules/database/database.service';
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository';
+import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum';
 
@@ -14,7 +15,7 @@ beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' });
   databaseService.initialize();
 
-  settingsService = new SettingsService(new ColumnsRepository(databaseService));
+  settingsService = new SettingsService(new ColumnsRepository(databaseService), new GeneralSettingsRepository(databaseService));
   settingsService.onModuleInit();
 });
 
@@ -236,5 +237,80 @@ describe(SettingsService.name, () => {
 
   it('throws when deleting an unknown column', () => {
     expect(() => settingsService.deleteColumn('missing-column-id')).toThrow(NotFoundException);
+  });
+  it('preserves note values when deleting only a column definition', () => {
+    const column = settingsService.createColumn({
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    });
+
+    databaseService
+      .getConnection()
+      .prepare("INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')")
+      .run();
+    databaseService
+      .getConnection()
+      .prepare('INSERT INTO note_values (note_id, column_id, value_json) VALUES (?, ?, ?)')
+      .run('note-1', column.id, JSON.stringify('Keep me'));
+
+    settingsService.deleteColumn(column.id);
+
+    const remainingValues = databaseService.getConnection().prepare('SELECT COUNT(*) as count FROM note_values WHERE column_id = ?').get(column.id) as {
+      count: number;
+    };
+    expect(remainingValues.count).toBe(1);
+  });
+
+  it('deletes associated note values when explicitly requested', () => {
+    const column = settingsService.createColumn({
+      name: 'rating',
+      title: 'Rating',
+      type: ColumnTypeEnum.Number,
+    });
+
+    databaseService
+      .getConnection()
+      .prepare("INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')")
+      .run();
+    databaseService
+      .getConnection()
+      .prepare('INSERT INTO note_values (note_id, column_id, value_json) VALUES (?, ?, ?)')
+      .run('note-1', column.id, JSON.stringify(5));
+
+    settingsService.deleteColumn(column.id, { deleteNoteData: true });
+
+    const remainingValues = databaseService.getConnection().prepare('SELECT COUNT(*) as count FROM note_values WHERE column_id = ?').get(column.id) as {
+      count: number;
+    };
+    expect(remainingValues.count).toBe(0);
+  });
+
+  it('gets and updates optional general settings', () => {
+    expect(settingsService.getGeneralSettings()).toEqual({
+      textTruncationLength: null,
+      cardFieldDisplayCount: null,
+    });
+
+    expect(
+      settingsService.updateGeneralSettings({
+        textTruncationLength: 120,
+        cardFieldDisplayCount: 4,
+      }),
+    ).toEqual({
+      textTruncationLength: 120,
+      cardFieldDisplayCount: 4,
+    });
+
+    expect(settingsService.updateGeneralSettings({ textTruncationLength: null })).toEqual({
+      textTruncationLength: null,
+      cardFieldDisplayCount: 4,
+    });
+  });
+
+  it('rejects invalid general settings values', () => {
+    expect(() => settingsService.updateGeneralSettings({ textTruncationLength: 0 })).toThrow(BadRequestException);
+    expect(() => settingsService.updateGeneralSettings({ textTruncationLength: -1 })).toThrow(BadRequestException);
+    expect(() => settingsService.updateGeneralSettings({ cardFieldDisplayCount: 1.5 })).toThrow(BadRequestException);
   });
 });

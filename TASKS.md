@@ -57,7 +57,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Support sorting by `createdAt` and `updatedAt` in ASC/DESC order.
   - Provide enough data for frontend MiniSearch indexing/search.
 
-- [ ] T15. Backend settings/columns API
+- [x] T15. Backend settings/columns API
   - Create, list, update, reorder, hide, and delete columns.
   - Column delete must support two modes: remove definition only, or remove definition plus associated note data.
   - Persist general settings for optional truncation length and optional card field display count.

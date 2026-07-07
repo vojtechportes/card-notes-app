@@ -6,6 +6,7 @@ import { NotesService } from '../../../src/modules/notes/notes.service';
 import { NoteSortDirectionEnum } from '../../../src/modules/notes/types/note-sort-direction-enum';
 import { NoteSortFieldEnum } from '../../../src/modules/notes/types/note-sort-field-enum';
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository';
+import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum';
 
@@ -19,7 +20,7 @@ beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' });
   databaseService.initialize();
 
-  settingsService = new SettingsService(new ColumnsRepository(databaseService));
+  settingsService = new SettingsService(new ColumnsRepository(databaseService), new GeneralSettingsRepository(databaseService));
   settingsService.onModuleInit();
   notesService = new NotesService(new NotesRepository(databaseService), settingsService);
 });

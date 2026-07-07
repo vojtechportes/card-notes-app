@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
 import { ColumnsRepository } from './columns.repository';
+import { GeneralSettingsRepository } from './general-settings.repository';
+import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 
 @Module({
   imports: [DatabaseModule],
-  providers: [ColumnsRepository, SettingsService],
+  controllers: [SettingsController],
+  providers: [ColumnsRepository, GeneralSettingsRepository, SettingsService],
   exports: [SettingsService],
 })
 export class SettingsModule {}
