@@ -3,6 +3,8 @@ import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { DatabaseService } from '../../../src/modules/database/database.service';
 import { NotesRepository } from '../../../src/modules/notes/notes.repository';
 import { NotesService } from '../../../src/modules/notes/notes.service';
+import { NoteSortDirectionEnum } from '../../../src/modules/notes/types/note-sort-direction-enum';
+import { NoteSortFieldEnum } from '../../../src/modules/notes/types/note-sort-field-enum';
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum';
@@ -212,6 +214,42 @@ describe(NotesService.name, () => {
     expect(notesService.getNote(note.id).values).toEqual({
       [summaryColumn.id]: 'Keep me',
     });
+  });
+
+  it('lists notes sorted by createdAt and updatedAt in the requested direction', () => {
+    const summaryColumn = settingsService.createColumn({ name: 'summary', title: 'Summary', type: ColumnTypeEnum.Text });
+    const firstNote = notesService.createNote({ values: { [summaryColumn.id]: 'First' } });
+    const secondNote = notesService.createNote({ values: { [summaryColumn.id]: 'Second' } });
+
+    databaseService
+      .getConnection()
+      .prepare('UPDATE notes SET created_at = ?, updated_at = ? WHERE id = ?')
+      .run('2026-07-01T10:00:00.000Z', '2026-07-03T10:00:00.000Z', firstNote.id);
+    databaseService
+      .getConnection()
+      .prepare('UPDATE notes SET created_at = ?, updated_at = ? WHERE id = ?')
+      .run('2026-07-02T10:00:00.000Z', '2026-07-04T10:00:00.000Z', secondNote.id);
+
+    expect(
+      notesService
+        .listNotes({ sortBy: NoteSortFieldEnum.CreatedAt, sortDirection: NoteSortDirectionEnum.Asc })
+        .map((note) => note.id),
+    ).toEqual([firstNote.id, secondNote.id]);
+    expect(
+      notesService
+        .listNotes({ sortBy: NoteSortFieldEnum.CreatedAt, sortDirection: NoteSortDirectionEnum.Desc })
+        .map((note) => note.id),
+    ).toEqual([secondNote.id, firstNote.id]);
+    expect(
+      notesService
+        .listNotes({ sortBy: NoteSortFieldEnum.UpdatedAt, sortDirection: NoteSortDirectionEnum.Asc })
+        .map((note) => note.id),
+    ).toEqual([firstNote.id, secondNote.id]);
+    expect(
+      notesService
+        .listNotes({ sortBy: NoteSortFieldEnum.UpdatedAt, sortDirection: NoteSortDirectionEnum.Desc })
+        .map((note) => note.id),
+    ).toEqual([secondNote.id, firstNote.id]);
   });
 
   it('deletes notes and cascades their values', () => {

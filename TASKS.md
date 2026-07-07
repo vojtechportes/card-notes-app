@@ -51,7 +51,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Preserve note data when columns are removed unless the user explicitly chooses to delete associated data.
   - Support image data inserted from the frontend drag-and-drop workflow.
 
-- [ ] T14. Backend notes API
+- [x] T14. Backend notes API
   - Create, list, update, and delete notes.
   - Delete note requires frontend confirmation before calling the endpoint.
   - Support sorting by `createdAt` and `updatedAt` in ASC/DESC order.
