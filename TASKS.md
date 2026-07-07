@@ -84,7 +84,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Add react-hook-form and yup setup patterns.
   - Add date-fns formatting utilities only where needed.
 
-- [ ] T22. Add generated API types workflow
+- [x] T22. Add generated API types workflow
   - Add script similar to `k8s-frontend/scripts` for Swagger type generation.
   - Generate types into `frontend/src/types/api`.
   - Treat backend Swagger as source of truth.
