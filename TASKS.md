@@ -34,7 +34,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Expose Swagger as the frontend API source of truth.
   - Add health endpoint for local verification.
 
-- [ ] T11. Add SQLite persistence layer
+- [x] T11. Add SQLite persistence layer
   - Store data in a local SQLite database suitable for a single-user Electron app.
   - Keep database helpers inside the owning backend module/slice.
   - Add migration or initialization flow for required tables.
