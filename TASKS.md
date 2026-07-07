@@ -89,7 +89,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Generate types into `frontend/src/types/api`.
   - Treat backend Swagger as source of truth.
 
-- [ ] T23. Add frontend routing/layout
+- [x] T23. Add frontend routing/layout
   - Add two pages: Notes home page and Settings page.
   - Provide navigation that feels like an app shell, not a marketing page.
 
