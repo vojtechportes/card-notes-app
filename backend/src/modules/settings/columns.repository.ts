@@ -22,6 +22,10 @@ interface SortOrderRow {
   sort_order: number;
 }
 
+interface DeleteColumnOptions {
+  deleteNoteData?: boolean;
+}
+
 @Injectable()
 export class ColumnsRepository {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -170,8 +174,19 @@ export class ColumnsRepository {
     applySortOrders(columnIds);
   }
 
-  delete(id: string): void {
-    this.getDatabase().prepare('DELETE FROM note_columns WHERE id = ?').run(id);
+  delete(id: string, options: DeleteColumnOptions = {}): void {
+    const database = this.getDatabase();
+    const deleteColumn = database.prepare('DELETE FROM note_columns WHERE id = ?');
+    const deleteNoteValues = database.prepare('DELETE FROM note_values WHERE column_id = ?');
+    const deleteWithOptionalValues = database.transaction((columnId: string) => {
+      if (options.deleteNoteData) {
+        deleteNoteValues.run(columnId);
+      }
+
+      deleteColumn.run(columnId);
+    });
+
+    deleteWithOptionalValues(id);
   }
 
   private getDatabase(): Database {

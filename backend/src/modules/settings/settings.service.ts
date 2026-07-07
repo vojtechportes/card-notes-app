@@ -2,12 +2,24 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { v4 as uuidV4 } from 'uuid';
 import { ColumnsRepository } from './columns.repository';
 import { defaultNoteColumns } from './constants/default-note-columns';
+import { GeneralSettingsRepository } from './general-settings.repository';
 import { ColumnTypeEnum } from './types/column-type-enum';
+import type { GeneralSettings, UpdateGeneralSettingsInput } from './types/general-settings';
 import type { CreateColumnInput, NoteColumn, UpdateColumnInput } from './types/note-column';
+
+interface DeleteColumnOptions {
+  deleteNoteData?: boolean;
+}
+
+const textTruncationLengthSettingKey = 'textTruncationLength';
+const cardFieldDisplayCountSettingKey = 'cardFieldDisplayCount';
 
 @Injectable()
 export class SettingsService implements OnModuleInit {
-  constructor(private readonly columnsRepository: ColumnsRepository) {}
+  constructor(
+    private readonly columnsRepository: ColumnsRepository,
+    private readonly generalSettingsRepository: GeneralSettingsRepository,
+  ) {}
 
   onModuleInit(): void {
     this.columnsRepository.ensureDefaultColumns(defaultNoteColumns);
@@ -78,14 +90,35 @@ export class SettingsService implements OnModuleInit {
     return this.columnsRepository.findAll();
   }
 
-  deleteColumn(id: string): void {
+  deleteColumn(id: string, options: DeleteColumnOptions = {}): void {
     const column = this.getColumnOrThrow(id);
 
     if (column.isDefault) {
       throw new BadRequestException('Default columns cannot be deleted.');
     }
 
-    this.columnsRepository.delete(id);
+    this.columnsRepository.delete(id, { deleteNoteData: options.deleteNoteData ?? false });
+  }
+
+  getGeneralSettings(): GeneralSettings {
+    return {
+      textTruncationLength: this.generalSettingsRepository.findValue<number | null>(textTruncationLengthSettingKey) ?? null,
+      cardFieldDisplayCount: this.generalSettingsRepository.findValue<number | null>(cardFieldDisplayCountSettingKey) ?? null,
+    };
+  }
+
+  updateGeneralSettings(input: UpdateGeneralSettingsInput): GeneralSettings {
+    if (input.textTruncationLength !== undefined) {
+      this.ensureOptionalPositiveInteger(input.textTruncationLength, 'Text truncation length');
+      this.generalSettingsRepository.setValue(textTruncationLengthSettingKey, input.textTruncationLength);
+    }
+
+    if (input.cardFieldDisplayCount !== undefined) {
+      this.ensureOptionalPositiveInteger(input.cardFieldDisplayCount, 'Card field display count');
+      this.generalSettingsRepository.setValue(cardFieldDisplayCountSettingKey, input.cardFieldDisplayCount);
+    }
+
+    return this.getGeneralSettings();
   }
 
   private getColumnOrThrow(id: string): NoteColumn {
@@ -129,6 +162,16 @@ export class SettingsService implements OnModuleInit {
 
     if (!Number.isInteger(sortOrder) || sortOrder < 0) {
       throw new BadRequestException('Column sort order must be a non-negative integer.');
+    }
+  }
+
+  private ensureOptionalPositiveInteger(value: number | null, label: string): void {
+    if (value === null) {
+      return;
+    }
+
+    if (!Number.isInteger(value) || value < 1) {
+      throw new BadRequestException(`${label} must be a positive integer or null.`);
     }
   }
 
