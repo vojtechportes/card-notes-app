@@ -23,7 +23,7 @@ export class ColumnDto {
   @ApiProperty({ type: Boolean, description: 'Whether the column is a non-removable system default.' })
   isDefault: boolean;
 
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true, description: 'Column-specific configuration.' })
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true, description: 'Column-specific configuration.' })
   config: Record<string, unknown> | null;
 
   @ApiProperty({ type: String, description: 'Timestamp when the column was created.' })
