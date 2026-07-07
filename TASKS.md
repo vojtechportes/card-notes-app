@@ -93,7 +93,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Add two pages: Notes home page and Settings page.
   - Provide navigation that feels like an app shell, not a marketing page.
 
-- [ ] T24. Add shared confirmation service/modal
+- [x] T24. Add shared confirmation service/modal
   - Copy or adapt confirmation service/modal pattern from `C:\Users\vojta\Documents\work\k8s-frontend`.
   - Use it for deleting notes, deleting all notes, and column deletion choices.
 

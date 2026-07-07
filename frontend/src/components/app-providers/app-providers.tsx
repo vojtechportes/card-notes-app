@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react';
 import { HashRouter } from 'react-router-dom';
 import { theme } from '../../theme';
 import { createQueryClient } from '../../utils/create-query-client.util';
+import { ConfirmationProvider } from '../confirmation';
 
 export const AppProviders = ({ children }: PropsWithChildren) => {
   const [queryClient] = useState(createQueryClient);
@@ -13,7 +14,9 @@ export const AppProviders = ({ children }: PropsWithChildren) => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <HashRouter>{children}</HashRouter>
+        <ConfirmationProvider>
+          <HashRouter>{children}</HashRouter>
+        </ConfirmationProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

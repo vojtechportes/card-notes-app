@@ -20,6 +20,13 @@
       "collapseWidth": "Collapse detail width"
     }
   },
+  "confirmation": {
+    "actions": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close confirmation dialog"
+    }
+  },
   "notes": {
     "title": "Notes",
     "description": "The notes workspace is ready for the next feature slice.",
