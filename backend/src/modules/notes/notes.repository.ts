@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import type { Database } from 'better-sqlite3';
 import { DatabaseService } from '../database/database.service';
 import type { Note } from './types/note';
+import { NoteSortDirectionEnum } from './types/note-sort-direction-enum';
+import { NoteSortFieldEnum } from './types/note-sort-field-enum';
+import type { ListNotesOptions } from './types/list-notes-options';
 import type { NoteValue, NoteValuePatch, NoteValues } from './types/note-value';
 
 interface NoteRow {
@@ -36,9 +39,11 @@ export class NotesRepository {
     return this.findById(id) as Note;
   }
 
-  findAll(): Note[] {
+  findAll(options: ListNotesOptions = {}): Note[] {
+    const sortColumn = this.getSortColumn(options.sortBy ?? NoteSortFieldEnum.CreatedAt);
+    const sortDirection = options.sortDirection === NoteSortDirectionEnum.Asc ? 'ASC' : 'DESC';
     const notes = this.getDatabase()
-      .prepare('SELECT * FROM notes ORDER BY created_at DESC, id ASC')
+      .prepare(`SELECT * FROM notes ORDER BY ${sortColumn} ${sortDirection}, id ASC`)
       .all()
       .map((row) => this.mapNoteRow(row as NoteRow));
 
@@ -92,6 +97,17 @@ export class NotesRepository {
 
   deleteValuesForColumn(columnId: string): number {
     return this.getDatabase().prepare('DELETE FROM note_values WHERE column_id = ?').run(columnId).changes;
+  }
+
+  private getSortColumn(sortBy: NoteSortFieldEnum): string {
+    switch (sortBy) {
+      case NoteSortFieldEnum.CreatedAt:
+        return 'created_at';
+      case NoteSortFieldEnum.UpdatedAt:
+        return 'updated_at';
+      default:
+        return 'created_at';
+    }
   }
 
   private upsertValues(noteId: string, values: NoteValues, timestamp: string): void {

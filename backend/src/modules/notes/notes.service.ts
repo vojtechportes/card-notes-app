@@ -4,6 +4,7 @@ import { SettingsService } from '../settings/settings.service';
 import { ColumnTypeEnum } from '../settings/types/column-type-enum';
 import type { NoteColumn } from '../settings/types/note-column';
 import { NotesRepository } from './notes.repository';
+import type { ListNotesOptions } from './types/list-notes-options';
 import type { CreateNoteInput, Note, UpdateNoteInput } from './types/note';
 import type { NoteImageValue, NoteValue, NoteValuePatch, NoteValues } from './types/note-value';
 
@@ -22,8 +23,8 @@ export class NotesService {
     return this.notesRepository.create(uuidV4(), values, this.createTimestamp());
   }
 
-  listNotes(): Note[] {
-    return this.notesRepository.findAll();
+  listNotes(options: ListNotesOptions = {}): Note[] {
+    return this.notesRepository.findAll(options);
   }
 
   getNote(id: string): Note {
