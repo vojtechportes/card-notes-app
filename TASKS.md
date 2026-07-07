@@ -99,7 +99,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 
 ## Phase 3: Notes Experience
 
-- [ ] T30. Build notes query hooks/API layer
+- [x] T30. Build notes query hooks/API layer
   - Fetch notes, create note, update note, delete note.
   - Invalidate/update TanStack Query caches after mutations.
 
