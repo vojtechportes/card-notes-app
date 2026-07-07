@@ -39,7 +39,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Keep database helpers inside the owning backend module/slice.
   - Add migration or initialization flow for required tables.
 
-- [ ] T12. Model columns/settings domain
+- [x] T12. Model columns/settings domain
   - Add `ColumnTypeEnum` with text, date, number, image, and link values.
   - Column base shape must include `id`, unique `name`, `title`, and `type`.
   - Include ordering, hidden state, and non-removable default columns for `createdAt` and `updatedAt`.
