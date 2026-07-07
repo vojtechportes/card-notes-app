@@ -21,6 +21,7 @@
     "axios": "^1.18.1",
     "date-fns": "^4.4.0",
     "i18next": "^24.0.0",
+    "minisearch": "^7.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.81.0",

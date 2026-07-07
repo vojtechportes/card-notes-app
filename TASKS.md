@@ -103,7 +103,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Fetch notes, create note, update note, delete note.
   - Invalidate/update TanStack Query caches after mutations.
 
-- [ ] T31. Build MiniSearch integration
+- [x] T31. Build MiniSearch integration
   - Index searchable note values across all columns.
   - Keep search client-side over fetched note data.
   - Make search work with text, date, number, image metadata, and link display values where applicable.
