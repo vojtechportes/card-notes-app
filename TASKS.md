@@ -78,7 +78,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Configure MUI theme exactly as specified in `AGENTS.md`.
   - Configure i18next/react-i18next and keep all copy in JSON locale files.
 
-- [ ] T21. Add frontend dependencies and providers
+- [x] T21. Add frontend dependencies and providers
   - Add Axios client.
   - Add TanStack Query provider.
   - Add react-hook-form and yup setup patterns.
