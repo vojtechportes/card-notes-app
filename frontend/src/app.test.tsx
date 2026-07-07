@@ -30,6 +30,7 @@ describe('App routing', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeTruthy();
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }));
 
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
@@ -51,4 +52,3 @@ describe('App routing', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/notes'));
   });
 });
-

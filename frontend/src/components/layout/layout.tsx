@@ -72,7 +72,11 @@ export const Layout: FC = () => {
   }, []);
 
   const navigation = (
-    <Box sx={{ height: "100%", bgcolor: "background.paper" }}>
+    <Box
+      component="nav"
+      aria-label={t("navigation.main")}
+      sx={{ height: "100%", bgcolor: "background.paper" }}
+    >
       <Toolbar
         sx={{
           borderBottom: 1,
@@ -204,4 +208,3 @@ export const Layout: FC = () => {
     </SideDrawerProvider>
   );
 };
-
