@@ -1,0 +1,30 @@
+{
+  "app": {
+    "title": "Card Notes",
+    "brand": "Card Notes"
+  },
+  "navigation": {
+    "open": "Open navigation",
+    "close": "Close navigation",
+    "toggle": "Toggle navigation",
+    "main": "Main navigation",
+    "notes": "Notes",
+    "notesSummary": "Card workspace",
+    "settings": "Settings",
+    "settingsSummary": "Columns and app preferences"
+  },
+  "detail": {
+    "actions": {
+      "close": "Close detail",
+      "expandWidth": "Expand detail width",
+      "collapseWidth": "Collapse detail width"
+    }
+  },
+  "confirmation": {
+    "actions": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close confirmation dialog"
+    }
+  }
+}
