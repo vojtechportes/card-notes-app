@@ -130,7 +130,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Each card has a delete action.
   - Deletion must use confirmation modal before API call.
 
-- [ ] T36. Build right-side note detail panel
+- [x] T36. Build right-side note detail panel
   - Opening a card detail shows a right-side panel similar to `k8s-frontend`.
   - Include edit and delete actions in the detail context.
 
