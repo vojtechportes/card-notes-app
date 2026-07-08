@@ -8,12 +8,14 @@ interface NoteCardListProps {
   columns: ColumnDto[];
   generalSettings: GeneralSettingsDto;
   notes: NoteDto[];
+  onEditNote?: (note: NoteDto) => void;
 }
 
 export const NoteCardList = ({
   columns,
   generalSettings,
   notes,
+  onEditNote,
 }: NoteCardListProps) => {
   const { t } = useTranslation();
 
@@ -42,6 +44,7 @@ export const NoteCardList = ({
           columns={columns}
           generalSettings={generalSettings}
           note={note}
+          onEditNote={onEditNote}
         />
       ))}
     </Masonry>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import type { NoteDto } from '../../types/api';
 import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog';
 import { NoteCardList } from './components/note-card-list/note-card-list';
 import { NotesToolbar } from './components/notes-toolbar/notes-toolbar';
@@ -18,11 +19,12 @@ const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc';
 
 export const NotesPage = () => {
   const { t } = useTranslation();
+  const [activeNote, setActiveNote] = useState<NoteDto | undefined>();
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<NoteSortBy>(DEFAULT_SORT_BY);
   const [sortDirection, setSortDirection] =
     useState<NoteSortDirection>(DEFAULT_SORT_DIRECTION);
-  const [isCreateNoteDialogOpen, setIsCreateNoteDialogOpen] = useState(false);
   const notesQuery = useNotesQuery({ sortBy, sortDirection });
   const noteColumnsQuery = useNoteColumnsQuery();
   const generalSettingsQuery = useGeneralSettingsQuery();
@@ -31,6 +33,11 @@ export const NotesPage = () => {
     noteColumnsQuery.isLoading || generalSettingsQuery.isLoading;
   const hasCardConfigurationError =
     noteColumnsQuery.isError || generalSettingsQuery.isError;
+
+  const handleCloseNoteDialog = () => {
+    setActiveNote(undefined);
+    setIsNoteDialogOpen(false);
+  };
 
   return (
     <>
@@ -46,7 +53,10 @@ export const NotesPage = () => {
           searchQuery={searchQuery}
           sortBy={sortBy}
           sortDirection={sortDirection}
-          onAddNote={() => setIsCreateNoteDialogOpen(true)}
+          onAddNote={() => {
+            setActiveNote(undefined);
+            setIsNoteDialogOpen(true);
+          }}
           onSearchQueryChange={setSearchQuery}
           onSortByChange={setSortBy}
           onSortDirectionChange={setSortDirection}
@@ -80,14 +90,19 @@ export const NotesPage = () => {
               columns={noteColumnsQuery.data}
               generalSettings={generalSettingsQuery.data}
               notes={filteredNotes}
+              onEditNote={(note) => {
+                setActiveNote(note);
+                setIsNoteDialogOpen(true);
+              }}
             />
           )}
       </Stack>
 
       <CreateUpdateDialog
-        mode="create"
-        open={isCreateNoteDialogOpen}
-        onClose={() => setIsCreateNoteDialogOpen(false)}
+        mode={activeNote ? 'update' : 'create'}
+        note={activeNote}
+        open={isNoteDialogOpen}
+        onClose={handleCloseNoteDialog}
       />
     </>
   );

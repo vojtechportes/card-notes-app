@@ -1,4 +1,4 @@
-import { Card, CardContent, Divider, Stack, Typography } from '@mui/material';
+import { Button, Card, CardActions, CardContent, Divider, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../../../types/api';
 import { getNoteCardFields } from '../../utils/get-note-card-fields.util';
@@ -8,12 +8,14 @@ interface NoteCardProps {
   columns: ColumnDto[];
   generalSettings: GeneralSettingsDto;
   note: NoteDto;
+  onEditNote?: (note: NoteDto) => void;
 }
 
 export const NoteCard = ({
   columns,
   generalSettings,
   note,
+  onEditNote,
 }: NoteCardProps) => {
   const { t } = useTranslation();
   const fields = getNoteCardFields(
@@ -46,6 +48,13 @@ export const NoteCard = ({
           </Stack>
         )}
       </CardContent>
+      {onEditNote && (
+        <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+          <Button onClick={() => onEditNote(note)} size="small">
+            {t('notes.card.actions.edit')}
+          </Button>
+        </CardActions>
+      )}
     </Card>
   );
 };
