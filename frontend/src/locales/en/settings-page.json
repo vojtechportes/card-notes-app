@@ -73,8 +73,18 @@
       },
       "confirmDelete": {
         "title": "Delete column",
-        "description": "Delete \"{{title}}\" from the column list? Existing note values will stay stored for now.",
-        "confirm": "Delete column"
+        "description": "Choose whether to remove \"{{title}}\" only from your column setup or also delete all saved note values stored under it.",
+        "cancel": "Keep column",
+        "choices": {
+          "definitionOnly": {
+            "label": "Delete column definition only",
+            "description": "The column is removed from settings, but existing note values stay stored."
+          },
+          "definitionAndValues": {
+            "label": "Delete column and saved values",
+            "description": "The column is removed and all note values stored for it are deleted."
+          }
+        }
       },
       "errors": {
         "submit": "The column could not be saved. Try again.",

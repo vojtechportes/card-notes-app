@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ColumnDto } from '../../../../types/api';
+import type { ColumnDto, DeleteColumnQueryDto } from '../../../../types/api';
 import { useConfirmation } from '../../../../components/confirmation';
 import { useCreateColumnMutation } from '../../hooks/use-create-column-mutation';
 import { useDeleteColumnMutation } from '../../hooks/use-delete-column-mutation';
@@ -27,6 +27,8 @@ import { ColumnDialog } from './components/column-dialog';
 import { SortableColumnItem } from './components/sortable-column-item';
 import type { ColumnFormValues } from './types/column-form-values';
 import { getReorderedColumnIds } from './utils/get-reordered-column-ids.util';
+
+type ColumnDeleteMode = NonNullable<DeleteColumnQueryDto['deleteMode']>;
 
 export const ColumnsSection = () => {
   const { t } = useTranslation();
@@ -114,16 +116,30 @@ export const ColumnsSection = () => {
 
   const handleDelete = useCallback(
     async (column: ColumnDto) => {
-      const confirmed = await confirmation.confirm({
-        confirmLabel: t('settings.columns.confirmDelete.confirm'),
+      setSectionError(null);
+
+      const deleteMode = await confirmation.choose<ColumnDeleteMode>({
+        cancelLabel: t('settings.columns.confirmDelete.cancel'),
         description: t('settings.columns.confirmDelete.description', {
           title: column.title,
         }),
         title: t('settings.columns.confirmDelete.title'),
-        variant: 'destructive',
+        choices: [
+          {
+            value: 'definitionOnly',
+            label: t('settings.columns.confirmDelete.choices.definitionOnly.label'),
+            description: t('settings.columns.confirmDelete.choices.definitionOnly.description'),
+          },
+          {
+            value: 'definitionAndValues',
+            label: t('settings.columns.confirmDelete.choices.definitionAndValues.label'),
+            description: t('settings.columns.confirmDelete.choices.definitionAndValues.description'),
+            destructive: true,
+          },
+        ],
       });
 
-      if (!confirmed) {
+      if (!deleteMode) {
         return;
       }
 
@@ -132,7 +148,7 @@ export const ColumnsSection = () => {
       try {
         await deleteColumnMutation.mutateAsync({
           id: column.id,
-          query: { deleteMode: 'definitionOnly' },
+          query: { deleteMode },
         });
       } catch {
         setSectionError(t('settings.columns.errors.delete'));
@@ -167,7 +183,6 @@ export const ColumnsSection = () => {
     },
     [columns, reorderColumnsMutation, t],
   );
-
 
   return (
     <SettingsSection

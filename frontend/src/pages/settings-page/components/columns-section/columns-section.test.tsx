@@ -234,7 +234,7 @@ describe('ColumnsSection', () => {
     });
   });
 
-  it('toggles visibility, reorders columns, and deletes a custom column after confirmation', async () => {
+  it('toggles visibility and reorders columns', async () => {
     renderColumnsSection();
 
     const hiddenRow = screen.getByText('Reference link').closest('li') as HTMLElement;
@@ -254,10 +254,26 @@ describe('ColumnsSection', () => {
         columnIds: ['created-at', 'reference-link', 'summary'],
       });
     });
+  });
 
+  it('deletes a custom column definition only when that choice is selected', async () => {
+    renderColumnsSection();
+
+    const hiddenRow = screen.getByText('Reference link').closest('li') as HTMLElement;
     fireEvent.click(within(hiddenRow).getByRole('button', { name: 'Delete column' }));
+
     const confirmationDialog = await screen.findByRole('dialog');
-    fireEvent.click(within(confirmationDialog).getByRole('button', { name: 'Delete column' }));
+    expect(
+      within(confirmationDialog).getByText(
+        /Choose whether to remove "Reference link" only from your column setup/,
+      ),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      within(confirmationDialog).getByRole('button', {
+        name: /^Delete column definition only/,
+      }),
+    );
 
     await waitFor(() => {
       expect(deleteMutation.mutateAsync).toHaveBeenCalledWith({
@@ -265,6 +281,62 @@ describe('ColumnsSection', () => {
         query: { deleteMode: 'definitionOnly' },
       });
     });
+  });
+
+  it('deletes a custom column and saved values when that choice is selected', async () => {
+    renderColumnsSection();
+
+    const hiddenRow = screen.getByText('Reference link').closest('li') as HTMLElement;
+    fireEvent.click(within(hiddenRow).getByRole('button', { name: 'Delete column' }));
+
+    const confirmationDialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirmationDialog).getByRole('button', {
+        name: /^Delete column and saved values/,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(deleteMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'reference-link',
+        query: { deleteMode: 'definitionAndValues' },
+      });
+    });
+  });
+
+  it('does not delete a custom column when the delete choice dialog is cancelled', async () => {
+    renderColumnsSection();
+
+    const hiddenRow = screen.getByText('Reference link').closest('li') as HTMLElement;
+    fireEvent.click(within(hiddenRow).getByRole('button', { name: 'Delete column' }));
+
+    const confirmationDialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirmationDialog).getByRole('button', { name: 'Keep column' }),
+    );
+
+    await waitFor(() => {
+      expect(deleteMutation.mutateAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  it('shows a localized delete error when the chosen delete action fails', async () => {
+    deleteMutation.mutateAsync.mockRejectedValueOnce(new Error('delete failed'));
+    renderColumnsSection();
+
+    const hiddenRow = screen.getByText('Reference link').closest('li') as HTMLElement;
+    fireEvent.click(within(hiddenRow).getByRole('button', { name: 'Delete column' }));
+
+    const confirmationDialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirmationDialog).getByRole('button', {
+        name: /^Delete column and saved values/,
+      }),
+    );
+
+    expect(
+      await screen.findByText('The column could not be deleted. Try again.'),
+    ).toBeTruthy();
   });
 
   it('shows loading and error states from the columns query', () => {
