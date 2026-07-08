@@ -136,7 +136,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 
 ## Phase 4: Settings Experience
 
-- [ ] T40. Build settings query hooks/API layer
+- [x] T40. Build settings query hooks/API layer
   - Fetch/update columns and general settings.
   - Import/export data.
   - Delete all notes.
@@ -214,3 +214,4 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+
