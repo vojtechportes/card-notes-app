@@ -1,7 +1,7 @@
 import type { AxiosResponse } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CreateNoteDto, ListNotesQueryDto, NoteDto, UpdateNoteDto } from '../../types/api';
-import { createNote, deleteNote, getNotes, updateNote } from './requests';
+import type { CreateNoteDto, DeleteAllNotesResultDto, ListNotesQueryDto, NoteDto, UpdateNoteDto } from '../../types/api';
+import { createNote, deleteAllNotes, deleteNote, getNotes, updateNote } from './requests';
 
 const apiClientMock = vi.hoisted(() => ({
   delete: vi.fn(),
@@ -64,6 +64,16 @@ describe('notes requests', () => {
 
     expect(result).toBe(response);
     expect(apiClientMock.patch).toHaveBeenCalledWith('/notes/note-1', note);
+  });
+
+  it('deletes all notes', () => {
+    const response = Promise.resolve(createResponse<DeleteAllNotesResultDto>({ deletedCount: 12 }));
+    apiClientMock.delete.mockReturnValue(response);
+
+    const result = deleteAllNotes();
+
+    expect(result).toBe(response);
+    expect(apiClientMock.delete).toHaveBeenCalledWith('/notes');
   });
 
   it('deletes a note', () => {

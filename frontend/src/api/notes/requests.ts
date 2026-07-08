@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios';
 import { apiClient } from '../../utils/api-client';
-import type { CreateNoteDto, ListNotesQueryDto, NoteDto, UpdateNoteDto } from '../../types/api';
+import type { CreateNoteDto, DeleteAllNotesResultDto, ListNotesQueryDto, NoteDto, UpdateNoteDto } from '../../types/api';
 
 export const getNotes = (
   query?: ListNotesQueryDto,
@@ -21,6 +21,10 @@ export const updateNote = (
   note: UpdateNoteDto,
 ): Promise<AxiosResponse<NoteDto>> => {
   return apiClient.patch<NoteDto>(`/notes/${id}`, note);
+};
+
+export const deleteAllNotes = (): Promise<AxiosResponse<DeleteAllNotesResultDto>> => {
+  return apiClient.delete<DeleteAllNotesResultDto>('/notes');
 };
 
 export const deleteNote = (id: string): Promise<AxiosResponse<void>> => {
