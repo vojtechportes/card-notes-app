@@ -9,6 +9,8 @@ const useCreateColumnMutationMock = vi.hoisted(() => vi.fn());
 const useUpdateColumnMutationMock = vi.hoisted(() => vi.fn());
 const useReorderColumnsMutationMock = vi.hoisted(() => vi.fn());
 const useDeleteColumnMutationMock = vi.hoisted(() => vi.fn());
+const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn());
+const useUpdateGeneralSettingsMutationMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
@@ -30,6 +32,14 @@ vi.mock('./hooks/use-delete-column-mutation', () => ({
   useDeleteColumnMutation: useDeleteColumnMutationMock,
 }));
 
+vi.mock('./hooks/use-general-settings-query', () => ({
+  useGeneralSettingsQuery: useGeneralSettingsQueryMock,
+}));
+
+vi.mock('./hooks/use-update-general-settings-mutation', () => ({
+  useUpdateGeneralSettingsMutation: useUpdateGeneralSettingsMutationMock,
+}));
+
 beforeEach(() => {
   useNoteColumnsQueryMock.mockReturnValue({
     data: [],
@@ -40,6 +50,18 @@ beforeEach(() => {
   useUpdateColumnMutationMock.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
   useReorderColumnsMutationMock.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
   useDeleteColumnMutationMock.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
+  useGeneralSettingsQueryMock.mockReturnValue({
+    data: {
+      cardFieldDisplayCount: null,
+      textTruncationLength: null,
+    },
+    isError: false,
+    isLoading: false,
+  });
+  useUpdateGeneralSettingsMutationMock.mockReturnValue({
+    isPending: false,
+    mutateAsync: vi.fn(),
+  });
 });
 
 describe('SettingsPage', () => {

@@ -9,8 +9,7 @@
       },
       "general": {
         "title": "General",
-        "description": "Card display preferences live here.",
-        "placeholder": "General card settings will be added in T43."
+        "description": "Card display preferences live here."
       },
       "exportImport": {
         "title": "Export / Import",
@@ -21,6 +20,33 @@
         "title": "Danger Zone",
         "description": "Destructive actions stay guarded behind confirmation.",
         "placeholder": "Delete-all-notes controls will be added in T45."
+      }
+    },
+    "general": {
+      "summary": "These preferences affect how note cards are summarized on the Notes page.",
+      "fields": {
+        "textTruncationLength": "Text truncation character count",
+        "cardFieldDisplayCount": "Fields displayed on cards"
+      },
+      "hints": {
+        "optional": "Leave either field empty to keep that limit unset.",
+        "textTruncationLength": "Leave empty to show full text values on cards.",
+        "cardFieldDisplayCount": "Leave empty to show all configured fields on cards."
+      },
+      "actions": {
+        "save": "Save preferences",
+        "saving": "Saving preferences..."
+      },
+      "status": {
+        "loading": "Loading general settings...",
+        "error": "General settings could not be loaded right now.",
+        "saved": "General settings were saved."
+      },
+      "errors": {
+        "submit": "General settings could not be saved. Try again."
+      },
+      "validation": {
+        "positiveInteger": "Enter a whole number greater than 0."
       }
     },
     "columns": {
