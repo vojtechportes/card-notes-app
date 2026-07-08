@@ -6,5 +6,5 @@ export interface NoteCardField {
   columnId: string;
   title: string;
   type: ColumnDto['type'];
-  value: NoteCardFieldValue;
+  value: NoteCardFieldValue | undefined;
 }

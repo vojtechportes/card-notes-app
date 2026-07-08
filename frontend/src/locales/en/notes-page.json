@@ -45,7 +45,20 @@
       "imagePreviewUnavailable": "Image preview unavailable.",
       "actions": {
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "openDetail": "Open detail"
+      }
+    },
+    "detail": {
+      "title": "Note detail",
+      "emptyValue": "-",
+      "actions": {
+        "edit": "Edit note",
+        "delete": "Delete note"
+      },
+      "empty": {
+        "title": "No note details available",
+        "description": "This note does not currently expose any configured fields."
       }
     },
     "deleteConfirmation": {

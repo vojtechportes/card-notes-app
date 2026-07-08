@@ -1,21 +1,32 @@
 import { Box, Stack, Typography } from '@mui/material';
 import type { NoteCardField } from '../../types/note-card-field';
 import { formatNoteDateValue } from '../../utils/format-note-date-value.util';
+import { hasRenderableNoteCardValue } from '../../utils/has-renderable-note-card-value.util';
 import { isImageNoteValue } from '../../utils/is-image-note-value.util';
 import { resolveNoteImageSource } from '../../utils/resolve-note-image-source.util';
 import { truncateNoteText } from '../../utils/truncate-note-text.util';
 
-interface NoteCardFieldValueProps {
+interface NoteFieldValueProps {
   emptyImageLabel: string;
+  emptyValueLabel?: string;
   field: NoteCardField;
   textTruncationLength: number | null;
 }
 
-export const NoteCardFieldValue = ({
+export const NoteFieldValue = ({
   emptyImageLabel,
+  emptyValueLabel,
   field,
   textTruncationLength,
-}: NoteCardFieldValueProps) => {
+}: NoteFieldValueProps) => {
+  if (!hasRenderableNoteCardValue(field.value)) {
+    return emptyValueLabel ? (
+      <Typography color="text.secondary" variant="body2">
+        {emptyValueLabel}
+      </Typography>
+    ) : null;
+  }
+
   if (field.type === 'image' && isImageNoteValue(field.value)) {
     const imageSource = resolveNoteImageSource(field.value);
     const imageCaption =

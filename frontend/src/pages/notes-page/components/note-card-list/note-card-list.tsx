@@ -10,6 +10,7 @@ interface NoteCardListProps {
   notes: NoteDto[];
   onDeleteNote?: (note: NoteDto) => void;
   onEditNote?: (note: NoteDto) => void;
+  onOpenNoteDetail?: (note: NoteDto) => void;
 }
 
 export const NoteCardList = ({
@@ -18,6 +19,7 @@ export const NoteCardList = ({
   notes,
   onDeleteNote,
   onEditNote,
+  onOpenNoteDetail,
 }: NoteCardListProps) => {
   const { t } = useTranslation();
 
@@ -48,6 +50,7 @@ export const NoteCardList = ({
           note={note}
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}
+          onOpenNoteDetail={onOpenNoteDetail}
         />
       ))}
     </Masonry>

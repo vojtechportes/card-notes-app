@@ -1,9 +1,26 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders } from '../../components/app-providers/app-providers';
+import { SideDrawer, SideDrawerProvider } from '../../components/side-drawer';
 import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../types/api';
 import '../../i18n';
 import { NotesPage } from './notes-page';
+
+class ResizeObserverMock {
+  observe() {
+    return undefined;
+  }
+
+  unobserve() {
+    return undefined;
+  }
+
+  disconnect() {
+    return undefined;
+  }
+}
+
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 const useCreateNoteMutationMock = vi.hoisted(() => vi.fn());
 const useDeleteNoteMutationMock = vi.hoisted(() => vi.fn());
@@ -69,6 +86,42 @@ const columns: ColumnDto[] = [
     type: 'text',
     updatedAt: '2026-07-07T10:00:00.000Z',
   },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'summary-column',
+    isDefault: false,
+    isHidden: false,
+    name: 'summary',
+    sortOrder: 3,
+    title: 'Summary',
+    type: 'text',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'link-column',
+    isDefault: false,
+    isHidden: false,
+    name: 'referenceLink',
+    sortOrder: 4,
+    title: 'Reference link',
+    type: 'link',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'image-column',
+    isDefault: false,
+    isHidden: false,
+    name: 'image',
+    sortOrder: 5,
+    title: 'Image',
+    type: 'image',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
 ];
 
 const generalSettings: GeneralSettingsDto = {
@@ -81,7 +134,16 @@ const notes: NoteDto[] = [
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'note-1',
     updatedAt: '2026-07-07T12:00:00.000Z',
-    values: { 'title-column': 'Alpha note' },
+    values: {
+      'image-column': {
+        altText: 'Alpha note image',
+        dataUrl: 'data:image/png;base64,ZmFrZQ==',
+        fileName: 'alpha-note.png',
+        mimeType: 'image/png',
+      },
+      'link-column': 'https://example.com/alpha',
+      'title-column': 'Alpha note',
+    },
   },
 ];
 
@@ -95,7 +157,10 @@ const secondNote: NoteDto = {
 const renderNotesPage = () => {
   return render(
     <AppProviders>
-      <NotesPage />
+      <SideDrawerProvider>
+        <NotesPage />
+        <SideDrawer />
+      </SideDrawerProvider>
     </AppProviders>,
   );
 };
@@ -230,6 +295,104 @@ describe('NotesPage', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy();
   });
 
+  it('opens and renders the note detail drawer from the card action', () => {
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }));
+
+    const sideDrawer = document.querySelector('[data-test-name="side-drawer"]') as HTMLElement | null;
+
+    if (!sideDrawer) {
+      throw new Error('Expected side drawer to be rendered.');
+    }
+
+    expect(screen.getByText('Note detail')).toBeTruthy();
+    expect(screen.getByText('Created at')).toBeTruthy();
+    expect(screen.getByText('Updated at')).toBeTruthy();
+    expect(screen.getByText('Summary')).toBeTruthy();
+    expect(screen.getByText('-')).toBeTruthy();
+    expect(within(sideDrawer).getByRole('link', { name: 'https://example.com/alpha' })).toBeTruthy();
+    expect(within(sideDrawer).getByRole('img', { name: 'Alpha note image' })).toBeTruthy();
+  });
+
+  it('does not open the note detail drawer from the card edit action', () => {
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy();
+  });
+
+  it('does not open the note detail drawer from the card link action', () => {
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('link', { name: 'https://example.com/alpha' }));
+
+    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull();
+  });
+
+  it('updates the note detail drawer when switching between notes', () => {
+    useNotesQueryMock.mockReturnValue({
+      data: [notes[0], secondNote],
+      isError: false,
+      isLoading: false,
+    });
+    useNotesSearchMock.mockReturnValue([notes[0], secondNote]);
+
+    renderNotesPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[0]);
+
+    let sideDrawer = document.querySelector('[data-test-name="side-drawer"]') as HTMLElement | null;
+
+    if (!sideDrawer) {
+      throw new Error('Expected side drawer to be rendered.');
+    }
+
+    expect(within(sideDrawer).getByText('Alpha note')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[1]);
+
+    sideDrawer = document.querySelector('[data-test-name="side-drawer"]') as HTMLElement | null;
+
+    if (!sideDrawer) {
+      throw new Error('Expected side drawer to be rendered.');
+    }
+
+    expect(within(sideDrawer).getByText('Beta note')).toBeTruthy();
+  });
+
+  it('closes the note detail drawer from the close action', async () => {
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull();
+    });
+  });
+
+  it('opens the edit dialog from the note detail drawer', () => {
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }));
+
+    const sideDrawer = document.querySelector('[data-test-name="side-drawer"]') as HTMLElement | null;
+
+    if (!sideDrawer) {
+      throw new Error('Expected side drawer to be rendered.');
+    }
+
+    fireEvent.click(within(sideDrawer).getByRole('button', { name: 'Edit note' }));
+
+    expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy();
+    expect((screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value).toBe(
+      'Alpha note',
+    );
+  });
+
   it('opens and cancels the delete confirmation without calling the delete mutation', async () => {
     const deleteNoteMutation = {
       isPending: false,
@@ -241,6 +404,7 @@ describe('NotesPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
+    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull();
     expect(await screen.findByRole('dialog', { name: 'Delete note?' })).toBeTruthy();
     expect(screen.getByText('This note will be permanently removed.')).toBeTruthy();
 
@@ -252,7 +416,7 @@ describe('NotesPage', () => {
     expect(deleteNoteMutation.mutate).not.toHaveBeenCalled();
   });
 
-  it('confirms note deletion and calls the delete mutation with the selected note id', async () => {
+  it('confirms note deletion from the detail drawer and calls the delete mutation with the selected note id', async () => {
     const deleteNoteMutation = {
       isPending: false,
       mutate: vi.fn(),
@@ -261,7 +425,15 @@ describe('NotesPage', () => {
 
     renderNotesPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }));
+
+    const sideDrawer = document.querySelector('[data-test-name="side-drawer"]') as HTMLElement | null;
+
+    if (!sideDrawer) {
+      throw new Error('Expected side drawer to be rendered.');
+    }
+
+    fireEvent.click(within(sideDrawer).getByRole('button', { name: 'Delete note' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete note' }));
 
     await waitFor(() => {

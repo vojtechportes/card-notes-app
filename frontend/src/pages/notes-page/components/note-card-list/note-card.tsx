@@ -1,4 +1,4 @@
-import {
+﻿import {
   Button,
   Card,
   CardActions,
@@ -14,7 +14,7 @@ import type {
   NoteDto,
 } from '../../../../types/api';
 import { getNoteCardFields } from '../../utils/get-note-card-fields.util';
-import { NoteCardFieldValue } from './note-card-field-value';
+import { NoteFieldValue as NoteCardFieldValue } from '../note-field-value/note-field-value';
 
 interface NoteCardProps {
   columns: ColumnDto[];
@@ -22,6 +22,7 @@ interface NoteCardProps {
   note: NoteDto;
   onDeleteNote?: (note: NoteDto) => void;
   onEditNote?: (note: NoteDto) => void;
+  onOpenNoteDetail?: (note: NoteDto) => void;
 }
 
 export const NoteCard = ({
@@ -30,6 +31,7 @@ export const NoteCard = ({
   note,
   onDeleteNote,
   onEditNote,
+  onOpenNoteDetail,
 }: NoteCardProps) => {
   const { t } = useTranslation();
   const fields = getNoteCardFields(
@@ -37,7 +39,7 @@ export const NoteCard = ({
     columns,
     generalSettings.cardFieldDisplayCount,
   );
-  const hasActions = Boolean(onEditNote || onDeleteNote);
+  const hasActions = Boolean(onOpenNoteDetail || onEditNote || onDeleteNote);
 
   return (
     <Card sx={{ height: '100%' }} variant="outlined">
@@ -66,6 +68,15 @@ export const NoteCard = ({
 
       {hasActions && (
         <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+          {onOpenNoteDetail && (
+            <Button
+              onClick={() => onOpenNoteDetail(note)}
+              size="small"
+              variant="contained"
+            >
+              {t('notes.card.actions.openDetail')}
+            </Button>
+          )}
           {onEditNote && (
             <Button
               onClick={() => onEditNote(note)}
