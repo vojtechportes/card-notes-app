@@ -33,7 +33,16 @@
       "loading": "Loading notes...",
       "visibleCount_one": "{{count}} visible note",
       "visibleCount_other": "{{count}} visible notes",
-      "loadError": "Notes could not be loaded."
+      "loadError": "Notes could not be loaded.",
+      "cardConfigError": "Card configuration could not be loaded."
+    },
+    "empty": {
+      "title": "No notes to show",
+      "description": "Add a note or adjust your search to populate the masonry list."
+    },
+    "card": {
+      "noVisibleFields": "No visible note fields.",
+      "imagePreviewUnavailable": "Image preview unavailable."
     },
     "createUpdateDialog": {
       "actions": {
@@ -47,20 +56,6 @@
     "updateDialog": {
       "title": "Update note",
       "description": "The note editor will be added in the next feature slice."
-    },
-    "previewCards": {
-      "structure": {
-        "title": "Structured fields",
-        "description": "Columns and note data will be added in a later backend slice."
-      },
-      "search": {
-        "title": "Search and sort",
-        "description": "The notes toolbar is wired to search and API-backed sorting."
-      },
-      "images": {
-        "title": "Image-ready cards",
-        "description": "The preserved masonry component is wired into the frontend shell."
-      }
     }
   }
 }

@@ -113,7 +113,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Sort button/control for `createdAt` and `updatedAt`, ASC/DESC.
   - Add note action opening the note modal.
 
-- [ ] T33. Build notes masonry card list
+- [x] T33. Build notes masonry card list
   - Render notes as MUI cards inside the existing masonry component.
   - Respect optional truncation setting.
   - Respect optional card field display count.
