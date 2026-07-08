@@ -16,7 +16,7 @@ import { getItemKey } from './utils/get-item-key.util';
 
 export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
   children,
-  columns = { xs: 1, sm: 2, md: 3, lg: 4 },
+  columns = { xs: 1, sm: 1, md: 2, lg: 3 },
   gap = 8,
   className,
   columnClassName,
@@ -71,10 +71,10 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
         display: 'flex',
         gap: resolvedGap,
         width: '100%',
-        ...(breakpoint === 'xs' && {
-          margin: 'auto',
-          maxWidth: 380,
-        }),
+        // ...(breakpoint === 'xs' && {
+        //   margin: 'auto',
+        //   maxWidth: '100%',
+        // }),
       }}
     >
       {distributedChildren.map((columnItems, columnIndex) => (
