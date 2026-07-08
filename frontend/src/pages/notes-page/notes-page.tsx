@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import { useConfirmation } from '../../components/confirmation';
 import type { NoteDto } from '../../types/api';
 import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog';
 import { NoteCardList } from './components/note-card-list/note-card-list';
@@ -11,7 +12,7 @@ import type {
 } from './components/notes-toolbar/notes-toolbar';
 import { useGeneralSettingsQuery } from './hooks/use-general-settings-query';
 import { useNoteColumnsQuery } from './hooks/use-note-columns-query';
-import { useNotesQuery } from './hooks/use-notes-query';
+import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query';
 import { useNotesSearch } from './hooks/use-notes-search';
 
 const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt';
@@ -19,6 +20,7 @@ const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc';
 
 export const NotesPage = () => {
   const { t } = useTranslation();
+  const confirmation = useConfirmation();
   const [activeNote, setActiveNote] = useState<NoteDto | undefined>();
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,6 +28,7 @@ export const NotesPage = () => {
   const [sortDirection, setSortDirection] =
     useState<NoteSortDirection>(DEFAULT_SORT_DIRECTION);
   const notesQuery = useNotesQuery({ sortBy, sortDirection });
+  const deleteNoteMutation = useDeleteNoteMutation();
   const noteColumnsQuery = useNoteColumnsQuery();
   const generalSettingsQuery = useGeneralSettingsQuery();
   const filteredNotes = useNotesSearch(notesQuery.data, searchQuery);
@@ -37,6 +40,21 @@ export const NotesPage = () => {
   const handleCloseNoteDialog = () => {
     setActiveNote(undefined);
     setIsNoteDialogOpen(false);
+  };
+
+  const handleDeleteNote = async (note: NoteDto) => {
+    const isConfirmed = await confirmation.confirm({
+      title: t('notes.deleteConfirmation.title'),
+      description: t('notes.deleteConfirmation.description'),
+      confirmLabel: t('notes.deleteConfirmation.actions.confirm'),
+      variant: 'destructive',
+    });
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    deleteNoteMutation.mutate(note.id);
   };
 
   return (
@@ -90,6 +108,7 @@ export const NotesPage = () => {
               columns={noteColumnsQuery.data}
               generalSettings={generalSettingsQuery.data}
               notes={filteredNotes}
+              onDeleteNote={handleDeleteNote}
               onEditNote={(note) => {
                 setActiveNote(note);
                 setIsNoteDialogOpen(true);
