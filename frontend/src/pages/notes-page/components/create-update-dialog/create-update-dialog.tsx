@@ -110,7 +110,7 @@ export const CreateUpdateDialog = ({
     onClose();
   }, [onClose, reset, defaultValues, isSubmitting]);
 
-  const handleFormSubmit = async (values: FormValues) => {
+  const handleFormSubmit = useCallback(async (values: FormValues) => {
     if (mode === 'update' && !note) {
       setSubmitError(t('notes.createUpdateDialog.errors.missingNote'));
       return;
@@ -136,7 +136,7 @@ export const CreateUpdateDialog = ({
     } catch {
       setSubmitError(t('notes.createUpdateDialog.errors.submit'));
     }
-  };
+  }, [onClose, reset]);
 
   return (
     <Dialog
