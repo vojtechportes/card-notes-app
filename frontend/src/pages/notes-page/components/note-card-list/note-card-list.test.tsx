@@ -1,6 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { format, parseISO } from 'date-fns';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../../i18n';
 import { DATE_TIME_FORMAT } from '../../../../constants/date-time-format';
 import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../../../types/api';
@@ -117,6 +117,33 @@ describe('NoteCardList', () => {
 
     expect(screen.getByRole('heading', { name: 'Summary' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Owner' })).toBeNull();
+  });
+
+  it('calls the edit handler when a card edit action is pressed', () => {
+    const handleEditNote = vi.fn();
+    const note: NoteDto = {
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-1',
+      updatedAt: '2026-07-07T12:00:00.000Z',
+      values: {
+        'summary-column': 'Alpha note',
+      },
+    };
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({ id: 'summary-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[note]}
+        onEditNote={handleEditNote}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(handleEditNote).toHaveBeenCalledWith(note);
   });
 
   it('formats default timestamp columns and shows an empty state when there are no notes', () => {

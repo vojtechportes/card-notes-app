@@ -120,7 +120,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Render link columns as links that open in a new tab/window.
   - Render image columns appropriately.
 
-- [ ] T34. Build note create/edit modal
+- [x] T34. Build note create/edit modal
   - Use react-hook-form and yup.
   - Generate form fields from active column definitions.
   - Support drag-and-drop image insertion.

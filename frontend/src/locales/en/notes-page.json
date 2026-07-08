@@ -42,20 +42,53 @@
     },
     "card": {
       "noVisibleFields": "No visible note fields.",
-      "imagePreviewUnavailable": "Image preview unavailable."
+      "imagePreviewUnavailable": "Image preview unavailable.",
+      "actions": {
+        "edit": "Edit"
+      }
     },
     "createUpdateDialog": {
       "actions": {
-        "close": "Close"
+        "cancel": "Cancel",
+        "create": "Create note",
+        "saving": "Saving...",
+        "update": "Save changes"
+      },
+      "status": {
+        "loadingColumns": "Loading note fields...",
+        "columnsError": "Note fields could not be loaded."
+      },
+      "emptyEditableColumns": "No editable columns are currently available. You can still save this note without any custom fields.",
+      "errors": {
+        "missingNote": "The selected note could not be loaded for editing.",
+        "submit": "The note could not be saved.",
+        "invalidDate": "Enter a valid date.",
+        "invalidImage": "Attach a valid image.",
+        "invalidNumber": "Enter a valid number."
+      },
+      "imageDropZone": {
+        "ariaLabel": "{{title}} image drop zone",
+        "hint": "Drop an image here or choose a file to attach it to this note.",
+        "emptyPreview": "Image preview unavailable.",
+        "actions": {
+          "select": "Choose image",
+          "replace": "Replace image",
+          "remove": "Remove image"
+        },
+        "status": {
+          "processing": "Processing image..."
+        },
+        "errors": {
+          "invalidType": "Select an image file.",
+          "readFailed": "The selected image could not be processed."
+        }
       }
     },
     "createDialog": {
-      "title": "Create note",
-      "description": "The note editor will be added in the next feature slice."
+      "title": "Create note"
     },
     "updateDialog": {
-      "title": "Update note",
-      "description": "The note editor will be added in the next feature slice."
+      "title": "Edit note"
     }
   }
 }
