@@ -146,6 +146,33 @@ describe('NoteCardList', () => {
     expect(handleEditNote).toHaveBeenCalledWith(note);
   });
 
+  it('calls the delete handler when a card delete action is pressed', () => {
+    const handleDeleteNote = vi.fn();
+    const note: NoteDto = {
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-1',
+      updatedAt: '2026-07-07T12:00:00.000Z',
+      values: {
+        'summary-column': 'Alpha note',
+      },
+    };
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({ id: 'summary-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[note]}
+        onDeleteNote={handleDeleteNote}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(handleDeleteNote).toHaveBeenCalledWith(note);
+  });
+
   it('formats default timestamp columns and shows an empty state when there are no notes', () => {
     const expectedTimestamp = format(
       parseISO('2026-07-07T10:00:00.000Z'),

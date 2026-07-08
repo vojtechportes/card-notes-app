@@ -126,7 +126,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Support drag-and-drop image insertion.
   - Localize all labels, validation, and actions.
 
-- [ ] T35. Build card delete flow
+- [x] T35. Build card delete flow
   - Each card has a delete action.
   - Deletion must use confirmation modal before API call.
 

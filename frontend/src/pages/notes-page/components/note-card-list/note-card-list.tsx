@@ -8,6 +8,7 @@ interface NoteCardListProps {
   columns: ColumnDto[];
   generalSettings: GeneralSettingsDto;
   notes: NoteDto[];
+  onDeleteNote?: (note: NoteDto) => void;
   onEditNote?: (note: NoteDto) => void;
 }
 
@@ -15,6 +16,7 @@ export const NoteCardList = ({
   columns,
   generalSettings,
   notes,
+  onDeleteNote,
   onEditNote,
 }: NoteCardListProps) => {
   const { t } = useTranslation();
@@ -44,6 +46,7 @@ export const NoteCardList = ({
           columns={columns}
           generalSettings={generalSettings}
           note={note}
+          onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}
         />
       ))}

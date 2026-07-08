@@ -1,10 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppProviders } from '../../components/app-providers/app-providers';
 import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../types/api';
 import '../../i18n';
 import { NotesPage } from './notes-page';
 
 const useCreateNoteMutationMock = vi.hoisted(() => vi.fn());
+const useDeleteNoteMutationMock = vi.hoisted(() => vi.fn());
 const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn());
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn());
 const useNotesQueryMock = vi.hoisted(() => vi.fn());
@@ -21,6 +23,7 @@ vi.mock('./hooks/use-note-columns-query', () => ({
 
 vi.mock('./hooks/use-notes-query', () => ({
   useCreateNoteMutation: useCreateNoteMutationMock,
+  useDeleteNoteMutation: useDeleteNoteMutationMock,
   useNotesQuery: useNotesQueryMock,
   useUpdateNoteMutation: useUpdateNoteMutationMock,
 }));
@@ -89,12 +92,24 @@ const secondNote: NoteDto = {
   values: { 'title-column': 'Beta note' },
 };
 
+const renderNotesPage = () => {
+  return render(
+    <AppProviders>
+      <NotesPage />
+    </AppProviders>,
+  );
+};
+
 describe('NotesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCreateNoteMutationMock.mockReturnValue({
       isPending: false,
       mutateAsync: vi.fn(),
+    });
+    useDeleteNoteMutationMock.mockReturnValue({
+      isPending: false,
+      mutate: vi.fn(),
     });
     useGeneralSettingsQueryMock.mockReturnValue({
       data: generalSettings,
@@ -123,7 +138,7 @@ describe('NotesPage', () => {
   });
 
   it('fetches notes with the default toolbar sort state', () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     expect(useNotesQueryMock).toHaveBeenCalledWith({
       sortBy: 'updatedAt',
@@ -132,7 +147,7 @@ describe('NotesPage', () => {
   });
 
   it('passes loaded notes and search text to the notes search hook', () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search notes' }), {
       target: { value: 'alpha' },
@@ -144,13 +159,13 @@ describe('NotesPage', () => {
   it('renders the visible notes count with plural copy', () => {
     useNotesSearchMock.mockReturnValue([notes[0], secondNote]);
 
-    render(<NotesPage />);
+    renderNotesPage();
 
     expect(screen.getByText('2 visible notes')).toBeTruthy();
   });
 
   it('updates the notes query sort state from the toolbar', () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     fireEvent.change(screen.getByLabelText('Sort by'), {
       target: { value: 'createdAt' },
@@ -164,7 +179,7 @@ describe('NotesPage', () => {
   });
 
   it('renders note cards instead of the placeholder preview cards', () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     expect(screen.getByText('Alpha note')).toBeTruthy();
     expect(screen.queryByText('Structured fields')).toBeNull();
@@ -177,14 +192,14 @@ describe('NotesPage', () => {
       isLoading: false,
     });
 
-    render(<NotesPage />);
+    renderNotesPage();
 
     expect(screen.getByText('Card configuration could not be loaded.')).toBeTruthy();
     expect(screen.queryByText('Alpha note')).toBeNull();
   });
 
   it('opens and closes the create note dialog from the toolbar action', async () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
 
@@ -199,7 +214,7 @@ describe('NotesPage', () => {
   });
 
   it('opens the edit dialog from a note card with the existing note values', () => {
-    render(<NotesPage />);
+    renderNotesPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
@@ -207,5 +222,50 @@ describe('NotesPage', () => {
     expect((screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value).toBe(
       'Alpha note',
     );
+  });
+
+  it('renders the delete action for note cards', () => {
+    renderNotesPage();
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy();
+  });
+
+  it('opens and cancels the delete confirmation without calling the delete mutation', async () => {
+    const deleteNoteMutation = {
+      isPending: false,
+      mutate: vi.fn(),
+    };
+    useDeleteNoteMutationMock.mockReturnValue(deleteNoteMutation);
+
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Delete note?' })).toBeTruthy();
+    expect(screen.getByText('This note will be permanently removed.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Delete note?' })).toBeNull();
+    });
+    expect(deleteNoteMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it('confirms note deletion and calls the delete mutation with the selected note id', async () => {
+    const deleteNoteMutation = {
+      isPending: false,
+      mutate: vi.fn(),
+    };
+    useDeleteNoteMutationMock.mockReturnValue(deleteNoteMutation);
+
+    renderNotesPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete note' }));
+
+    await waitFor(() => {
+      expect(deleteNoteMutation.mutate).toHaveBeenCalledWith('note-1');
+    });
   });
 });

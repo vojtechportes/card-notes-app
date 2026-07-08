@@ -167,6 +167,18 @@ export const theme = createTheme({
 });
 ```
 
+#### Rules of hooks
+
+When placing hooks like useState, useMemo and so on, do it in following order where possible
+
+1. useTranslation
+2. useState, useRef, useTransition and custom one line hooks
+3. useMemo
+4. useCallback and custom multi line hooks
+5. useEffect, useLayoutEffect
+
+Where there are dependencies that can be memoized, use useCallback
+
 ### backend
 
 Backend is using nest.js
@@ -221,7 +233,11 @@ Use `kebab-case` for:
 
 ### File names
 
-Prefer one component per file, one utility function per file, and one type per file.
+Always honor a rule of component per file, one utility function per file, and one type per file.
+
+Where component or utility function has up to three interface or types that are not more than 40 lines in length in total, keep then together with the component. Once it exceeds this limit, move them to a ./types folder adjecent to the component or function.
+
+Styled components as long as there are not more than 3 can be together with component, once it exceeds this limit, they should be placed individually to separate files.
 
 Utility function files should use the `.util.ts` suffix and be named after the function in kebab-case, for example `get-item-key.util.ts`.
 

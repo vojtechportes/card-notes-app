@@ -44,7 +44,15 @@
       "noVisibleFields": "No visible note fields.",
       "imagePreviewUnavailable": "Image preview unavailable.",
       "actions": {
-        "edit": "Edit"
+        "edit": "Edit",
+        "delete": "Delete"
+      }
+    },
+    "deleteConfirmation": {
+      "title": "Delete note?",
+      "description": "This note will be permanently removed.",
+      "actions": {
+        "confirm": "Delete note"
       }
     },
     "createUpdateDialog": {
