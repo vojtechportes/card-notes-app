@@ -108,7 +108,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Keep search client-side over fetched note data.
   - Make search work with text, date, number, image metadata, and link display values where applicable.
 
-- [ ] T32. Build notes toolbar
+- [x] T32. Build notes toolbar
   - Search bar above notes.
   - Sort button/control for `createdAt` and `updatedAt`, ASC/DESC.
   - Add note action opening the note modal.

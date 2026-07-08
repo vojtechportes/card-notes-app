@@ -1,0 +1,66 @@
+{
+  "notes": {
+    "title": "Notes",
+    "description": "Search, sort, and add notes from the workspace toolbar.",
+    "toolbar": {
+      "search": {
+        "label": "Search notes",
+        "placeholder": "Search all note fields"
+      },
+      "sortBy": {
+        "label": "Sort by",
+        "options": {
+          "createdAt": "Created date",
+          "updatedAt": "Updated date"
+        }
+      },
+      "sortDirection": {
+        "label": "Sort direction",
+        "options": {
+          "asc": "Ascending",
+          "desc": "Descending"
+        },
+        "short": {
+          "asc": "ASC",
+          "desc": "DESC"
+        }
+      },
+      "actions": {
+        "add": "Add note"
+      }
+    },
+    "status": {
+      "loading": "Loading notes...",
+      "visibleCount_one": "{{count}} visible note",
+      "visibleCount_other": "{{count}} visible notes",
+      "loadError": "Notes could not be loaded."
+    },
+    "createUpdateDialog": {
+      "actions": {
+        "close": "Close"
+      }
+    },
+    "createDialog": {
+      "title": "Create note",
+      "description": "The note editor will be added in the next feature slice."
+    },
+    "updateDialog": {
+      "title": "Update note",
+      "description": "The note editor will be added in the next feature slice."
+    },
+    "previewCards": {
+      "structure": {
+        "title": "Structured fields",
+        "description": "Columns and note data will be added in a later backend slice."
+      },
+      "search": {
+        "title": "Search and sort",
+        "description": "The notes toolbar is wired to search and API-backed sorting."
+      },
+      "images": {
+        "title": "Image-ready cards",
+        "description": "The preserved masonry component is wired into the frontend shell."
+      }
+    }
+  }
+}
