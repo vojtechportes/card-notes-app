@@ -1,23 +1,92 @@
 {
   "settings": {
     "title": "Settings",
-    "description": "Configuration sections are stubbed for future implementation.",
+    "description": "Manage note columns and other app configuration in one place.",
     "sections": {
       "columns": {
         "title": "Columns",
-        "description": "Column management will be implemented in a dedicated settings slice."
+        "description": "Add, edit, reorder, hide, and remove the note fields your cards use."
       },
       "general": {
         "title": "General",
-        "description": "Card display preferences will live here."
+        "description": "Card display preferences live here.",
+        "placeholder": "General card settings will be added in T43."
       },
       "exportImport": {
         "title": "Export / Import",
-        "description": "JSON export and import controls will be added later."
+        "description": "Move your notes data in and out as JSON.",
+        "placeholder": "Export and import controls will be added in T44."
       },
       "dangerZone": {
         "title": "Danger Zone",
-        "description": "Destructive actions will require confirmation before they are enabled."
+        "description": "Destructive actions stay guarded behind confirmation.",
+        "placeholder": "Delete-all-notes controls will be added in T45."
+      }
+    },
+    "columns": {
+      "summary_one": "{{count}} column configured.",
+      "summary_other": "{{count}} columns configured.",
+      "fields": {
+        "title": "Column title",
+        "name": "Column name",
+        "type": "Column type",
+        "hidden": "Hide this column from note cards and forms"
+      },
+      "types": {
+        "text": "Text",
+        "date": "Date",
+        "number": "Number",
+        "image": "Image",
+        "link": "Link"
+      },
+      "labels": {
+        "name": "Name: {{name}}"
+      },
+      "status": {
+        "loading": "Loading columns...",
+        "error": "Columns could not be loaded right now.",
+        "empty": "No columns are configured yet. Add your first custom field to get started.",
+        "default": "Default",
+        "hidden": "Hidden"
+      },
+      "actions": {
+        "add": "Add column",
+        "create": "Create column",
+        "save": "Save changes",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "edit": "Edit column",
+        "delete": "Delete column",
+        "hide": "Hide column",
+        "show": "Show column",
+        "reorder": "Reorder column"
+      },
+      "dialog": {
+        "createTitle": "Add column",
+        "editTitle": "Edit column"
+      },
+      "validation": {
+        "nameRequired": "Column name is required.",
+        "nameUnique": "Column name must be unique.",
+        "titleRequired": "Column title is required.",
+        "typeRequired": "Column type is required."
+      },
+      "confirmDelete": {
+        "title": "Delete column",
+        "description": "Delete \"{{title}}\" from the column list? Existing note values will stay stored for now.",
+        "confirm": "Delete column"
+      },
+      "errors": {
+        "submit": "The column could not be saved. Try again.",
+        "updateHidden": "The column visibility could not be updated. Try again.",
+        "delete": "The column could not be deleted. Try again.",
+        "reorder": "The column order could not be saved. Try again."
+      },
+      "hints": {
+        "reorder": "Drag the handle to reorder columns. Default columns can stay in the order you prefer, but they cannot be deleted.",
+        "defaultColumn": "Default system column.",
+        "customColumn": "Custom column.",
+        "defaultIdentity": "Default columns keep their original name and type."
       }
     }
   }

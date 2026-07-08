@@ -186,6 +186,48 @@ describe('CreateUpdateDialog', () => {
     );
   });
 
+
+  it('switches from create mode to update mode without reusing the create submit handler', async () => {
+    const createOnClose = vi.fn();
+    const note: NoteDto = {
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-2',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+      values: {
+        'title-column': 'Original title',
+      },
+    };
+
+    const { rerender } = render(
+      <CreateUpdateDialog mode="create" onClose={createOnClose} open />,
+    );
+
+    rerender(
+      <CreateUpdateDialog mode="update" note={note} onClose={createOnClose} open />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Updated title' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'note-2',
+        note: {
+          values: {
+            'amount-column': null,
+            'due-date-column': null,
+            'link-column': null,
+            'receipt-column': null,
+            'title-column': 'Updated title',
+          },
+        },
+      });
+    });
+
+    expect(createMutation.mutateAsync).not.toHaveBeenCalled();
+  });
   it('submits create values keyed by column id and supports image drop', async () => {
     const onClose = vi.fn();
     render(<CreateUpdateDialog mode="create" onClose={onClose} open />);
@@ -294,3 +336,4 @@ describe('CreateUpdateDialog', () => {
     });
   });
 });
+

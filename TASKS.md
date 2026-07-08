@@ -141,7 +141,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Import/export data.
   - Delete all notes.
 
-- [ ] T41. Build Columns section
+- [x] T41. Build Columns section
   - Add, edit, reorder, hide, and delete columns.
   - Support column types: text, date, number, image, link.
   - Prevent removal of default `createdAt` and `updatedAt` columns.
@@ -214,4 +214,5 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+
 

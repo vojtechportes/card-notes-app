@@ -136,7 +136,16 @@ export const CreateUpdateDialog = ({
     } catch {
       setSubmitError(t('notes.createUpdateDialog.errors.submit'));
     }
-  }, [onClose, reset]);
+  }, [
+    createNoteMutation,
+    editableColumns,
+    mode,
+    note,
+    onClose,
+    reset,
+    t,
+    updateNoteMutation,
+  ]);
 
   return (
     <Dialog
@@ -208,3 +217,4 @@ export const CreateUpdateDialog = ({
     </Dialog>
   );
 };
+
