@@ -147,9 +147,9 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Prevent removal of default `createdAt` and `updatedAt` columns.
   - Enforce unique column `name`.
 
-- [ ] T42. Build column deletion confirmation choice
-  - Ask whether to remove only the column definition or also delete associated note data.
-  - Make the two choices clear and localized.
+  - [x] T42. Build column deletion confirmation choice
+    - Ask whether to remove only the column definition or also delete associated note data.
+    - Make the two choices clear and localized.
 
 - [ ] T43. Build General section
   - Optional text truncation character count.

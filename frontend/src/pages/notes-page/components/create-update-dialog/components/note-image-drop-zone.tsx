@@ -28,6 +28,7 @@ export const NoteImageDropZone = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const imageSource = value ? resolveNoteImageSource(value) : undefined;
+  
   const imageCaption =
     typeof value?.fileName === "string" && value.fileName.trim().length > 0
       ? value.fileName
