@@ -11,6 +11,8 @@ const useReorderColumnsMutationMock = vi.hoisted(() => vi.fn());
 const useDeleteColumnMutationMock = vi.hoisted(() => vi.fn());
 const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn());
 const useUpdateGeneralSettingsMutationMock = vi.hoisted(() => vi.fn());
+const useExportDataMutationMock = vi.hoisted(() => vi.fn());
+const useImportDataMutationMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
@@ -40,6 +42,14 @@ vi.mock('./hooks/use-update-general-settings-mutation', () => ({
   useUpdateGeneralSettingsMutation: useUpdateGeneralSettingsMutationMock,
 }));
 
+vi.mock('./hooks/use-export-data-mutation', () => ({
+  useExportDataMutation: useExportDataMutationMock,
+}));
+
+vi.mock('./hooks/use-import-data-mutation', () => ({
+  useImportDataMutation: useImportDataMutationMock,
+}));
+
 beforeEach(() => {
   useNoteColumnsQueryMock.mockReturnValue({
     data: [],
@@ -59,6 +69,14 @@ beforeEach(() => {
     isLoading: false,
   });
   useUpdateGeneralSettingsMutationMock.mockReturnValue({
+    isPending: false,
+    mutateAsync: vi.fn(),
+  });
+  useExportDataMutationMock.mockReturnValue({
+    isPending: false,
+    mutateAsync: vi.fn(),
+  });
+  useImportDataMutationMock.mockReturnValue({
     isPending: false,
     mutateAsync: vi.fn(),
   });
