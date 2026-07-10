@@ -8,8 +8,9 @@
     "build": "tsc -p tsconfig.json",
     "dev": "npm run build && electron dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "package": "electron-builder --config electron-builder.json --win nsis --publish never",
-    "package:dir": "electron-builder --config electron-builder.json --win dir --publish never"
+    "prepare:backend-runtime": "node ./scripts/prepare-backend-runtime.mjs",
+    "package": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
+    "package:dir": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

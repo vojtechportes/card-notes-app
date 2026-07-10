@@ -11,16 +11,12 @@
   ],
   "extraResources": [
     {
-      "from": "../backend/dist",
-      "to": "backend/dist"
+      "from": ".backend-runtime",
+      "to": "backend"
     },
     {
       "from": "../frontend/dist",
       "to": "frontend/dist"
-    },
-    {
-      "from": "../node_modules",
-      "to": "node_modules"
     }
   ],
   "win": {

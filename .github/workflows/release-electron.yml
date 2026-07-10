@@ -8,12 +8,11 @@ on:
 permissions:
   contents: write
 
-env:
-  CSC_IDENTITY_AUTO_DISCOVERY: "false"
-
 jobs:
   build-windows-installer:
     runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
     steps:
       - name: Check out repository
@@ -27,6 +26,28 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Create self-signed Windows code-signing certificate
+        shell: powershell
+        run: |
+          $password = [Guid]::NewGuid().ToString('N') + 'Aa1!'
+          $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+          $certificate = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject 'CN=Card Notes App Self Signed' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -KeyExportPolicy Exportable `
+            -HashAlgorithm 'SHA256' `
+            -NotAfter (Get-Date).AddYears(1)
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'card-notes-app-self-signed.pfx'
+          Export-PfxCertificate `
+            -Cert "Cert:\CurrentUser\My\$($certificate.Thumbprint)" `
+            -FilePath $certificatePath `
+            -Password $securePassword | Out-Null
+
+          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_LINK=$certificatePath"
+          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=$password"
 
       - name: Build and package Electron app
         run: npm run package
