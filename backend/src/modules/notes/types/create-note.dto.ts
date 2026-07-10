@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger'
 
 const noteValueSchema = {
   oneOf: [
@@ -20,7 +20,7 @@ const noteValueSchema = {
       },
     },
   ],
-};
+}
 
 export class CreateNoteDto {
   @ApiPropertyOptional({
@@ -28,5 +28,5 @@ export class CreateNoteDto {
     additionalProperties: noteValueSchema,
     description: 'Structured note values keyed by note column id.',
   })
-  values?: Record<string, unknown>;
+  values?: Record<string, unknown>
 }

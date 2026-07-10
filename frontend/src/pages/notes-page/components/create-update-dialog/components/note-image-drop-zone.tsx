@@ -1,19 +1,19 @@
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import { Box, Button, FormHelperText, Stack, Typography } from "@mui/material";
-import { useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { resolveNoteImageSource } from "../../../utils/resolve-note-image-source.util";
-import type { NoteFormImageValue } from "../types/note-form-image-value";
-import { createNoteImageValueFromFile } from "../utils/create-note-image-value-from-file.util";
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import { Box, Button, FormHelperText, Stack, Typography } from '@mui/material'
+import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { resolveNoteImageSource } from '../../../utils/resolve-note-image-source.util'
+import type { NoteFormImageValue } from '../types/note-form-image-value'
+import { createNoteImageValueFromFile } from '../utils/create-note-image-value-from-file.util'
 
 interface NoteImageDropZoneProps {
-  errorMessage?: string;
-  label: string;
-  onChange: (value: NoteFormImageValue | null) => void;
-  onFileError: (message: string | null) => void;
-  value: NoteFormImageValue | null;
+  errorMessage?: string
+  label: string
+  onChange: (value: NoteFormImageValue | null) => void
+  onFileError: (message: string | null) => void
+  value: NoteFormImageValue | null
 }
 
 export const NoteImageDropZone = ({
@@ -23,81 +23,79 @@ export const NoteImageDropZone = ({
   onFileError,
   value,
 }: NoteImageDropZoneProps) => {
-  const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const imageSource = value ? resolveNoteImageSource(value) : undefined;
-  
+  const { t } = useTranslation()
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const imageSource = value ? resolveNoteImageSource(value) : undefined
+
   const imageCaption =
-    typeof value?.fileName === "string" && value.fileName.trim().length > 0
+    typeof value?.fileName === 'string' && value.fileName.trim().length > 0
       ? value.fileName
-      : typeof value?.altText === "string" && value.altText.trim().length > 0
+      : typeof value?.altText === 'string' && value.altText.trim().length > 0
         ? value.altText
-        : t("notes.createUpdateDialog.imageDropZone.emptyPreview");
+        : t('notes.createUpdateDialog.imageDropZone.emptyPreview')
 
   const handleFiles = async (files: FileList | File[] | null | undefined) => {
-    const file = files && files.length > 0 ? files[0] : undefined;
+    const file = files && files.length > 0 ? files[0] : undefined
 
     if (!file) {
-      return;
+      return
     }
 
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith('image/')) {
       onFileError(
-        t("notes.createUpdateDialog.imageDropZone.errors.invalidType"),
-      );
-      return;
+        t('notes.createUpdateDialog.imageDropZone.errors.invalidType')
+      )
+      return
     }
 
-    setIsProcessing(true);
-    onFileError(null);
+    setIsProcessing(true)
+    onFileError(null)
 
     try {
-      const nextValue = await createNoteImageValueFromFile(file);
-      onChange(nextValue);
+      const nextValue = await createNoteImageValueFromFile(file)
+      onChange(nextValue)
     } catch {
-      onFileError(
-        t("notes.createUpdateDialog.imageDropZone.errors.readFailed"),
-      );
+      onFileError(t('notes.createUpdateDialog.imageDropZone.errors.readFailed'))
     } finally {
-      setIsProcessing(false);
+      setIsProcessing(false)
 
       if (inputRef.current) {
-        inputRef.current.value = "";
+        inputRef.current.value = ''
       }
     }
-  };
+  }
 
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">{label}</Typography>
       <Box
         aria-busy={isProcessing}
-        aria-label={t("notes.createUpdateDialog.imageDropZone.ariaLabel", {
+        aria-label={t('notes.createUpdateDialog.imageDropZone.ariaLabel', {
           title: label,
         })}
         onDragLeave={() => setIsDragging(false)}
         onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
+          event.preventDefault()
+          setIsDragging(true)
         }}
         onDrop={(event) => {
-          event.preventDefault();
-          setIsDragging(false);
-          void handleFiles(event.dataTransfer.files);
+          event.preventDefault()
+          setIsDragging(false)
+          void handleFiles(event.dataTransfer.files)
         }}
         role="group"
         sx={{
-          backgroundColor: isDragging ? "action.hover" : "background.default",
+          backgroundColor: isDragging ? 'action.hover' : 'background.default',
           border: 1,
           borderColor: errorMessage
-            ? "error.main"
+            ? 'error.main'
             : isDragging
-              ? "primary.main"
-              : "divider",
+              ? 'primary.main'
+              : 'divider',
           borderRadius: 1.5,
-          borderStyle: "dashed",
+          borderStyle: 'dashed',
           p: 2,
         }}
       >
@@ -105,7 +103,7 @@ export const NoteImageDropZone = ({
           accept="image/*"
           hidden
           onChange={(event) => {
-            void handleFiles(event.target.files);
+            void handleFiles(event.target.files)
           }}
           ref={inputRef}
           type="file"
@@ -115,14 +113,14 @@ export const NoteImageDropZone = ({
           {imageSource ? (
             <Box
               sx={{
-                alignItems: "center",
-                aspectRatio: "4 / 3",
-                backgroundColor: "background.paper",
+                alignItems: 'center',
+                aspectRatio: '4 / 3',
+                backgroundColor: 'background.paper',
                 borderRadius: 1.5,
-                display: "flex",
-                justifyContent: "center",
-                overflow: "hidden",
-                width: "100%",
+                display: 'flex',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                width: '100%',
               }}
             >
               <Box
@@ -130,19 +128,19 @@ export const NoteImageDropZone = ({
                 component="img"
                 src={imageSource}
                 sx={{
-                  display: "block",
-                  height: "100%",
-                  objectFit: "contain",
-                  width: "100%",
+                  display: 'block',
+                  height: '100%',
+                  objectFit: 'contain',
+                  width: '100%',
                 }}
               />
             </Box>
           ) : (
             <Box
               sx={{
-                color: "text.secondary",
-                display: "flex",
-                justifyContent: "center",
+                color: 'text.secondary',
+                display: 'flex',
+                justifyContent: 'center',
               }}
             >
               <ImageOutlinedIcon fontSize="large" />
@@ -151,7 +149,7 @@ export const NoteImageDropZone = ({
 
           <Stack spacing={1}>
             <Typography variant="body2">
-              {t("notes.createUpdateDialog.imageDropZone.hint")}
+              {t('notes.createUpdateDialog.imageDropZone.hint')}
             </Typography>
 
             {value && (
@@ -160,7 +158,7 @@ export const NoteImageDropZone = ({
               </Typography>
             )}
 
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
               <Button
                 disabled={isProcessing}
                 onClick={() => inputRef.current?.click()}
@@ -170,8 +168,8 @@ export const NoteImageDropZone = ({
               >
                 {t(
                   value
-                    ? "notes.createUpdateDialog.imageDropZone.actions.replace"
-                    : "notes.createUpdateDialog.imageDropZone.actions.select",
+                    ? 'notes.createUpdateDialog.imageDropZone.actions.replace'
+                    : 'notes.createUpdateDialog.imageDropZone.actions.select'
                 )}
               </Button>
 
@@ -179,20 +177,20 @@ export const NoteImageDropZone = ({
                 <Button
                   color="inherit"
                   onClick={() => {
-                    onChange(null);
-                    onFileError(null);
+                    onChange(null)
+                    onFileError(null)
                   }}
                   startIcon={<DeleteOutlineIcon />}
                   type="button"
                 >
-                  {t("notes.createUpdateDialog.imageDropZone.actions.remove")}
+                  {t('notes.createUpdateDialog.imageDropZone.actions.remove')}
                 </Button>
               )}
             </Stack>
 
             {isProcessing && (
               <Typography color="text.secondary" variant="body2">
-                {t("notes.createUpdateDialog.imageDropZone.status.processing")}
+                {t('notes.createUpdateDialog.imageDropZone.status.processing')}
               </Typography>
             )}
           </Stack>
@@ -201,5 +199,5 @@ export const NoteImageDropZone = ({
 
       {errorMessage && <FormHelperText error>{errorMessage}</FormHelperText>}
     </Stack>
-  );
-};
+  )
+}

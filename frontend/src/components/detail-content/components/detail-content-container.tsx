@@ -1,14 +1,14 @@
-import { Box, type SxProps, type Theme } from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { useContext, type FC, type PropsWithChildren } from 'react';
-import { SideDrawerContext } from '../../side-drawer';
-import { DetailContentContainerProvider } from './detail-content-container-provider';
+import { Box, type SxProps, type Theme } from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import { useContext, type FC, type PropsWithChildren } from 'react'
+import { SideDrawerContext } from '../../side-drawer'
+import { DetailContentContainerProvider } from './detail-content-container-provider'
 
 export type DetailContentContainerProps = PropsWithChildren<{
-  sx?: SxProps<Theme>;
-  fullHeight?: boolean;
-  variant?: 'transparent' | 'default';
-}>;
+  sx?: SxProps<Theme>
+  fullHeight?: boolean
+  variant?: 'transparent' | 'default'
+}>
 
 export const DetailContentContainer: FC<DetailContentContainerProps> = ({
   children,
@@ -16,14 +16,14 @@ export const DetailContentContainer: FC<DetailContentContainerProps> = ({
   fullHeight,
   variant = 'default',
 }) => {
-  const sideDrawerContextProps = useContext(SideDrawerContext);
+  const sideDrawerContextProps = useContext(SideDrawerContext)
   const detailContentContainerProps =
-    sideDrawerContextProps.sideDrawerInfo.DetailContentContainerProps;
+    sideDrawerContextProps.sideDrawerInfo.DetailContentContainerProps
 
   const resolvedFullHeight =
-    detailContentContainerProps?.fullHeight || fullHeight;
-  const resolvedVariant = detailContentContainerProps?.variant || variant;
-  const resolvedSx = detailContentContainerProps?.sx || sx;
+    detailContentContainerProps?.fullHeight || fullHeight
+  const resolvedVariant = detailContentContainerProps?.variant || variant
+  const resolvedSx = detailContentContainerProps?.sx || sx
 
   return (
     <DetailContentContainerProvider fullHeight={resolvedFullHeight}>
@@ -44,6 +44,5 @@ export const DetailContentContainer: FC<DetailContentContainerProps> = ({
         {children}
       </Box>
     </DetailContentContainerProvider>
-  );
-};
-
+  )
+}

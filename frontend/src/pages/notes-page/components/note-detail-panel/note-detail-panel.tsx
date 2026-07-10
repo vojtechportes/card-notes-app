@@ -1,22 +1,22 @@
-import { Stack, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
+import { Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import {
   DetailContent,
   DetailContentContainer,
   DetailContentItem,
-} from '../../../../components/detail-content';
+} from '../../../../components/detail-content'
 import type {
   ColumnDto,
   GeneralSettingsDto,
   NoteDto,
-} from '../../../../types/api';
-import { getNoteDetailFields } from '../../utils/get-note-detail-fields.util';
-import { NoteFieldValue } from '../note-field-value/note-field-value';
+} from '../../../../types/api'
+import { getNoteDetailFields } from '../../utils/get-note-detail-fields.util'
+import { NoteFieldValue } from '../note-field-value/note-field-value'
 
 interface NoteDetailPanelProps {
-  columns: ColumnDto[];
-  generalSettings: GeneralSettingsDto;
-  note: NoteDto;
+  columns: ColumnDto[]
+  generalSettings: GeneralSettingsDto
+  note: NoteDto
 }
 
 export const NoteDetailPanel = ({
@@ -24,8 +24,13 @@ export const NoteDetailPanel = ({
   generalSettings,
   note,
 }: NoteDetailPanelProps) => {
-  const { t } = useTranslation();
-  const fields = getNoteDetailFields(note, columns);
+  const { t } = useTranslation()
+  const fields = getNoteDetailFields(
+    note,
+    columns,
+    !!generalSettings.mergeDateTimeFields,
+    t('notes.fields.lastUpdatedAt')
+  )
 
   return (
     <DetailContentContainer fullHeight>
@@ -53,5 +58,5 @@ export const NoteDetailPanel = ({
         </DetailContent>
       )}
     </DetailContentContainer>
-  );
-};
+  )
+}

@@ -1,4 +1,4 @@
-import type { ColumnFormValues } from '../types/column-form-values';
+import type { ColumnFormValues } from '../types/column-form-values'
 
 export const columnTypeOptions: ColumnFormValues['type'][] = [
   'text',
@@ -6,4 +6,4 @@ export const columnTypeOptions: ColumnFormValues['type'][] = [
   'number',
   'image',
   'link',
-];
+]

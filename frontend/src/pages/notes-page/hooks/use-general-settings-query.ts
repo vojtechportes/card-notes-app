@@ -1,1 +1,1 @@
-export { useGeneralSettingsQuery } from '../../settings-page/hooks/use-general-settings-query';
+export { useGeneralSettingsQuery } from '../../settings-page/hooks/use-general-settings-query'

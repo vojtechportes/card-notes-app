@@ -164,6 +164,15 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Delete all notes button.
   - Require confirmation before deleting.
 
+- [x] T46. Add prettier
+  - Add prettier to both backend and frontend folders and format all code to match prettier configuration
+
+- [x] T47. Add configuration option to merge date fields into one
+  - Add mergeDateTimeField property co configuration service on backend
+  - Generate new API types
+  - Add mergeDateTimeField to frontend
+  - Reflect state of mergeDateTifleFields in CardNote
+
 ## Phase 5: Electron Integration
 
 - [ ] T50. Wire Electron main process

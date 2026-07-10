@@ -1,14 +1,14 @@
-import type { TFunction } from 'i18next';
-import * as yup from 'yup';
-import type { ColumnDto } from '../../../../../types/api';
-import { columnTypeOptions } from '../constants/column-type-options';
-import type { ColumnFormValues } from '../types/column-form-values';
-import { normalizeColumnName } from './normalize-column-name.util';
+import type { TFunction } from 'i18next'
+import * as yup from 'yup'
+import type { ColumnDto } from '../../../../../types/api'
+import { columnTypeOptions } from '../constants/column-type-options'
+import type { ColumnFormValues } from '../types/column-form-values'
+import { normalizeColumnName } from './normalize-column-name.util'
 
 export const createColumnFormSchema = (
   columns: ColumnDto[],
   t: TFunction,
-  editedColumnId?: string,
+  editedColumnId?: string
 ) => {
   return yup.object({
     isHidden: yup.boolean().required(),
@@ -20,20 +20,20 @@ export const createColumnFormSchema = (
         'unique-name',
         t('settings.columns.validation.nameUnique'),
         (value) => {
-          const normalizedName = normalizeColumnName(value ?? '');
+          const normalizedName = normalizeColumnName(value ?? '')
 
           if (!normalizedName) {
-            return true;
+            return true
           }
 
           return !columns.some((column) => {
             if (column.id === editedColumnId) {
-              return false;
+              return false
             }
 
-            return normalizeColumnName(column.name) === normalizedName;
-          });
-        },
+            return normalizeColumnName(column.name) === normalizedName
+          })
+        }
       ),
     title: yup
       .string()
@@ -43,5 +43,5 @@ export const createColumnFormSchema = (
       .mixed<ColumnFormValues['type']>()
       .oneOf(columnTypeOptions)
       .required(t('settings.columns.validation.typeRequired')),
-  });
-};
+  })
+}

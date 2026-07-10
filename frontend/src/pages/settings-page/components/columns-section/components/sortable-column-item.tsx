@@ -1,8 +1,8 @@
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import {
   Box,
   Chip,
@@ -13,17 +13,17 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { CSS } from '@dnd-kit/utilities';
-import { useSortable } from '@dnd-kit/sortable';
-import { useTranslation } from 'react-i18next';
-import type { ColumnDto } from '../../../../../types/api';
+} from '@mui/material'
+import { CSS } from '@dnd-kit/utilities'
+import { useSortable } from '@dnd-kit/sortable'
+import { useTranslation } from 'react-i18next'
+import type { ColumnDto } from '../../../../../types/api'
 
 interface SortableColumnItemProps {
-  column: ColumnDto;
-  onDelete: (column: ColumnDto) => void;
-  onEdit: (column: ColumnDto) => void;
-  onToggleHidden: (column: ColumnDto) => void;
+  column: ColumnDto
+  onDelete: (column: ColumnDto) => void
+  onEdit: (column: ColumnDto) => void
+  onToggleHidden: (column: ColumnDto) => void
 }
 
 export const SortableColumnItem = ({
@@ -32,7 +32,7 @@ export const SortableColumnItem = ({
   onEdit,
   onToggleHidden,
 }: SortableColumnItemProps) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const {
     attributes,
     listeners,
@@ -40,7 +40,7 @@ export const SortableColumnItem = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: column.id });
+  } = useSortable({ id: column.id })
 
   return (
     <ListItem
@@ -107,7 +107,12 @@ export const SortableColumnItem = ({
             <Typography component="span" display="block" variant="body2">
               {t('settings.columns.labels.name', { name: column.name })}
             </Typography>
-            <Typography color="text.secondary" component="span" display="block" variant="body2">
+            <Typography
+              color="text.secondary"
+              component="span"
+              display="block"
+              variant="body2"
+            >
               {column.isDefault
                 ? t('settings.columns.hints.defaultColumn')
                 : t('settings.columns.hints.customColumn')}
@@ -133,7 +138,11 @@ export const SortableColumnItem = ({
               }
               onClick={() => onToggleHidden(column)}
             >
-              {column.isHidden ? <VisibilityOutlinedIcon /> : <VisibilityOffOutlinedIcon />}
+              {column.isHidden ? (
+                <VisibilityOutlinedIcon />
+              ) : (
+                <VisibilityOffOutlinedIcon />
+              )}
             </IconButton>
           </Tooltip>
           <Tooltip title={t('settings.columns.actions.edit')}>
@@ -158,5 +167,5 @@ export const SortableColumnItem = ({
         </Stack>
       </ListItemSecondaryAction>
     </ListItem>
-  );
-};
+  )
+}

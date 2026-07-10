@@ -1,3 +1,3 @@
-import { createApiClient } from './create-api-client.util';
+import { createApiClient } from './create-api-client.util'
 
-export const apiClient = createApiClient();
+export const apiClient = createApiClient()

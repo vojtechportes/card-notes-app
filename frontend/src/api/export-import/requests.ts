@@ -1,17 +1,17 @@
-import type { AxiosResponse } from 'axios';
-import type { ExportImportDataDto, ImportResultDto } from '../../types/api';
-import { apiClient } from '../../utils/api-client';
+import type { AxiosResponse } from 'axios'
+import type { ExportImportDataDto, ImportResultDto } from '../../types/api'
+import { apiClient } from '../../utils/api-client'
 
 export const getExportData = (
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<AxiosResponse<ExportImportDataDto>> => {
   return apiClient.get<ExportImportDataDto>('/export-import/export', {
     signal,
-  });
-};
+  })
+}
 
 export const importData = (
-  data: ExportImportDataDto,
+  data: ExportImportDataDto
 ): Promise<AxiosResponse<ImportResultDto>> => {
-  return apiClient.post<ImportResultDto>('/export-import/import', data);
-};
+  return apiClient.post<ImportResultDto>('/export-import/import', data)
+}

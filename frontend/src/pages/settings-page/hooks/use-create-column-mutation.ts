@@ -1,15 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createColumn } from '../../../api/settings/requests';
-import type { CreateColumnDto } from '../../../types/api';
-import { settingsQueryKeys } from '../constants/settings-query-keys';
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createColumn } from '../../../api/settings/requests'
+import type { CreateColumnDto } from '../../../types/api'
+import { settingsQueryKeys } from '../constants/settings-query-keys'
 
 export const useCreateColumnMutation = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (column: CreateColumnDto) => createColumn(column).then((response) => response.data),
+    mutationFn: (column: CreateColumnDto) =>
+      createColumn(column).then((response) => response.data),
     onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: settingsQueryKeys.columns() });
+      return queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.columns(),
+      })
     },
-  });
-};
+  })
+}

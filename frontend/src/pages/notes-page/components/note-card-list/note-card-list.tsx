@@ -1,16 +1,20 @@
-import { Card, CardContent, Stack, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { Masonry } from '../../../../components/masonry/masonry';
-import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../../../types/api';
-import { NoteCard } from './note-card';
+import { Card, CardContent, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
+import { Masonry } from '../../../../components/masonry/masonry'
+import type {
+  ColumnDto,
+  GeneralSettingsDto,
+  NoteDto,
+} from '../../../../types/api'
+import { NoteCard } from '../note-card/note-card'
 
 interface NoteCardListProps {
-  columns: ColumnDto[];
-  generalSettings: GeneralSettingsDto;
-  notes: NoteDto[];
-  onDeleteNote?: (note: NoteDto) => void;
-  onEditNote?: (note: NoteDto) => void;
-  onOpenNoteDetail?: (note: NoteDto) => void;
+  columns: ColumnDto[]
+  generalSettings: GeneralSettingsDto
+  notes: NoteDto[]
+  onDeleteNote?: (note: NoteDto) => void
+  onEditNote?: (note: NoteDto) => void
+  onOpenNoteDetail?: (note: NoteDto) => void
 }
 
 export const NoteCardList = ({
@@ -21,7 +25,7 @@ export const NoteCardList = ({
   onEditNote,
   onOpenNoteDetail,
 }: NoteCardListProps) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   if (notes.length === 0) {
     return (
@@ -37,7 +41,7 @@ export const NoteCardList = ({
           </Stack>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -54,5 +58,5 @@ export const NoteCardList = ({
         />
       ))}
     </Masonry>
-  );
-};
+  )
+}

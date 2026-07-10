@@ -1,3 +1,3 @@
 export const normalizeColumnName = (value: string) => {
-  return value.trim();
-};
+  return value.trim()
+}

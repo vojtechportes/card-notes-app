@@ -1,59 +1,63 @@
-import { Button, Stack, Typography } from '@mui/material';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useConfirmation } from '../../components/confirmation';
-import { SideDrawerContext, drawerInitialState } from '../../components/side-drawer';
-import type { NoteDto } from '../../types/api';
-import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog';
-import { NoteCardList } from './components/note-card-list/note-card-list';
-import { NoteDetailPanel } from './components/note-detail-panel/note-detail-panel';
-import { NotesToolbar } from './components/notes-toolbar/notes-toolbar';
+import { Button, Stack, Typography } from '@mui/material'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useConfirmation } from '../../components/confirmation'
+import {
+  SideDrawerContext,
+  drawerInitialState,
+} from '../../components/side-drawer'
+import type { NoteDto } from '../../types/api'
+import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog'
+import { NoteCardList } from './components/note-card-list/note-card-list'
+import { NoteDetailPanel } from './components/note-detail-panel/note-detail-panel'
+import { NotesToolbar } from './components/notes-toolbar/notes-toolbar'
 import type {
   NoteSortBy,
   NoteSortDirection,
-} from './components/notes-toolbar/notes-toolbar';
-import { useGeneralSettingsQuery } from './hooks/use-general-settings-query';
-import { useNoteColumnsQuery } from './hooks/use-note-columns-query';
-import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query';
-import { useNotesSearch } from './hooks/use-notes-search';
+} from './components/notes-toolbar/notes-toolbar'
+import { useGeneralSettingsQuery } from './hooks/use-general-settings-query'
+import { useNoteColumnsQuery } from './hooks/use-note-columns-query'
+import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query'
+import { useNotesSearch } from './hooks/use-notes-search'
 
-const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt';
-const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc';
+const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt'
+const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc'
 
 export const NotesPage = () => {
-  const { t } = useTranslation();
-  const confirmation = useConfirmation();
-  const { toggleDrawer } = useContext(SideDrawerContext);
-  const [activeNote, setActiveNote] = useState<NoteDto | undefined>();
-  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<NoteSortBy>(DEFAULT_SORT_BY);
-  const [sortDirection, setSortDirection] =
-    useState<NoteSortDirection>(DEFAULT_SORT_DIRECTION);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | undefined>();
-  const notesQuery = useNotesQuery({ sortBy, sortDirection });
-  const deleteNoteMutation = useDeleteNoteMutation();
-  const noteColumnsQuery = useNoteColumnsQuery();
-  const generalSettingsQuery = useGeneralSettingsQuery();
-  const filteredNotes = useNotesSearch(notesQuery.data, searchQuery);
+  const { t } = useTranslation()
+  const confirmation = useConfirmation()
+  const { toggleDrawer } = useContext(SideDrawerContext)
+  const [activeNote, setActiveNote] = useState<NoteDto | undefined>()
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<NoteSortBy>(DEFAULT_SORT_BY)
+  const [sortDirection, setSortDirection] = useState<NoteSortDirection>(
+    DEFAULT_SORT_DIRECTION
+  )
+  const [selectedNoteId, setSelectedNoteId] = useState<string | undefined>()
+  const notesQuery = useNotesQuery({ sortBy, sortDirection })
+  const deleteNoteMutation = useDeleteNoteMutation()
+  const noteColumnsQuery = useNoteColumnsQuery()
+  const generalSettingsQuery = useGeneralSettingsQuery()
+  const filteredNotes = useNotesSearch(notesQuery.data, searchQuery)
   const isCardConfigurationLoading =
-    noteColumnsQuery.isLoading || generalSettingsQuery.isLoading;
+    noteColumnsQuery.isLoading || generalSettingsQuery.isLoading
   const hasCardConfigurationError =
-    noteColumnsQuery.isError || generalSettingsQuery.isError;
+    noteColumnsQuery.isError || generalSettingsQuery.isError
   const selectedNote = useMemo(
     () => notesQuery.data?.find((note) => note.id === selectedNoteId),
-    [notesQuery.data, selectedNoteId],
-  );
+    [notesQuery.data, selectedNoteId]
+  )
 
   const handleCloseNoteDialog = useCallback(() => {
-    setActiveNote(undefined);
-    setIsNoteDialogOpen(false);
-  }, []);
+    setActiveNote(undefined)
+    setIsNoteDialogOpen(false)
+  }, [])
 
   const handleOpenNoteDialog = useCallback((note?: NoteDto) => {
-    setActiveNote(note);
-    setIsNoteDialogOpen(true);
-  }, []);
+    setActiveNote(note)
+    setIsNoteDialogOpen(true)
+  }, [])
 
   const handleDeleteNote = useCallback(
     async (note: NoteDto) => {
@@ -62,28 +66,28 @@ export const NotesPage = () => {
         description: t('notes.deleteConfirmation.description'),
         confirmLabel: t('notes.deleteConfirmation.actions.confirm'),
         variant: 'destructive',
-      });
+      })
 
       if (!isConfirmed) {
-        return;
+        return
       }
 
       setSelectedNoteId((currentSelectedNoteId) =>
-        currentSelectedNoteId === note.id ? undefined : currentSelectedNoteId,
-      );
-      deleteNoteMutation.mutate(note.id);
+        currentSelectedNoteId === note.id ? undefined : currentSelectedNoteId
+      )
+      deleteNoteMutation.mutate(note.id)
     },
-    [confirmation, deleteNoteMutation, t],
-  );
+    [confirmation, deleteNoteMutation, t]
+  )
 
   const handleOpenNoteDetail = useCallback((note: NoteDto) => {
-    setSelectedNoteId(note.id);
-  }, []);
+    setSelectedNoteId(note.id)
+  }, [])
 
   useEffect(() => {
     if (!selectedNote || !noteColumnsQuery.data || !generalSettingsQuery.data) {
-      toggleDrawer(drawerInitialState);
-      return;
+      toggleDrawer(drawerInitialState)
+      return
     }
 
     toggleDrawer({
@@ -101,7 +105,7 @@ export const NotesPage = () => {
           <Button
             color="error"
             onClick={() => {
-              void handleDeleteNote(selectedNote);
+              void handleDeleteNote(selectedNote)
             }}
             size="small"
             variant="outlined"
@@ -118,12 +122,12 @@ export const NotesPage = () => {
         />
       ),
       onClose: () => {
-        setSelectedNoteId(undefined);
+        setSelectedNoteId(undefined)
       },
       DetailContentContainerProps: {
         fullHeight: true,
       },
-    });
+    })
   }, [
     generalSettingsQuery.data,
     handleDeleteNote,
@@ -132,7 +136,7 @@ export const NotesPage = () => {
     selectedNote,
     t,
     toggleDrawer,
-  ]);
+  ])
 
   return (
     <>
@@ -141,7 +145,9 @@ export const NotesPage = () => {
           <Typography component="h2" variant="h4">
             {t('notes.title')}
           </Typography>
-          <Typography color="text.secondary">{t('notes.description')}</Typography>
+          <Typography color="text.secondary">
+            {t('notes.description')}
+          </Typography>
         </Stack>
 
         <NotesToolbar
@@ -149,7 +155,7 @@ export const NotesPage = () => {
           sortBy={sortBy}
           sortDirection={sortDirection}
           onAddNote={() => {
-            handleOpenNoteDialog();
+            handleOpenNoteDialog()
           }}
           onSearchQueryChange={setSearchQuery}
           onSortByChange={setSortBy}
@@ -198,5 +204,5 @@ export const NotesPage = () => {
         onClose={handleCloseNoteDialog}
       />
     </>
-  );
-};
+  )
+}

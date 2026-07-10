@@ -1,4 +1,4 @@
-import type { AxiosResponse } from 'axios';
+import type { AxiosResponse } from 'axios'
 import type {
   ColumnDto,
   CreateColumnDto,
@@ -7,55 +7,55 @@ import type {
   ReorderColumnsDto,
   UpdateColumnDto,
   UpdateGeneralSettingsDto,
-} from '../../types/api';
-import { apiClient } from '../../utils/api-client';
+} from '../../types/api'
+import { apiClient } from '../../utils/api-client'
 
 export const getColumns = (
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<AxiosResponse<ColumnDto[]>> => {
   return apiClient.get<ColumnDto[]>('/settings/columns', {
     signal,
-  });
-};
+  })
+}
 
 export const createColumn = (
-  column: CreateColumnDto,
+  column: CreateColumnDto
 ): Promise<AxiosResponse<ColumnDto>> => {
-  return apiClient.post<ColumnDto>('/settings/columns', column);
-};
+  return apiClient.post<ColumnDto>('/settings/columns', column)
+}
 
 export const reorderColumns = (
-  columnOrder: ReorderColumnsDto,
+  columnOrder: ReorderColumnsDto
 ): Promise<AxiosResponse<ColumnDto[]>> => {
-  return apiClient.patch<ColumnDto[]>('/settings/columns/order', columnOrder);
-};
+  return apiClient.patch<ColumnDto[]>('/settings/columns/order', columnOrder)
+}
 
 export const updateColumn = (
   id: string,
-  column: UpdateColumnDto,
+  column: UpdateColumnDto
 ): Promise<AxiosResponse<ColumnDto>> => {
-  return apiClient.patch<ColumnDto>(`/settings/columns/${id}`, column);
-};
+  return apiClient.patch<ColumnDto>(`/settings/columns/${id}`, column)
+}
 
 export const deleteColumn = (
   id: string,
-  query?: DeleteColumnQueryDto,
+  query?: DeleteColumnQueryDto
 ): Promise<AxiosResponse<void>> => {
   return apiClient.delete<void>(`/settings/columns/${id}`, {
     params: query,
-  });
-};
+  })
+}
 
 export const getGeneralSettings = (
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<AxiosResponse<GeneralSettingsDto>> => {
   return apiClient.get<GeneralSettingsDto>('/settings/general', {
     signal,
-  });
-};
+  })
+}
 
 export const updateGeneralSettings = (
-  settings: UpdateGeneralSettingsDto,
+  settings: UpdateGeneralSettingsDto
 ): Promise<AxiosResponse<GeneralSettingsDto>> => {
-  return apiClient.patch<GeneralSettingsDto>('/settings/general', settings);
-};
+  return apiClient.patch<GeneralSettingsDto>('/settings/general', settings)
+}

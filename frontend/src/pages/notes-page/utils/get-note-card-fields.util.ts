@@ -1,27 +1,24 @@
-import type { ColumnDto, NoteDto } from '../../../types/api';
-import type { NoteCardField } from '../types/note-card-field';
-import { hasNoteCardFieldValue } from './has-note-card-field-value.util';
-import { resolveNoteCardColumnValue } from './resolve-note-card-column-value.util';
+import type { ColumnDto, NoteDto } from '../../../types/api'
+import type { NoteCardField } from '../types/note-card-field'
+import { hasNoteCardFieldValue } from './has-note-card-field-value.util'
+import { getNoteDisplayFields } from './get-note-display-fields.util'
 
 export const getNoteCardFields = (
   note: NoteDto,
   columns: ColumnDto[],
   cardFieldDisplayCount: number | null,
+  mergeDateTimeFields: boolean,
+  mergedDateTitle: string
 ): NoteCardField[] => {
-  const visibleFields = columns
-    .filter((column) => !column.isHidden)
-    .sort((leftColumn, rightColumn) => leftColumn.sortOrder - rightColumn.sortOrder)
-    .map((column) => ({
-      columnId: column.id,
-      title: column.title,
-      type: column.type,
-      value: resolveNoteCardColumnValue(note, column),
-    }))
-    .filter(hasNoteCardFieldValue);
+  const visibleFields = getNoteDisplayFields(note, columns, {
+    includeDefaultHiddenFields: false,
+    mergeDateTimeFields,
+    mergedDateTitle,
+  }).filter(hasNoteCardFieldValue)
 
   if (cardFieldDisplayCount === null) {
-    return visibleFields;
+    return visibleFields
   }
 
-  return visibleFields.slice(0, cardFieldDisplayCount);
-};
+  return visibleFields.slice(0, cardFieldDisplayCount)
+}

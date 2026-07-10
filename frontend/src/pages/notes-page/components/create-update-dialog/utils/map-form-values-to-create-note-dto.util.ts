@@ -1,31 +1,31 @@
-import type { ColumnDto, CreateNoteDto } from '../../../../../types/api';
-import type { FormValues } from '../types/form-values';
+import type { ColumnDto, CreateNoteDto } from '../../../../../types/api'
+import type { FormValues } from '../types/form-values'
 
 export const mapFormValuesToCreateNoteDto = (
   columns: ColumnDto[],
-  formValues: FormValues,
+  formValues: FormValues
 ): CreateNoteDto => {
   const values = columns.reduce<NonNullable<CreateNoteDto['values']>>(
     (accumulator, column) => {
-      const value = formValues.values[column.id];
+      const value = formValues.values[column.id]
 
       if (column.type === 'image') {
         if (value) {
-          accumulator[column.id] = value;
+          accumulator[column.id] = value
         }
 
-        return accumulator;
+        return accumulator
       }
 
       if (typeof value !== 'string' || value.trim().length === 0) {
-        return accumulator;
+        return accumulator
       }
 
-      accumulator[column.id] = column.type === 'number' ? Number(value) : value;
-      return accumulator;
+      accumulator[column.id] = column.type === 'number' ? Number(value) : value
+      return accumulator
     },
-    {},
-  );
+    {}
+  )
 
-  return Object.keys(values).length > 0 ? { values } : {};
-};
+  return Object.keys(values).length > 0 ? { values } : {}
+}

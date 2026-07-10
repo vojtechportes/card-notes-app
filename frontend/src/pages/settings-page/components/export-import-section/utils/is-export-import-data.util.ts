@@ -1,12 +1,14 @@
-import type { ExportImportDataDto } from '../../../../../types/api';
+import type { ExportImportDataDto } from '../../../../../types/api'
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null;
-};
+  return typeof value === 'object' && value !== null
+}
 
-export const isExportImportData = (value: unknown): value is ExportImportDataDto => {
+export const isExportImportData = (
+  value: unknown
+): value is ExportImportDataDto => {
   if (!isRecord(value)) {
-    return false;
+    return false
   }
 
   return (
@@ -15,5 +17,5 @@ export const isExportImportData = (value: unknown): value is ExportImportDataDto
     Array.isArray(value.columns) &&
     isRecord(value.generalSettings) &&
     Array.isArray(value.notes)
-  );
-};
+  )
+}

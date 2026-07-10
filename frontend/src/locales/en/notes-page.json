@@ -40,6 +40,9 @@
       "title": "No notes to show",
       "description": "Add a note or adjust your search to populate the masonry list."
     },
+    "fields": {
+      "lastUpdatedAt": "Last updated at"
+    },
     "card": {
       "noVisibleFields": "No visible note fields.",
       "imagePreviewUnavailable": "Image preview unavailable.",

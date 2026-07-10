@@ -1,5 +1,5 @@
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CloseIcon from '@mui/icons-material/Close'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import {
   Box,
   Button,
@@ -11,7 +11,7 @@ import {
   IconButton,
   Stack,
   Typography,
-} from '@mui/material';
+} from '@mui/material'
 import {
   useCallback,
   useEffect,
@@ -19,130 +19,130 @@ import {
   useRef,
   useState,
   type PropsWithChildren,
-} from 'react';
-import { useTranslation } from 'react-i18next';
-import { ConfirmationContext } from './confirmation-context';
+} from 'react'
+import { useTranslation } from 'react-i18next'
+import { ConfirmationContext } from './confirmation-context'
 import type {
   ChoiceConfirmationOptions,
   ConfirmationOptions,
   ConfirmationService,
-} from './types/confirmation-options';
+} from './types/confirmation-options'
 
 type ConfirmRequest = {
-  type: 'confirm';
-  options: ConfirmationOptions;
-  resolve: (value: boolean) => void;
-};
+  type: 'confirm'
+  options: ConfirmationOptions
+  resolve: (value: boolean) => void
+}
 
 type ChoiceRequest = {
-  type: 'choice';
-  options: ChoiceConfirmationOptions;
-  resolve: (value: string | null) => void;
-};
+  type: 'choice'
+  options: ChoiceConfirmationOptions
+  resolve: (value: string | null) => void
+}
 
-type ConfirmationRequest = ConfirmRequest | ChoiceRequest;
+type ConfirmationRequest = ConfirmRequest | ChoiceRequest
 
 const getChoiceButtonVariant = (destructive?: boolean) => {
-  return destructive ? 'contained' : 'outlined';
-};
+  return destructive ? 'contained' : 'outlined'
+}
 
 export const ConfirmationProvider = ({ children }: PropsWithChildren) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const [activeRequest, setActiveRequest] =
-    useState<ConfirmationRequest | null>(null);
-  const queuedRequestsRef = useRef<ConfirmationRequest[]>([]);
-  const activeRequestRef = useRef<ConfirmationRequest | null>(null);
+    useState<ConfirmationRequest | null>(null)
+  const queuedRequestsRef = useRef<ConfirmationRequest[]>([])
+  const activeRequestRef = useRef<ConfirmationRequest | null>(null)
 
   useEffect(() => {
-    activeRequestRef.current = activeRequest;
-  }, [activeRequest]);
+    activeRequestRef.current = activeRequest
+  }, [activeRequest])
 
   useEffect(() => {
     return () => {
-      const active = activeRequestRef.current;
+      const active = activeRequestRef.current
 
       if (active?.type === 'confirm') {
-        active.resolve(false);
+        active.resolve(false)
       }
 
       if (active?.type === 'choice') {
-        active.resolve(null);
+        active.resolve(null)
       }
 
       queuedRequestsRef.current.forEach((request) => {
         if (request.type === 'confirm') {
-          request.resolve(false);
-          return;
+          request.resolve(false)
+          return
         }
 
-        request.resolve(null);
-      });
-      queuedRequestsRef.current = [];
-    };
-  }, []);
+        request.resolve(null)
+      })
+      queuedRequestsRef.current = []
+    }
+  }, [])
 
   const showNextQueuedRequest = useCallback(() => {
     setActiveRequest((currentRequest) => {
       if (currentRequest) {
-        return currentRequest;
+        return currentRequest
       }
 
-      return queuedRequestsRef.current.shift() ?? null;
-    });
-  }, []);
+      return queuedRequestsRef.current.shift() ?? null
+    })
+  }, [])
 
   const enqueueRequest = useCallback(
     (request: ConfirmationRequest) => {
-      queuedRequestsRef.current.push(request);
-      showNextQueuedRequest();
+      queuedRequestsRef.current.push(request)
+      showNextQueuedRequest()
     },
-    [showNextQueuedRequest],
-  );
+    [showNextQueuedRequest]
+  )
 
   const closeActiveRequest = useCallback(() => {
-    setActiveRequest(null);
-  }, []);
+    setActiveRequest(null)
+  }, [])
 
   useEffect(() => {
     if (!activeRequest) {
-      showNextQueuedRequest();
+      showNextQueuedRequest()
     }
-  }, [activeRequest, showNextQueuedRequest]);
+  }, [activeRequest, showNextQueuedRequest])
 
   const handleCancel = useCallback(() => {
     if (!activeRequest) {
-      return;
+      return
     }
 
     if (activeRequest.type === 'confirm') {
-      activeRequest.resolve(false);
+      activeRequest.resolve(false)
     } else {
-      activeRequest.resolve(null);
+      activeRequest.resolve(null)
     }
 
-    closeActiveRequest();
-  }, [activeRequest, closeActiveRequest]);
+    closeActiveRequest()
+  }, [activeRequest, closeActiveRequest])
 
   const handleConfirm = useCallback(() => {
     if (activeRequest?.type !== 'confirm') {
-      return;
+      return
     }
 
-    activeRequest.resolve(true);
-    closeActiveRequest();
-  }, [activeRequest, closeActiveRequest]);
+    activeRequest.resolve(true)
+    closeActiveRequest()
+  }, [activeRequest, closeActiveRequest])
 
   const handleChoice = useCallback(
     (value: string) => {
       if (activeRequest?.type !== 'choice') {
-        return;
+        return
       }
 
-      activeRequest.resolve(value);
-      closeActiveRequest();
+      activeRequest.resolve(value)
+      closeActiveRequest()
     },
-    [activeRequest, closeActiveRequest],
-  );
+    [activeRequest, closeActiveRequest]
+  )
 
   const confirmation = useMemo<ConfirmationService>(
     () => ({
@@ -152,8 +152,8 @@ export const ConfirmationProvider = ({ children }: PropsWithChildren) => {
             type: 'confirm',
             options,
             resolve,
-          });
-        });
+          })
+        })
       },
       choose: (options) => {
         return new Promise((resolve) => {
@@ -161,24 +161,25 @@ export const ConfirmationProvider = ({ children }: PropsWithChildren) => {
             type: 'choice',
             options,
             resolve: resolve as (value: string | null) => void,
-          });
-        });
+          })
+        })
       },
     }),
-    [enqueueRequest],
-  );
+    [enqueueRequest]
+  )
 
   const cancelLabel =
-    activeRequest?.options.cancelLabel ?? t('confirmation.actions.cancel');
-  const title = activeRequest?.options.title;
-  const description = activeRequest?.options.description;
+    activeRequest?.options.cancelLabel ?? t('confirmation.actions.cancel')
+  const title = activeRequest?.options.title
+  const description = activeRequest?.options.description
   const confirmLabel =
     activeRequest?.type === 'confirm'
-      ? activeRequest.options.confirmLabel ?? t('confirmation.actions.confirm')
-      : undefined;
+      ? (activeRequest.options.confirmLabel ??
+        t('confirmation.actions.confirm'))
+      : undefined
   const destructive =
     activeRequest?.type === 'confirm' &&
-    activeRequest.options.variant === 'destructive';
+    activeRequest.options.variant === 'destructive'
 
   return (
     <ConfirmationContext.Provider value={confirmation}>
@@ -261,5 +262,5 @@ export const ConfirmationProvider = ({ children }: PropsWithChildren) => {
         </DialogActions>
       </Dialog>
     </ConfirmationContext.Provider>
-  );
-};
+  )
+}

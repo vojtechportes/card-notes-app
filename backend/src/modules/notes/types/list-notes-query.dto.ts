@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { NoteSortDirectionEnum } from './note-sort-direction-enum';
-import { NoteSortFieldEnum } from './note-sort-field-enum';
+import { ApiPropertyOptional } from '@nestjs/swagger'
+import { NoteSortDirectionEnum } from './note-sort-direction-enum'
+import { NoteSortFieldEnum } from './note-sort-field-enum'
 
 export class ListNotesQueryDto {
   @ApiPropertyOptional({
@@ -8,12 +8,12 @@ export class ListNotesQueryDto {
     default: NoteSortFieldEnum.CreatedAt,
     description: 'Note timestamp field used for sorting.',
   })
-  sortBy?: NoteSortFieldEnum;
+  sortBy?: NoteSortFieldEnum
 
   @ApiPropertyOptional({
     enum: NoteSortDirectionEnum,
     default: NoteSortDirectionEnum.Desc,
     description: 'Sort direction for notes.',
   })
-  sortDirection?: NoteSortDirectionEnum;
+  sortDirection?: NoteSortDirectionEnum
 }

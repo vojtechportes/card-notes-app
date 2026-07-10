@@ -1,10 +1,14 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { format, parseISO } from 'date-fns';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import '../../../../i18n';
-import { DATE_TIME_FORMAT } from '../../../../constants/date-time-format';
-import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../../../types/api';
-import { NoteCardList } from './note-card-list';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { format, parseISO } from 'date-fns'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import '../../../../i18n'
+import { DATE_TIME_FORMAT } from '../../../../constants/date-time-format'
+import type {
+  ColumnDto,
+  GeneralSettingsDto,
+  NoteDto,
+} from '../../../../types/api'
+import { NoteCardList } from './note-card-list'
 
 const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
   return {
@@ -19,17 +23,18 @@ const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
     type: 'text',
     updatedAt: '2026-07-07T10:00:00.000Z',
     ...overrides,
-  };
-};
+  }
+}
 
 const generalSettings: GeneralSettingsDto = {
   cardFieldDisplayCount: null,
   textTruncationLength: null,
-};
+  mergeDateTimeFields: null,
+}
 
 afterEach(() => {
-  cleanup();
-});
+  cleanup()
+})
 
 describe('NoteCardList', () => {
   it('renders cards in a linear field flow with separators, truncated text, external links, and wide images', () => {
@@ -46,12 +51,17 @@ describe('NoteCardList', () => {
         'link-column': 'https://example.com/very/long/reference',
         'text-column': 'Alpha note with a long summary',
       },
-    };
+    }
 
     render(
       <NoteCardList
         columns={[
-          createColumn({ id: 'text-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
+          createColumn({
+            id: 'text-column',
+            name: 'summary',
+            sortOrder: 0,
+            title: 'Summary',
+          }),
           createColumn({
             id: 'link-column',
             name: 'source',
@@ -72,34 +82,47 @@ describe('NoteCardList', () => {
           textTruncationLength: 12,
         }}
         notes={[note]}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByRole('heading', { name: 'Summary' })).toBeTruthy();
-    expect(screen.getByText('Alpha not...')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Source' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeTruthy();
-    expect(screen.getAllByRole('separator')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Summary' })).toBeTruthy()
+    expect(screen.getByText('Alpha not...')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Source' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeTruthy()
+    expect(screen.getAllByRole('separator')).toHaveLength(2)
 
-    const sourceLink = screen.getByRole('link', { name: 'https://e...' });
-    expect(sourceLink.getAttribute('href')).toBe('https://example.com/very/long/reference');
-    expect(sourceLink.getAttribute('target')).toBe('_blank');
+    const sourceLink = screen.getByRole('link', { name: 'https://e...' })
+    expect(sourceLink.getAttribute('href')).toBe(
+      'https://example.com/very/long/reference'
+    )
+    expect(sourceLink.getAttribute('target')).toBe('_blank')
 
-    const image = screen.getByRole('img', { name: 'Invoice image' });
-    expect(image.getAttribute('src')).toBe('data:image/png;base64,abc123');
-    expect(screen.getByText('invoice.png')).toBeTruthy();
-  });
+    const image = screen.getByRole('img', { name: 'Invoice image' })
+    expect(image.getAttribute('src')).toBe('data:image/png;base64,abc123')
+    expect(screen.getByText('invoice.png')).toBeTruthy()
+  })
 
   it('limits the rendered card fields to the configured count', () => {
     render(
       <NoteCardList
         columns={[
-          createColumn({ id: 'summary-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
-          createColumn({ id: 'owner-column', name: 'owner', sortOrder: 1, title: 'Owner' }),
+          createColumn({
+            id: 'summary-column',
+            name: 'summary',
+            sortOrder: 0,
+            title: 'Summary',
+          }),
+          createColumn({
+            id: 'owner-column',
+            name: 'owner',
+            sortOrder: 1,
+            title: 'Owner',
+          }),
         ]}
         generalSettings={{
           cardFieldDisplayCount: 1,
           textTruncationLength: null,
+          mergeDateTimeFields: false,
         }}
         notes={[
           {
@@ -112,15 +135,62 @@ describe('NoteCardList', () => {
             },
           },
         ]}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByRole('heading', { name: 'Summary' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'Owner' })).toBeNull();
-  });
+    expect(screen.getByRole('heading', { name: 'Summary' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Owner' })).toBeNull()
+  })
+
+  it('merges created and updated timestamps into one card field when enabled', () => {
+    const expectedTimestamp = format(
+      parseISO('2026-07-07T12:00:00.000Z'),
+      DATE_TIME_FORMAT
+    )
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            id: 'created-column',
+            isDefault: true,
+            name: 'createdAt',
+            sortOrder: 0,
+            title: 'Created at',
+            type: 'date',
+          }),
+          createColumn({
+            id: 'updated-column',
+            isDefault: true,
+            name: 'updatedAt',
+            sortOrder: 1,
+            title: 'Updated at',
+            type: 'date',
+          }),
+        ]}
+        generalSettings={{
+          ...generalSettings,
+          mergeDateTimeFields: true,
+        }}
+        notes={[
+          {
+            createdAt: '2026-07-07T10:00:00.000Z',
+            id: 'note-1',
+            updatedAt: '2026-07-07T12:00:00.000Z',
+            values: {},
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: 'Last updated at' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Created at' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Updated at' })).toBeNull()
+    expect(screen.getByText(expectedTimestamp)).toBeTruthy()
+  })
 
   it('calls the edit handler when a card edit action is pressed', () => {
-    const handleEditNote = vi.fn();
+    const handleEditNote = vi.fn()
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
@@ -128,26 +198,31 @@ describe('NoteCardList', () => {
       values: {
         'summary-column': 'Alpha note',
       },
-    };
+    }
 
     render(
       <NoteCardList
         columns={[
-          createColumn({ id: 'summary-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
+          createColumn({
+            id: 'summary-column',
+            name: 'summary',
+            sortOrder: 0,
+            title: 'Summary',
+          }),
         ]}
         generalSettings={generalSettings}
         notes={[note]}
         onEditNote={handleEditNote}
-      />,
-    );
+      />
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    expect(handleEditNote).toHaveBeenCalledWith(note);
-  });
+    expect(handleEditNote).toHaveBeenCalledWith(note)
+  })
 
   it('calls the delete handler when a card delete action is pressed', () => {
-    const handleDeleteNote = vi.fn();
+    const handleDeleteNote = vi.fn()
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
@@ -155,29 +230,34 @@ describe('NoteCardList', () => {
       values: {
         'summary-column': 'Alpha note',
       },
-    };
+    }
 
     render(
       <NoteCardList
         columns={[
-          createColumn({ id: 'summary-column', name: 'summary', sortOrder: 0, title: 'Summary' }),
+          createColumn({
+            id: 'summary-column',
+            name: 'summary',
+            sortOrder: 0,
+            title: 'Summary',
+          }),
         ]}
         generalSettings={generalSettings}
         notes={[note]}
         onDeleteNote={handleDeleteNote}
-      />,
-    );
+      />
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(handleDeleteNote).toHaveBeenCalledWith(note);
-  });
+    expect(handleDeleteNote).toHaveBeenCalledWith(note)
+  })
 
   it('formats default timestamp columns and shows an empty state when there are no notes', () => {
     const expectedTimestamp = format(
       parseISO('2026-07-07T10:00:00.000Z'),
-      DATE_TIME_FORMAT,
-    );
+      DATE_TIME_FORMAT
+    )
 
     const { rerender } = render(
       <NoteCardList
@@ -200,22 +280,22 @@ describe('NoteCardList', () => {
             values: {},
           },
         ]}
-      />,
-    );
+      />
+    )
 
-    expect(screen.getByText(expectedTimestamp)).toBeTruthy();
+    expect(screen.getByText(expectedTimestamp)).toBeTruthy()
 
     rerender(
-      <NoteCardList
-        columns={[]}
-        generalSettings={generalSettings}
-        notes={[]}
-      />,
-    );
+      <NoteCardList columns={[]} generalSettings={generalSettings} notes={[]} />
+    )
 
-    expect(screen.getByRole('heading', { name: 'No notes to show' })).toBeTruthy();
     expect(
-      screen.getByText('Add a note or adjust your search to populate the masonry list.'),
-    ).toBeTruthy();
-  });
-});
+      screen.getByRole('heading', { name: 'No notes to show' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Add a note or adjust your search to populate the masonry list.'
+      )
+    ).toBeTruthy()
+  })
+})

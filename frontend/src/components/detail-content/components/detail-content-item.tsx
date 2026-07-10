@@ -5,15 +5,15 @@ import {
   useMediaQuery,
   useTheme,
   type Theme,
-} from '@mui/material';
-import { useMemo, type FC, type PropsWithChildren, type ReactNode } from 'react';
+} from '@mui/material'
+import { useMemo, type FC, type PropsWithChildren, type ReactNode } from 'react'
 
 export type DetailContentItemProps = PropsWithChildren<{
-  label: ReactNode;
-  sx?: SxProps<Theme>;
-  highlighted?: boolean;
-  canCopy?: boolean;
-}>;
+  label: ReactNode
+  sx?: SxProps<Theme>
+  highlighted?: boolean
+  canCopy?: boolean
+}>
 
 export const DetailContentItem: FC<DetailContentItemProps> = ({
   children,
@@ -21,15 +21,15 @@ export const DetailContentItem: FC<DetailContentItemProps> = ({
   sx,
   highlighted,
 }) => {
-  const { breakpoints } = useTheme();
-  const upSm = useMediaQuery(breakpoints.up('sm'));
+  const { breakpoints } = useTheme()
+  const upSm = useMediaQuery(breakpoints.up('sm'))
 
   const isChildrenStringOrNumber = useMemo(
     () =>
       (typeof children === 'string' && Boolean(children.length)) ||
       typeof children === 'number',
-    [children],
-  );
+    [children]
+  )
 
   return (
     <Box
@@ -62,10 +62,5 @@ export const DetailContentItem: FC<DetailContentItemProps> = ({
         )) || <Typography>-</Typography>}
       </Box>
     </Box>
-  );
-};
-
-
-
-
-
+  )
+}
