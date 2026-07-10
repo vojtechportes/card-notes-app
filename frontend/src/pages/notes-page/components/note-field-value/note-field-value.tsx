@@ -1,6 +1,7 @@
 import { Box, Stack, Typography } from '@mui/material'
 import type { NoteCardField } from '../../types/note-card-field'
 import { formatNoteDateValue } from '../../utils/format-note-date-value.util'
+import { getSafeExternalLink } from '../../utils/get-safe-external-link.util'
 import { hasRenderableNoteCardValue } from '../../utils/has-renderable-note-card-value.util'
 import { isImageNoteValue } from '../../utils/is-image-note-value.util'
 import { resolveNoteImageSource } from '../../utils/resolve-note-image-source.util'
@@ -74,20 +75,31 @@ export const NoteFieldValue = ({
   }
 
   if (field.type === 'link' && typeof field.value === 'string') {
+    const safeExternalLink = getSafeExternalLink(field.value)
+    const linkLabel = truncateNoteText(field.value, textTruncationLength)
+
+    if (safeExternalLink) {
+      return (
+        <Typography
+          component="a"
+          href={safeExternalLink}
+          rel="noreferrer noopener"
+          sx={{
+            color: 'primary.main',
+            overflowWrap: 'anywhere',
+            textDecoration: 'none',
+          }}
+          target="_blank"
+          variant="body2"
+        >
+          {linkLabel}
+        </Typography>
+      )
+    }
+
     return (
-      <Typography
-        component="a"
-        href={field.value}
-        rel="noreferrer noopener"
-        sx={{
-          color: 'primary.main',
-          overflowWrap: 'anywhere',
-          textDecoration: 'none',
-        }}
-        target="_blank"
-        variant="body2"
-      >
-        {truncateNoteText(field.value, textTruncationLength)}
+      <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">
+        {linkLabel}
       </Typography>
     )
   }

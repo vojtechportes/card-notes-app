@@ -6,11 +6,19 @@ import { fileURLToPath } from 'node:url'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const workspaceRoot = path.resolve(dirname, '..', '..')
+const packagedFrontendEntryPath = path.join(
+  workspaceRoot,
+  'frontend',
+  'dist',
+  'index.html'
+)
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
 const backendPort = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? '3000')
 const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
 const backendStartupTimeoutMs = 15000
 const backendPollIntervalMs = 250
+const frontendDevServerUrl = process.env.FRONTEND_DEV_SERVER_URL
+const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
 let backendProcess: ChildProcess | null = null
 let mainWindow: BrowserWindow | null = null
@@ -80,6 +88,7 @@ async function createMainWindow(): Promise<void> {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   })
 
@@ -87,22 +96,69 @@ async function createMainWindow(): Promise<void> {
     mainWindow = null
   })
 
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isAllowedApplicationUrl(url)) {
+      return
+    }
+
+    event.preventDefault()
+    void openExternalUrl(url)
+  })
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
+    void openExternalUrl(url)
 
     return { action: 'deny' }
   })
-
-  const frontendDevServerUrl = process.env.FRONTEND_DEV_SERVER_URL
 
   if (frontendDevServerUrl) {
     await mainWindow.loadURL(frontendDevServerUrl)
     return
   }
 
-  await mainWindow.loadFile(
-    path.join(workspaceRoot, 'frontend', 'dist', 'index.html')
-  )
+  await mainWindow.loadFile(packagedFrontendEntryPath)
+}
+
+function isAllowedApplicationUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url)
+
+    if (frontendDevServerUrl) {
+      return parsedUrl.origin === new URL(frontendDevServerUrl).origin
+    }
+
+    if (parsedUrl.protocol !== 'file:') {
+      return false
+    }
+
+    return path.normalize(fileURLToPath(parsedUrl)) === packagedFrontendEntryPath
+  } catch {
+    return false
+  }
+}
+
+async function openExternalUrl(url: string): Promise<void> {
+  const safeExternalUrl = getSafeExternalUrl(url)
+
+  if (!safeExternalUrl) {
+    return
+  }
+
+  await shell.openExternal(safeExternalUrl)
+}
+
+function getSafeExternalUrl(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url)
+
+    if (!allowedExternalProtocols.has(parsedUrl.protocol)) {
+      return null
+    }
+
+    return parsedUrl.toString()
+  } catch {
+    return null
+  }
 }
 
 async function ensureBackendAvailable(): Promise<void> {

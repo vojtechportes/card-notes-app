@@ -102,6 +102,49 @@ describe('NoteCardList', () => {
     expect(screen.getByText('invoice.png')).toBeTruthy()
   })
 
+  it('renders unsafe links as text and suppresses remote image sources', () => {
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            id: 'link-column',
+            name: 'source',
+            sortOrder: 0,
+            title: 'Source',
+            type: 'link',
+          }),
+          createColumn({
+            id: 'image-column',
+            name: 'receipt',
+            sortOrder: 1,
+            title: 'Receipt',
+            type: 'image',
+          }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[
+          {
+            createdAt: '2026-07-07T10:00:00.000Z',
+            id: 'note-1',
+            updatedAt: '2026-07-07T12:00:00.000Z',
+            values: {
+              'image-column': {
+                fileName: 'blocked-image.png',
+                url: 'https://example.com/blocked-image.png',
+              },
+              'link-column': 'javascript:alert(1)',
+            },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.getByText('javascript:alert(1)')).toBeTruthy()
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.getByText('blocked-image.png')).toBeTruthy()
+  })
+
   it('limits the rendered card fields to the configured count', () => {
     render(
       <NoteCardList

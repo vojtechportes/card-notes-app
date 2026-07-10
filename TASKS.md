@@ -186,7 +186,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Start/connect to local backend.
   - Keep the app single-user and local-first.
 
-- [ ] T51. Handle external links and files safely
+- [x] T51. Handle external links and files safely
   - Open link columns in the system browser/new tab behavior appropriate for Electron.
   - Keep image handling local and safe.
 

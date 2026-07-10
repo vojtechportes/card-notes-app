@@ -9,15 +9,23 @@ export const resolveNoteImageSource = (
     return undefined
   }
 
-  if (typeof value.dataUrl === 'string' && value.dataUrl.trim().length > 0) {
-    return value.dataUrl
+  if (typeof value.dataUrl === 'string') {
+    const normalizedDataUrl = normalizeImageSource(value.dataUrl)
+
+    if (normalizedDataUrl) {
+      return normalizedDataUrl
+    }
   }
 
-  if (typeof value.url === 'string' && value.url.trim().length > 0) {
-    return value.url
+  if (typeof value.url === 'string') {
+    const normalizedUrl = normalizeImageSource(value.url)
+
+    if (normalizedUrl) {
+      return normalizedUrl
+    }
   }
 
-  if (typeof value.path === 'string' && value.path.trim().length > 0) {
+  if (typeof value.path === 'string') {
     return normalizeImageSource(value.path)
   }
 
