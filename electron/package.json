@@ -7,13 +7,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "npm run build && electron dist/main.js",
-    "lint": "tsc -p tsconfig.json --noEmit"
-  },
-  "dependencies": {
-    "electron": "^32.0.0"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "package": "electron-builder --config electron-builder.json --win nsis --publish never",
+    "package:dir": "electron-builder --config electron-builder.json --win dir --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "electron": "32.0.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.8.0"
-  }
+  },
+  "description": "Electron shell for the Card Notes App.",
+  "author": "Card Notes App"
 }

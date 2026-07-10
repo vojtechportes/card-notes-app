@@ -1,0 +1,42 @@
+{
+  "appId": "com.cardnotes.app",
+  "productName": "Card Notes App",
+  "artifactName": "card-notes-app-${version}-setup.${ext}",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "../backend/dist",
+      "to": "backend/dist"
+    },
+    {
+      "from": "../frontend/dist",
+      "to": "frontend/dist"
+    },
+    {
+      "from": "../node_modules",
+      "to": "node_modules"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  }
+}

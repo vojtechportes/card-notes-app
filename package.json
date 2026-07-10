@@ -17,7 +17,10 @@
     "dev:electron": "npm run dev --workspace electron",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "sync:api": "npm run sync:api --workspace frontend"
+    "sync:api": "npm run sync:api --workspace frontend",
+    "package": "npm run build && npm run package:electron",
+    "package:electron": "npm run package --workspace electron",
+    "package:dir": "npm run build && npm run package:dir --workspace electron"
   },
   "engines": {
     "node": ">=22"
