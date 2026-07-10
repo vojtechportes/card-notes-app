@@ -1,4 +1,4 @@
-﻿import 'reflect-metadata'
+import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app/app.module'
@@ -40,7 +40,7 @@ async function bootstrap(): Promise<void> {
 
   SwaggerModule.setup(`${appConfig.globalApiPrefix}/docs`, app, swaggerDocument)
 
-  await app.listen(appConfig.port)
+  await app.listen(appConfig.port, appConfig.host)
 }
 
 void bootstrap()

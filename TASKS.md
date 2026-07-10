@@ -181,7 +181,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 
 ## Phase 5: Electron Integration
 
-- [ ] T50. Wire Electron main process
+- [x] T50. Wire Electron main process
   - Launch frontend window.
   - Start/connect to local backend.
   - Keep the app single-user and local-first.
