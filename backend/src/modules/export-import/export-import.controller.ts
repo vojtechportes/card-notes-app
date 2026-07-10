@@ -22,6 +22,21 @@ import { ImportResultDto } from './types/import-result.dto'
 
 const importFileFieldName = 'file'
 const importFileSizeLimitInBytes = 50 * 1024 * 1024
+const jsonMimeTypes = new Set([
+  'application/json',
+  'text/json',
+  'application/octet-stream',
+])
+const spreadsheetMimeTypes = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream',
+])
+
+interface ImportFile {
+  buffer?: Buffer
+  mimetype?: string
+  originalname?: string
+}
 
 @ApiTags('export-import')
 @Controller('export-import')
@@ -51,7 +66,7 @@ export class ExportImportController {
     })
   )
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Import exported application data from a JSON file' })
+  @ApiOperation({ summary: 'Import application data from a JSON or XLSX file' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -68,15 +83,17 @@ export class ExportImportController {
     description: 'Import result summary.',
     type: ImportResultDto,
   })
-  importData(
-    @UploadedFile() file?: { buffer?: Buffer; mimetype?: string }
-  ): ImportResultDto {
+  async importData(@UploadedFile() file?: ImportFile): Promise<ImportResultDto> {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Import file is required.')
     }
 
-    if (file.mimetype && !this.isJsonMimeType(file.mimetype)) {
-      throw new BadRequestException('Import file must be a JSON file.')
+    if (this.isSpreadsheetImportFile(file)) {
+      return this.exportImportService.importSpreadsheetData(file.buffer)
+    }
+
+    if (!this.isJsonImportFile(file)) {
+      throw new BadRequestException('Import file must be a JSON or XLSX file.')
     }
 
     let payload: unknown
@@ -90,11 +107,22 @@ export class ExportImportController {
     return this.exportImportService.importData(payload)
   }
 
-  private isJsonMimeType(mimeType: string): boolean {
-    return (
-      mimeType === 'application/json' ||
-      mimeType === 'text/json' ||
-      mimeType === 'application/octet-stream'
+  private isJsonImportFile(file: ImportFile): boolean {
+    const mimeType = file.mimetype?.toLowerCase()
+    const originalName = file.originalname?.toLowerCase() ?? ''
+
+    return Boolean(
+      (mimeType && jsonMimeTypes.has(mimeType)) || originalName.endsWith('.json')
+    )
+  }
+
+  private isSpreadsheetImportFile(file: ImportFile): boolean {
+    const mimeType = file.mimetype?.toLowerCase()
+    const originalName = file.originalname?.toLowerCase() ?? ''
+
+    return Boolean(
+      (mimeType && spreadsheetMimeTypes.has(mimeType)) ||
+        originalName.endsWith('.xlsx')
     )
   }
 }

@@ -149,7 +149,7 @@ export const ExportImportSection = () => {
               ? t('settings.exportImport.actions.changeFile')
               : t('settings.exportImport.actions.selectFile')}
             <input
-              accept="application/json,.json"
+              accept=".json,application/json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               aria-label={t('settings.exportImport.fields.fileInput')}
               hidden
               onChange={handleFileChange}

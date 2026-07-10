@@ -13,7 +13,7 @@
       },
       "exportImport": {
         "title": "Export / Import",
-        "description": "Move your notes data in and out as JSON."
+        "description": "Move your notes data in and out as JSON, or append notes from an XLSX worksheet."
       },
       "dangerZone": {
         "title": "Danger Zone",
@@ -48,21 +48,21 @@
       }
     },
     "exportImport": {
-      "summary": "Download a full JSON backup or import a previous export. Imported notes are appended instead of replacing your current data.",
+      "summary": "Download a full JSON backup or import data from a previous JSON export or an XLSX worksheet. XLSX imports map row headers to existing column names, skip unknown columns, and append imported notes instead of replacing your current data.",
       "fields": {
-        "fileInput": "JSON import file"
+        "fileInput": "Import file"
       },
       "hints": {
-        "selectFile": "Select a JSON export file to import. Existing notes stay in place and imported notes are appended.",
-        "noFile": "Choose a JSON file before starting an import."
+        "selectFile": "Select a JSON export or XLSX file to import. Existing notes stay in place and imported notes are appended.",
+        "noFile": "Choose a JSON or XLSX file before starting an import."
       },
       "actions": {
         "export": "Export JSON",
         "exporting": "Exporting...",
-        "selectFile": "Choose JSON file",
+        "selectFile": "Choose import file",
         "changeFile": "Choose a different file",
-        "import": "Import JSON",
-        "importing": "Importing..."
+        "import": "Import file",
+        "importing": "Importing file..."
       },
       "status": {
         "fileSelected": "Selected file: {{fileName}}",
