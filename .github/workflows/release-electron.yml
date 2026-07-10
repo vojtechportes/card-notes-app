@@ -53,11 +53,73 @@ jobs:
             throw 'GH_TOKEN is missing.'
           }
 
-      - name: Build and publish Electron app
+      - name: Build Electron release artifacts
         run: npm run package:release
 
       - name: Verify local updater release artifacts
         run: npm run verify:release-artifacts --workspace electron
+
+      - name: Upload GitHub release assets
+        shell: powershell
+        run: |
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          $releaseUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ github.event.release.id }}"
+          $release = Invoke-RestMethod -Headers $headers -Uri $releaseUri
+          $uploadBaseUri = $release.upload_url -replace '\{\?name,label\}$', ''
+          $releaseRoot = Join-Path $PWD 'electron\release'
+          $latestYmlPath = Join-Path $releaseRoot 'latest.yml'
+
+          if (-not (Test-Path $latestYmlPath)) {
+            throw "The updater manifest was not found at $latestYmlPath"
+          }
+
+          $latestYmlContent = Get-Content $latestYmlPath -Raw
+          $manifestPathMatch = [regex]::Match($latestYmlContent, '^path:\s+(.+)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+
+          if (-not $manifestPathMatch.Success) {
+            throw 'The updater manifest does not include a path entry for the installer.'
+          }
+
+          $installerFileName = $manifestPathMatch.Groups[1].Value.Trim()
+          $assetPaths = @(
+            $latestYmlPath,
+            (Join-Path $releaseRoot $installerFileName),
+            (Join-Path $releaseRoot "$installerFileName.blockmap")
+          )
+
+          foreach ($assetPath in $assetPaths) {
+            if (-not (Test-Path $assetPath)) {
+              throw "Expected release asset not found: $assetPath"
+            }
+          }
+
+          $existingAssets = @{}
+          foreach ($asset in $release.assets) {
+            $existingAssets[$asset.name] = $asset.id
+          }
+
+          foreach ($assetPath in $assetPaths) {
+            $assetName = Split-Path $assetPath -Leaf
+
+            if ($existingAssets.ContainsKey($assetName)) {
+              $deleteUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/assets/$($existingAssets[$assetName])"
+              Invoke-RestMethod -Headers $headers -Uri $deleteUri -Method Delete
+            }
+
+            $uploadHeaders = @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              Accept = 'application/vnd.github+json'
+              'Content-Type' = 'application/octet-stream'
+              'X-GitHub-Api-Version' = '2022-11-28'
+            }
+            $uploadUri = "$uploadBaseUri?name=$([uri]::EscapeDataString($assetName))"
+            Invoke-RestMethod -Headers $uploadHeaders -Uri $uploadUri -Method Post -InFile $assetPath | Out-Null
+          }
 
       - name: Verify GitHub release updater assets
         shell: powershell

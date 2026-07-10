@@ -10,7 +10,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepare:backend-runtime": "node ./scripts/prepare-backend-runtime.mjs",
     "package": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
-    "package:release": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish always",
+    "package:release": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
     "package:dir": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never",
     "test": "tsx --test test/**/*.test.ts",
     "verify:release-artifacts": "node ./scripts/verify-release-artifacts.mjs"
