@@ -5,7 +5,7 @@ import { getExportData, importData } from './requests'
 
 const apiClientMock = vi.hoisted(() => ({
   get: vi.fn(),
-  post: vi.fn(),
+  postForm: vi.fn(),
 }))
 
 vi.mock('../../utils/api-client', () => ({
@@ -52,18 +52,10 @@ describe('export-import requests', () => {
     })
   })
 
-  it('imports app data', () => {
-    const payload: ExportImportDataDto = {
-      columns: [],
-      exportedAt: '2026-07-08T10:00:00.000Z',
-      generalSettings: {
-        cardFieldDisplayCount: 3,
-        textTruncationLength: 120,
-        mergeDateTimeFields: false,
-      },
-      notes: [],
-      version: 1,
-    }
+  it('imports app data as multipart form data', () => {
+    const file = new File(['{"version":1}'], 'backup.json', {
+      type: 'application/json',
+    })
     const response = Promise.resolve(
       createResponse<ImportResultDto>({
         importedColumns: 0,
@@ -71,14 +63,14 @@ describe('export-import requests', () => {
         importedNotes: 0,
       })
     )
-    apiClientMock.post.mockReturnValue(response)
+    apiClientMock.postForm.mockReturnValue(response)
 
-    const result = importData(payload)
+    const result = importData(file)
 
     expect(result).toBe(response)
-    expect(apiClientMock.post).toHaveBeenCalledWith(
+    expect(apiClientMock.postForm).toHaveBeenCalledWith(
       '/export-import/import',
-      payload
+      { file }
     )
   })
 })

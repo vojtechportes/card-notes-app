@@ -346,7 +346,9 @@ describe('settings mutations', () => {
   })
 
   it('imports app data and invalidates settings and notes queries', async () => {
-    const payload = createExportImportDataDto()
+    const payload = new File([JSON.stringify(createExportImportDataDto())], 'backup.json', {
+      type: 'application/json',
+    })
     const importResult = createImportResultDto()
     vi.mocked(importData).mockResolvedValue(createResponse(importResult))
     const queryClient = createTestQueryClient()
@@ -394,3 +396,4 @@ describe('settings mutations', () => {
     })
   })
 })
+

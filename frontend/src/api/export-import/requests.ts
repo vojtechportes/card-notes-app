@@ -11,7 +11,9 @@ export const getExportData = (
 }
 
 export const importData = (
-  data: ExportImportDataDto
+  file: File
 ): Promise<AxiosResponse<ImportResultDto>> => {
-  return apiClient.post<ImportResultDto>('/export-import/import', data)
+  return apiClient.postForm<ImportResultDto>('/export-import/import', {
+    file,
+  })
 }
