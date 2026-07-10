@@ -237,6 +237,60 @@ test('guards overlapping updater commands before electron-updater emits later ev
   await firstDownloadPromise
 })
 
+test('keeps silent updater failures quiet while preserving the prior state', async () => {
+  const client = new FakeUpdaterClient()
+  const states: UpdaterState[] = []
+  const updaterService = createUpdaterService({
+    client,
+    currentVersion: '1.0.3',
+    isEnabled: true,
+    onStateChange: (state) => {
+      states.push(state)
+    },
+  })
+
+  client.checkForUpdatesHandler = async () => {
+    throw new Error('Feed is unavailable.')
+  }
+
+  const result = await updaterService.checkForUpdatesSilently()
+
+  assert.equal(result.accepted, false)
+  assert.equal(result.reason, null)
+  assert.deepEqual(updaterService.getState(), {
+    currentVersion: '1.0.3',
+    kind: 'idle',
+  })
+  assert.deepEqual(states, [])
+})
+
+test('ignores silent updater error events without surfacing an error state', async () => {
+  const client = new FakeUpdaterClient()
+  const states: UpdaterState[] = []
+  const updaterService = createUpdaterService({
+    client,
+    currentVersion: '1.0.3',
+    isEnabled: true,
+    onStateChange: (state) => {
+      states.push(state)
+    },
+  })
+
+  client.checkForUpdatesHandler = async () => {
+    client.emit('error', new Error('Feed is unavailable.'))
+  }
+
+  const result = await updaterService.checkForUpdatesSilently()
+
+  assert.equal(result.accepted, true)
+  assert.equal(result.reason, null)
+  assert.deepEqual(updaterService.getState(), {
+    currentVersion: '1.0.3',
+    kind: 'idle',
+  })
+  assert.deepEqual(states, [])
+})
+
 test('guards invalid commands and captures updater errors', async () => {
   const client = new FakeUpdaterClient()
   const updaterService = createUpdaterService({
@@ -268,3 +322,4 @@ test('guards invalid commands and captures updater errors', async () => {
     update: null,
   })
 })
+
