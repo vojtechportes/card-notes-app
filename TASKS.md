@@ -194,12 +194,12 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Build backend, frontend, and Electron app together.
   - Document local run commands.
 
-- [ ] T53. Add updater release configuration
+- [x] T53. Add updater release configuration
   - Add `electron-updater` and configure Electron Builder publish metadata for GitHub releases.
   - Point update publishing at `vojtechportes/card-notes-app`.
   - Keep local/dev runs safe by disabling updater network behavior outside packaged production builds.
 
-- [ ] T54. Add Electron updater service and secure IPC bridge
+- [x] T54. Add Electron updater service and secure IPC bridge
   - Create main-process updater orchestration for check, download, install, and error states.
   - Add a preload/IPC bridge so the renderer can request update checks without exposing broad Electron APIs.
   - Define typed updater state/events that the frontend can consume.

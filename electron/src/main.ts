@@ -4,9 +4,14 @@ import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
+import { createUpdaterService, type UpdaterService } from './updater/create-updater-service.js'
+import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
+import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
+import type { UpdaterState } from './updater/updater-contract.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const workspaceRoot = path.resolve(dirname, '..', '..')
+const preloadEntryPath = path.join(dirname, 'preload.js')
 const packagedFrontendEntryPath = path.join(
   workspaceRoot,
   'frontend',
@@ -23,6 +28,7 @@ const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
 let backendProcess: ChildProcess | null = null
 let mainWindow: BrowserWindow | null = null
+let updaterService: UpdaterService | null = null
 
 app.setName('Card Notes App')
 
@@ -62,7 +68,13 @@ app.on('before-quit', () => {
 
 async function startApplication(): Promise<void> {
   try {
-    configureUpdater()
+    updaterService = createUpdaterService({
+      client: autoUpdater,
+      currentVersion: app.getVersion(),
+      isEnabled: isUpdaterEnabled(),
+      onStateChange: emitUpdaterState,
+    })
+    registerUpdaterIpc(updaterService)
     await ensureBackendAvailable()
     await createMainWindow()
 
@@ -81,17 +93,6 @@ async function startApplication(): Promise<void> {
   }
 }
 
-function configureUpdater(): void {
-  if (isUpdaterEnabled()) {
-    return
-  }
-
-  // Keep updater behavior fully inert until packaged production flows enable it.
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = false
-  autoUpdater.autoRunAppAfterInstall = false
-}
-
 function isUpdaterEnabled(): boolean {
   return app.isPackaged && !process.defaultApp && process.env.NODE_ENV !== 'development'
 }
@@ -105,12 +106,24 @@ async function createMainWindow(): Promise<void> {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: preloadEntryPath,
       sandbox: true,
     },
   })
 
   mainWindow.on('closed', () => {
     mainWindow = null
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || !updaterService) {
+      return
+    }
+
+    mainWindow.webContents.send(
+      updaterIpcChannels.stateChanged,
+      updaterService.getState()
+    )
   })
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -134,6 +147,16 @@ async function createMainWindow(): Promise<void> {
   }
 
   await mainWindow.loadFile(packagedFrontendEntryPath)
+}
+
+function emitUpdaterState(state: UpdaterState): void {
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    if (browserWindow.isDestroyed()) {
+      continue
+    }
+
+    browserWindow.webContents.send(updaterIpcChannels.stateChanged, state)
+  }
 }
 
 function isAllowedApplicationUrl(url: string): boolean {
@@ -277,3 +300,4 @@ function delay(timeoutMs: number): Promise<void> {
     setTimeout(resolve, timeoutMs)
   })
 }
+
