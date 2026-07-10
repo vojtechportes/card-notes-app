@@ -18,6 +18,10 @@
       "dangerZone": {
         "title": "Danger Zone",
         "description": "Destructive actions stay guarded behind confirmation."
+      },
+      "updater": {
+        "title": "Updates",
+        "description": "Check for newer app versions and install them when they are ready."
       }
     },
     "general": {
@@ -175,6 +179,38 @@
         "defaultColumn": "Default system column.",
         "customColumn": "Custom column.",
         "defaultIdentity": "Default columns keep their original name and type."
+      }
+    },
+    "updater": {
+      "summary": "Stay on the latest desktop build without leaving the app.",
+      "hint": "Use the button to manually check, download, or install the next available update.",
+      "fields": {
+        "currentVersion": "Current version",
+        "latestVersion": "Latest version",
+        "releaseDate": "Release date"
+      },
+      "actions": {
+        "check": "Check for updates",
+        "checking": "Checking for updates...",
+        "download": "Download update",
+        "downloading": "Downloading update...",
+        "install": "Install and restart",
+        "installing": "Installing update...",
+        "unavailable": "Updater unavailable"
+      },
+      "status": {
+        "loading": "Loading updater status...",
+        "unavailable": "Automatic updates are unavailable in this environment.",
+        "idle": "You can check for updates whenever you are ready.",
+        "checking": "Checking for a newer app version now.",
+        "available": "Version {{version}} is available to download.",
+        "downloading": "Downloading version {{version}} ({{percent}}%).",
+        "downloaded": "Version {{version}} is ready to install.",
+        "installing": "Installing version {{version}} and restarting the app."
+      },
+      "errors": {
+        "load": "Updater status could not be loaded right now.",
+        "action": "The updater action could not be completed."
       }
     }
   }
