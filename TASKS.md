@@ -155,7 +155,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Optional text truncation character count.
   - Optional number of fields displayed on cards.
 
-- [ ] T44. Build Export / Import section
+- [x] T44. Build Export / Import section
   - Export all data as JSON.
   - Import JSON without deleting existing notes.
   - Show validation/success/error states.
