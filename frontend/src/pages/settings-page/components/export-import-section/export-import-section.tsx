@@ -5,8 +5,6 @@ import type { ImportResultDto } from '../../../../types/api'
 import { useExportDataMutation } from '../../hooks/use-export-data-mutation'
 import { useImportDataMutation } from '../../hooks/use-import-data-mutation'
 import { SettingsSection } from '../settings-section'
-import { isExportImportData } from './utils/is-export-import-data.util'
-import { parseJsonFile } from './utils/parse-json-file.util'
 
 interface FeedbackState {
   message: string
@@ -99,28 +97,8 @@ export const ExportImportSection = () => {
 
     setFeedback(null)
 
-    let parsedData: unknown
-
     try {
-      parsedData = await parseJsonFile(selectedFile)
-    } catch {
-      setFeedback({
-        message: t('settings.exportImport.errors.invalidJson'),
-        severity: 'error',
-      })
-      return
-    }
-
-    if (!isExportImportData(parsedData)) {
-      setFeedback({
-        message: t('settings.exportImport.errors.invalidShape'),
-        severity: 'error',
-      })
-      return
-    }
-
-    try {
-      const importResult = await importDataMutation.mutateAsync(parsedData)
+      const importResult = await importDataMutation.mutateAsync(selectedFile)
 
       setFeedback({
         message: createImportSuccessMessage(t, importResult),

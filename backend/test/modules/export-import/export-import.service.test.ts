@@ -48,6 +48,7 @@ describe(ExportImportService.name, () => {
     settingsService.updateGeneralSettings({
       textTruncationLength: 120,
       cardFieldDisplayCount: 3,
+      mergeDateTimeFields: true,
     })
     const note = notesService.createNote({
       values: { [summaryColumn.id]: 'Export me' },
@@ -65,6 +66,7 @@ describe(ExportImportService.name, () => {
     expect(exportedData.generalSettings).toEqual({
       textTruncationLength: 120,
       cardFieldDisplayCount: 3,
+      mergeDateTimeFields: true,
     })
     expect(exportedData.notes).toEqual([note])
   })
@@ -78,6 +80,7 @@ describe(ExportImportService.name, () => {
     settingsService.updateGeneralSettings({
       textTruncationLength: 80,
       cardFieldDisplayCount: 2,
+      mergeDateTimeFields: true,
     })
     const originalNote = notesService.createNote({
       values: { [summaryColumn.id]: 'Original note' },
@@ -87,6 +90,7 @@ describe(ExportImportService.name, () => {
     settingsService.updateGeneralSettings({
       textTruncationLength: null,
       cardFieldDisplayCount: null,
+      mergeDateTimeFields: null,
     })
     const existingNote = notesService.createNote({
       values: { [summaryColumn.id]: 'Existing note' },
@@ -103,6 +107,7 @@ describe(ExportImportService.name, () => {
     expect(settingsService.getGeneralSettings()).toEqual({
       textTruncationLength: 80,
       cardFieldDisplayCount: 2,
+      mergeDateTimeFields: true,
     })
     expect(settingsService.listColumns().map((column) => column.name)).toEqual([
       'createdAt',
@@ -289,6 +294,7 @@ describe(ExportImportService.name, () => {
       secondDatabaseService.close()
     }
   })
+
   it('preserves note values for columns that do not exist in the imported column config', () => {
     const exportedData = exportImportService.exportData()
 
@@ -320,6 +326,7 @@ describe(ExportImportService.name, () => {
     expect(orphanColumnIds[0]).toBe(orphanColumnIds[1])
     expect(orphanColumnIds[0]).not.toBe('deletedColumnId')
   })
+
   it('rejects malformed payloads before importing data', () => {
     const exportedData = exportImportService.exportData()
 
@@ -338,6 +345,7 @@ describe(ExportImportService.name, () => {
         generalSettings: {
           textTruncationLength: 0,
           cardFieldDisplayCount: null,
+          mergeDateTimeFields: null,
         },
       })
     ).toThrow(BadRequestException)
@@ -352,6 +360,25 @@ describe(ExportImportService.name, () => {
         ],
       })
     ).toThrow(BadRequestException)
+  })
+
+  it('preserves mergeDateTimeFields during import', () => {
+    settingsService.updateGeneralSettings({
+      mergeDateTimeFields: true,
+    })
+    const exportedData = exportImportService.exportData()
+
+    settingsService.updateGeneralSettings({
+      mergeDateTimeFields: null,
+    })
+
+    exportImportService.importData(exportedData)
+
+    expect(settingsService.getGeneralSettings()).toEqual({
+      textTruncationLength: null,
+      cardFieldDisplayCount: null,
+      mergeDateTimeFields: true,
+    })
   })
 
   it('rolls back column and settings changes when import fails inside the transaction', () => {
@@ -374,7 +401,11 @@ describe(ExportImportService.name, () => {
       exportImportService.importData({
         ...exportedData,
         columns: [importOnlyColumn],
-        generalSettings: { textTruncationLength: 50, cardFieldDisplayCount: 2 },
+        generalSettings: {
+          textTruncationLength: 50,
+          cardFieldDisplayCount: 2,
+          mergeDateTimeFields: false,
+        },
         notes: [
           {
             id: 'imported-note',
@@ -394,6 +425,7 @@ describe(ExportImportService.name, () => {
     expect(settingsService.getGeneralSettings()).toEqual({
       textTruncationLength: null,
       cardFieldDisplayCount: null,
+      mergeDateTimeFields: null,
     })
     expect(notesService.listNotes()).toEqual([])
   })

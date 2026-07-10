@@ -146,23 +146,22 @@ describe('ExportImportSection', () => {
     ).toBeTruthy()
   })
 
-  it('imports a valid JSON export file and shows the result summary', async () => {
+  it('uploads the selected JSON export file and shows the result summary', async () => {
     renderExportImportSection()
+    const file = new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
+      type: 'application/json',
+    })
 
     fireEvent.change(screen.getByLabelText('JSON import file'), {
       target: {
-        files: [
-          new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
-            type: 'application/json',
-          }),
-        ],
+        files: [file],
       },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Import JSON' }))
 
     await waitFor(() => {
-      expect(importMutation.mutateAsync).toHaveBeenCalledWith(exportData)
+      expect(importMutation.mutateAsync).toHaveBeenCalledWith(file)
     })
 
     expect(
@@ -177,49 +176,16 @@ describe('ExportImportSection', () => {
     ).toBeTruthy()
   })
 
-  it('shows a validation error when the selected file is not valid JSON', async () => {
+  it('keeps the import button disabled until a file is selected', () => {
     renderExportImportSection()
 
-    fireEvent.change(screen.getByLabelText('JSON import file'), {
-      target: {
-        files: [
-          new File(['{not-json'], 'invalid.json', { type: 'application/json' }),
-        ],
-      },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Import JSON' }))
-
     expect(
-      await screen.findByText('The selected file is not valid JSON.')
-    ).toBeTruthy()
+      screen.getByRole('button', { name: 'Import JSON' }).hasAttribute('disabled')
+    ).toBe(true)
     expect(importMutation.mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('shows a validation error when the selected file does not match the export format', async () => {
-    renderExportImportSection()
-
-    fireEvent.change(screen.getByLabelText('JSON import file'), {
-      target: {
-        files: [
-          new File([JSON.stringify({ version: 1 })], 'partial.json', {
-            type: 'application/json',
-          }),
-        ],
-      },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Import JSON' }))
-
-    expect(
-      await screen.findByText(
-        'The selected file does not match the expected Card Notes export format.'
-      )
-    ).toBeTruthy()
-    expect(importMutation.mutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('shows import failure feedback when the backend rejects the payload', async () => {
+  it('shows import failure feedback when the backend rejects the file', async () => {
     importMutation.mutateAsync.mockRejectedValueOnce(new Error('import failed'))
     renderExportImportSection()
 
@@ -266,3 +232,4 @@ describe('ExportImportSection', () => {
     ).toBe(true)
   })
 })
+

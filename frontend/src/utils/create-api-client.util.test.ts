@@ -66,6 +66,7 @@ describe('createApiClient', () => {
 
     expect(contentType).toBe('application/json')
   })
+
   it('keeps request-specific content type headers when callers provide them', async () => {
     const client = createApiClient('http://localhost:3000/api')
     let contentType: string | undefined
@@ -85,4 +86,29 @@ describe('createApiClient', () => {
 
     expect(contentType).toBe('multipart/form-data')
   })
+
+  it('does not force json content type for form data payloads', async () => {
+    const client = createApiClient('http://localhost:3000/api')
+    const formData = new FormData()
+    let contentType: string | undefined
+
+    formData.append('file', new File(['{}'], 'backup.json', {
+      type: 'application/json',
+    }))
+
+    await client.post(
+      '/export-import/import',
+      formData,
+      {
+        adapter: createConfigAdapter((config) => {
+          const headerValue = config.headers.get('Content-Type')
+          contentType =
+            typeof headerValue === 'string' ? headerValue : undefined
+        }),
+      }
+    )
+
+    expect(contentType).not.toBe('application/json')
+  })
 })
+

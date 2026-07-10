@@ -15,6 +15,13 @@ let settingsService: SettingsService
 let notesService: NotesService
 let exportImportController: ExportImportController
 
+const createImportFile = (content: string, mimeType = 'application/json') => {
+  return {
+    buffer: Buffer.from(content, 'utf-8'),
+    mimetype: mimeType,
+  }
+}
+
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
   databaseService.initialize()
@@ -49,7 +56,9 @@ describe(ExportImportController.name, () => {
     })
 
     const exportedData = exportImportController.exportData()
-    const result = exportImportController.importData(exportedData)
+    const result = exportImportController.importData(
+      createImportFile(JSON.stringify(exportedData))
+    )
 
     expect(exportedData.columns.map((column) => column.name)).toContain(
       'sourceUrl'
@@ -63,20 +72,39 @@ describe(ExportImportController.name, () => {
     expect(notesService.listNotes()).toHaveLength(2)
   })
 
-  it('rejects invalid import request bodies', () => {
-    const exportedData = exportImportController.exportData()
-
-    expect(() => exportImportController.importData([] as never)).toThrow(
+  it('rejects invalid import files before calling the service', () => {
+    expect(() => exportImportController.importData(undefined)).toThrow(
       BadRequestException
     )
     expect(() =>
-      exportImportController.importData({
-        ...exportedData,
-        exportedAt: 'not-a-date',
-      })
+      exportImportController.importData(createImportFile('{not-json'))
     ).toThrow(BadRequestException)
     expect(() =>
-      exportImportController.importData({ ...exportedData, notes: {} as never })
+      exportImportController.importData(
+        createImportFile('{"version":1}', 'text/plain')
+      )
+    ).toThrow(BadRequestException)
+  })
+
+  it('rejects invalid import request bodies after parsing the uploaded file', () => {
+    const exportedData = exportImportController.exportData()
+
+    expect(() =>
+      exportImportController.importData(
+        createImportFile(
+          JSON.stringify({
+            ...exportedData,
+            exportedAt: 'not-a-date',
+          })
+        )
+      )
+    ).toThrow(BadRequestException)
+    expect(() =>
+      exportImportController.importData(
+        createImportFile(
+          JSON.stringify({ ...exportedData, notes: {} })
+        )
+      )
     ).toThrow(BadRequestException)
   })
 })
