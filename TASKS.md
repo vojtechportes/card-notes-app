@@ -204,7 +204,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Add a preload/IPC bridge so the renderer can request update checks without exposing broad Electron APIs.
   - Define typed updater state/events that the frontend can consume.
 
-- [ ] T55. Add Settings updater section and manual CTA
+- [x] T55. Add Settings updater section and manual CTA
   - Add a dedicated updater area in Settings with localized copy and a CTA to check for updates on demand.
   - Show current app version, last known updater status, and whether an update is available/downloading/ready to install.
   - Allow the user to trigger install/restart once the update is downloaded.
