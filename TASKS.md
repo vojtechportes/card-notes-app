@@ -160,7 +160,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Import JSON without deleting existing notes.
   - Show validation/success/error states.
 
-- [ ] T45. Build Danger Zone section
+- [x] T45. Build Danger Zone section
   - Delete all notes button.
   - Require confirmation before deleting.
 

@@ -17,8 +17,7 @@
       },
       "dangerZone": {
         "title": "Danger Zone",
-        "description": "Destructive actions stay guarded behind confirmation.",
-        "placeholder": "Delete-all-notes controls will be added in T45."
+        "description": "Destructive actions stay guarded behind confirmation."
       }
     },
     "general": {
@@ -77,6 +76,29 @@
         "invalidJson": "The selected file is not valid JSON.",
         "invalidShape": "The selected file does not match the expected Card Notes export format.",
         "import": "The selected data could not be imported right now."
+      }
+    },
+    "dangerZone": {
+      "summary": "Permanently remove every note from your local database.",
+      "warning": "This action deletes all note content at once and cannot be undone.",
+      "hint": "Use this only when you want to clear the entire note collection.",
+      "actions": {
+        "delete": "Delete all notes",
+        "deleting": "Deleting notes..."
+      },
+      "confirmDelete": {
+        "title": "Delete all notes",
+        "description": "This permanently deletes every saved note. This action cannot be undone.",
+        "actions": {
+          "confirm": "Delete all notes"
+        }
+      },
+      "status": {
+        "deleted_one": "Deleted {{count}} note.",
+        "deleted_other": "Deleted {{count}} notes."
+      },
+      "errors": {
+        "delete": "All notes could not be deleted. Try again."
       }
     },
     "columns": {
