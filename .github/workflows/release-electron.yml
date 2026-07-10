@@ -27,27 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create self-signed Windows code-signing certificate
+      - name: Restore Windows code-signing certificate
         shell: powershell
         run: |
-          $password = [Guid]::NewGuid().ToString('N') + 'Aa1!'
-          $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
-          $certificate = New-SelfSignedCertificate `
-            -Type CodeSigningCert `
-            -Subject 'CN=Card Notes App Self Signed' `
-            -CertStoreLocation 'Cert:\CurrentUser\My' `
-            -KeyExportPolicy Exportable `
-            -HashAlgorithm 'SHA256' `
-            -NotAfter (Get-Date).AddYears(1)
-
-          $certificatePath = Join-Path $env:RUNNER_TEMP 'card-notes-app-self-signed.pfx'
-          Export-PfxCertificate `
-            -Cert "Cert:\CurrentUser\My\$($certificate.Thumbprint)" `
-            -FilePath $certificatePath `
-            -Password $securePassword | Out-Null
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'card-notes-app-signing.pfx'
+          $certificateBytes = [Convert]::FromBase64String("${{ secrets.WINDOWS_CERT_BASE64 }}")
+          [IO.File]::WriteAllBytes($certificatePath, $certificateBytes)
 
           Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_LINK=$certificatePath"
-          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=$password"
+          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=${{ secrets.WINDOWS_CERT_PASSWORD }}"
 
       - name: Build and package Electron app
         run: npm run package
