@@ -13,6 +13,7 @@ jobs:
     runs-on: windows-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -37,10 +38,5 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_LINK=$certificatePath"
           Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=${{ secrets.WINDOWS_CERT_PASSWORD }}"
 
-      - name: Build and package Electron app
-        run: npm run package
-
-      - name: Upload installer to release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: electron/release/card-notes-app-*-setup.exe
+      - name: Build and publish Electron app
+        run: npm run package:release

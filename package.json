@@ -20,6 +20,8 @@
     "sync:api": "npm run sync:api --workspace frontend",
     "package": "npm run build && npm run package:electron",
     "package:electron": "npm run package --workspace electron",
+    "package:electron:release": "npm run package:release --workspace electron",
+    "package:release": "npm run build && npm run package:electron:release",
     "package:dir": "npm run build && npm run package:dir --workspace electron"
   },
   "engines": {
