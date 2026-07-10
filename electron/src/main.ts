@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import electronUpdater from 'electron-updater'
 import { fileURLToPath } from 'node:url'
 import {
   createUpdaterBackgroundSchedule,
@@ -12,6 +12,8 @@ import { createUpdaterService, type UpdaterService } from './updater/create-upda
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
+
+const { autoUpdater } = electronUpdater
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const workspaceRoot = path.resolve(dirname, '..', '..')
