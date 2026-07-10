@@ -38,5 +38,69 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_LINK=$certificatePath"
           Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=${{ secrets.WINDOWS_CERT_PASSWORD }}"
 
+      - name: Verify release signing and publish environment
+        shell: powershell
+        run: |
+          if (-not (Test-Path $env:WIN_CSC_LINK)) {
+            throw 'WIN_CSC_LINK does not point to a restored signing certificate.'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_KEY_PASSWORD)) {
+            throw 'WIN_CSC_KEY_PASSWORD is missing.'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
+            throw 'GH_TOKEN is missing.'
+          }
+
       - name: Build and publish Electron app
         run: npm run package:release
+
+      - name: Verify local updater release artifacts
+        run: npm run verify:release-artifacts --workspace electron
+
+      - name: Verify GitHub release updater assets
+        shell: powershell
+        run: |
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+          }
+          $releaseUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ github.event.release.id }}"
+          $release = Invoke-RestMethod -Headers $headers -Uri $releaseUri
+          $assetNames = @($release.assets | ForEach-Object { $_.name })
+          $latestAsset = $release.assets | Where-Object { $_.name -eq 'latest.yml' } | Select-Object -First 1
+
+          if (-not $latestAsset) {
+            throw 'The published GitHub release is missing latest.yml.'
+          }
+
+          $latestYmlContent = Invoke-RestMethod -Headers $headers -Uri $latestAsset.browser_download_url
+          $latestYmlLines = $latestYmlContent -split "`n"
+          $manifestPathLine = $latestYmlLines | Where-Object { $_ -match '^path:\s+' } | Select-Object -First 1
+          $manifestVersionLine = $latestYmlLines | Where-Object { $_ -match '^version:\s+' } | Select-Object -First 1
+
+          if (-not $manifestPathLine) {
+            throw 'The published latest.yml is missing the installer path.'
+          }
+
+          if (-not $manifestVersionLine) {
+            throw 'The published latest.yml is missing the version field.'
+          }
+
+          $expectedInstallerName = ($manifestPathLine -replace '^path:\s+', '').Trim()
+          $expectedBlockMapName = "$expectedInstallerName.blockmap"
+          $releaseVersion = "${{ github.event.release.tag_name }}" -replace '^v', ''
+          $manifestVersion = ($manifestVersionLine -replace '^version:\s+', '').Trim()
+
+          if ($manifestVersion -ne $releaseVersion) {
+            throw "The published latest.yml version ($manifestVersion) does not match the release tag version ($releaseVersion)."
+          }
+
+          if (-not ($assetNames -contains $expectedInstallerName)) {
+            throw "The published GitHub release is missing the installer referenced by latest.yml: $expectedInstallerName"
+          }
+
+          if (-not ($assetNames -contains $expectedBlockMapName)) {
+            throw "The published GitHub release is missing the blockmap referenced by latest.yml: $expectedBlockMapName"
+          }

@@ -12,7 +12,8 @@
     "package": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
     "package:release": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish always",
     "package:dir": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never",
-    "test": "tsx --test test/**/*.test.ts"
+    "test": "tsx --test test/**/*.test.ts",
+    "verify:release-artifacts": "node ./scripts/verify-release-artifacts.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
