@@ -190,7 +190,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Open link columns in the system browser/new tab behavior appropriate for Electron.
   - Keep image handling local and safe.
 
-- [ ] T52. Add build/package flow
+- [x] T52. Add build/package flow
   - Build backend, frontend, and Electron app together.
   - Document local run commands.
 
@@ -229,5 +229,4 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-
 
