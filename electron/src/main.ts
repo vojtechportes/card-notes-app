@@ -3,17 +3,29 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import electronUpdater from 'electron-updater'
+import type { AppUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
 import {
   createUpdaterBackgroundSchedule,
   type UpdaterBackgroundSchedule,
 } from './updater/create-updater-background-schedule/create-updater-background-schedule.js'
 import { createUpdaterService, type UpdaterService } from './updater/create-updater-service.js'
+import { createWindowsUpdateSignatureVerifier } from './updater/create-windows-update-signature-verifier.js'
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
 
 const { autoUpdater } = electronUpdater
+const windowsAutoUpdater = autoUpdater as AppUpdater & {
+  verifyUpdateCodeSignature?: (publisherNames: string[], updateFilePath: string) => Promise<string | null>
+}
+
+if (process.platform === 'win32') {
+  windowsAutoUpdater.verifyUpdateCodeSignature = createWindowsUpdateSignatureVerifier({
+    currentFilePath: process.execPath,
+    logger: autoUpdater.logger ?? undefined,
+  })
+}
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const workspaceRoot = path.resolve(dirname, '..', '..')
