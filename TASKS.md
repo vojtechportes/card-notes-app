@@ -214,7 +214,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Re-check roughly once per hour while the app is running.
   - Avoid overlapping checks and keep user-facing behavior quiet unless an update is found or a manual check was requested.
 
-- [ ] T57. Verify updater packaging and release flow
+- [x] T57. Verify updater packaging and release flow
   - Ensure GitHub release artifacts include the files required by `electron-updater` in addition to the installer.
   - Validate the secret-based Windows signing flow still works with updater publishing.
   - Document the release/update process and known self-signed certificate limitations.
