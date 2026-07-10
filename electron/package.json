@@ -10,6 +10,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepare:backend-runtime": "node ./scripts/prepare-backend-runtime.mjs",
     "package": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
+    "package:release": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish always",
     "package:dir": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never"
   },
   "devDependencies": {
@@ -19,5 +20,8 @@
     "typescript": "^5.8.0"
   },
   "description": "Electron shell for the Card Notes App.",
-  "author": "Card Notes App"
+  "author": "Card Notes App",
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

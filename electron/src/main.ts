@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -61,6 +62,7 @@ app.on('before-quit', () => {
 
 async function startApplication(): Promise<void> {
   try {
+    configureUpdater()
     await ensureBackendAvailable()
     await createMainWindow()
 
@@ -77,6 +79,21 @@ async function startApplication(): Promise<void> {
 
     app.quit()
   }
+}
+
+function configureUpdater(): void {
+  if (isUpdaterEnabled()) {
+    return
+  }
+
+  // Keep updater behavior fully inert until packaged production flows enable it.
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+  autoUpdater.autoRunAppAfterInstall = false
+}
+
+function isUpdaterEnabled(): boolean {
+  return app.isPackaged && !process.defaultApp && process.env.NODE_ENV !== 'development'
 }
 
 async function createMainWindow(): Promise<void> {

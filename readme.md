@@ -20,12 +20,13 @@ The backend health endpoint is available at `/api/health`, and Swagger is expose
 
 - `npm run build` builds the backend, frontend, and Electron shell.
 - `npm run package:dir` creates an unpacked Windows Electron build in `electron/release/win-unpacked`.
-- `npm run package` builds the full app and creates a Windows installer executable in `electron/release`.
+- `npm run package` builds the full app and creates a Windows installer executable in `electron/release` without publishing release assets.
+- `npm run package:release` builds the full app, creates the Windows installer, and publishes updater artifacts to the configured GitHub release.
 - Electron packaging stages the backend production runtime into `electron/.backend-runtime` before building the installer.
 
 ## GitHub Release Automation
 
-Publishing a GitHub release triggers `.github/workflows/release-electron.yml`, which installs dependencies, builds the full application, stages the backend production runtime, creates a temporary self-signed Windows code-signing certificate on the runner, signs the release, packages the Electron installer, and uploads the generated `.exe` asset to the release.
+Publishing a GitHub release triggers `.github/workflows/release-electron.yml`, which installs dependencies, builds the full application, stages the backend production runtime, restores the Windows code-signing certificate from secrets, signs the release, packages the Electron installer, and publishes the installer plus updater metadata to the GitHub release for `vojtechportes/card-notes-app`.
 
 Self-signed release note:
 

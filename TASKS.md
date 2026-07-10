@@ -194,6 +194,31 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Build backend, frontend, and Electron app together.
   - Document local run commands.
 
+- [ ] T53. Add updater release configuration
+  - Add `electron-updater` and configure Electron Builder publish metadata for GitHub releases.
+  - Point update publishing at `vojtechportes/card-notes-app`.
+  - Keep local/dev runs safe by disabling updater network behavior outside packaged production builds.
+
+- [ ] T54. Add Electron updater service and secure IPC bridge
+  - Create main-process updater orchestration for check, download, install, and error states.
+  - Add a preload/IPC bridge so the renderer can request update checks without exposing broad Electron APIs.
+  - Define typed updater state/events that the frontend can consume.
+
+- [ ] T55. Add Settings updater section and manual CTA
+  - Add a dedicated updater area in Settings with localized copy and a CTA to check for updates on demand.
+  - Show current app version, last known updater status, and whether an update is available/downloading/ready to install.
+  - Allow the user to trigger install/restart once the update is downloaded.
+
+- [ ] T56. Add periodic background update checks
+  - Check for updates on app startup when packaged.
+  - Re-check roughly once per hour while the app is running.
+  - Avoid overlapping checks and keep user-facing behavior quiet unless an update is found or a manual check was requested.
+
+- [ ] T57. Verify updater packaging and release flow
+  - Ensure GitHub release artifacts include the files required by `electron-updater` in addition to the installer.
+  - Validate the secret-based Windows signing flow still works with updater publishing.
+  - Document the release/update process and known self-signed certificate limitations.
+
 ## Phase 6: Testing and Verification
 
 - [ ] T60. Backend tests
