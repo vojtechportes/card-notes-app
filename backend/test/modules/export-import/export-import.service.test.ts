@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common'
+import { Workbook } from 'exceljs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
 import { ExportImportService } from '../../../src/modules/export-import/export-import.service'
@@ -13,6 +14,23 @@ let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesService: NotesService
 let exportImportService: ExportImportService
+
+const singlePixelPngBuffer = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8nQAAAABJRU5ErkJggg==',
+  'base64'
+)
+
+const createSpreadsheetBuffer = async (
+  configure: (workbook: Workbook) => void
+): Promise<Buffer> => {
+  const workbook = new Workbook()
+
+  configure(workbook)
+
+  const buffer = await workbook.xlsx.writeBuffer()
+
+  return Buffer.from(buffer)
+}
 
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
@@ -327,6 +345,86 @@ describe(ExportImportService.name, () => {
     expect(orphanColumnIds[0]).not.toBe('deletedColumnId')
   })
 
+  it('imports xlsx rows by matching existing columns, dropping unknown headers, and using system timestamps', async () => {
+    const harmonyLinkColumn = settingsService.createColumn({
+      name: 'harmonyLink',
+      title: 'Harmony Link',
+      type: ColumnTypeEnum.Link,
+    })
+    const titleColumn = settingsService.createColumn({
+      name: 'title',
+      title: 'Title',
+      type: ColumnTypeEnum.Text,
+    })
+    const importStartedAt = Date.now()
+    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
+      const worksheet = workbook.addWorksheet('Import')
+
+      worksheet.addRow(['harmonyLink', 'title', 'missingColumn'])
+      worksheet.addRow(['https://example.com', 'Imported title', 'Ignored'])
+      worksheet.addRow(['', '', ''])
+    })
+
+    const result = await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer
+    )
+    const notes = notesService.listNotes()
+
+    expect(result).toEqual({
+      importedColumns: 2,
+      importedNotes: 1,
+      updatedGeneralSettings: false,
+    })
+    expect(notes).toHaveLength(1)
+    expect(notes[0].values).toEqual({
+      [harmonyLinkColumn.id]: 'https://example.com',
+      [titleColumn.id]: 'Imported title',
+    })
+    expect(Date.parse(notes[0].createdAt)).not.toBeNaN()
+    expect(Date.parse(notes[0].updatedAt)).not.toBeNaN()
+    expect(notes[0].createdAt).toBe(notes[0].updatedAt)
+    expect(new Date(notes[0].createdAt).getTime()).toBeGreaterThanOrEqual(
+      importStartedAt
+    )
+  })
+
+  it('imports embedded worksheet images into image note values', async () => {
+    const printscreenColumn = settingsService.createColumn({
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
+      const worksheet = workbook.addWorksheet('Import')
+      const imageId = workbook.addImage({
+        buffer: singlePixelPngBuffer,
+        extension: 'png',
+      })
+
+      worksheet.addRow(['printscreen'])
+      worksheet.addRow([''])
+      worksheet.addImage(imageId, 'A2:A2')
+    })
+
+    const result = await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer
+    )
+    const importedNote = notesService.listNotes()[0]
+    const importedImage = importedNote.values[printscreenColumn.id]
+
+    expect(result).toEqual({
+      importedColumns: 1,
+      importedNotes: 1,
+      updatedGeneralSettings: false,
+    })
+    expect(importedImage).toMatchObject({
+      dataUrl: expect.stringMatching(/^data:image\/png;base64,/),
+      fileName: 'image1.png',
+      mimeType: 'image/png',
+      size: singlePixelPngBuffer.length,
+    })
+  })
+
   it('rejects malformed payloads before importing data', () => {
     const exportedData = exportImportService.exportData()
 
@@ -430,3 +528,4 @@ describe(ExportImportService.name, () => {
     expect(notesService.listNotes()).toEqual([])
   })
 })
+

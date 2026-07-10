@@ -173,6 +173,12 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Add mergeDateTimeField to frontend
   - Reflect state of mergeDateTifleFields in CardNote
 
+- [x] T48. Add support for XLSX imports
+ - Allow xlsx imports
+ - Map row names in first column in xlsx to column names
+ - Extract images in xlsx and map them to correct column
+ - Integrate import on frontend
+
 ## Phase 5: Electron Integration
 
 - [ ] T50. Wire Electron main process

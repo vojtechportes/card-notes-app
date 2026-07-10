@@ -1,5 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
+import { Workbook } from 'exceljs'
 import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
 import { NotesService } from '../notes/notes.service'
@@ -31,6 +32,18 @@ interface ValidExportImportData {
 interface ColumnImportMapping {
   sourceColumnNamesById: Map<string, string>
   targetColumnIdsByName: Map<string, string>
+}
+
+interface ResolvedSpreadsheetImport {
+  mappedColumnCount: number
+  rows: NoteValues[]
+}
+
+interface SpreadsheetWorkbookMedia {
+  type?: string
+  extension?: string
+  name?: string
+  buffer?: Buffer
 }
 
 @Injectable()
@@ -76,6 +89,390 @@ export class ExportImportService {
     )
 
     return importPayload(data)
+  }
+
+  async importSpreadsheetData(buffer: Buffer): Promise<ImportResultDto> {
+    const spreadsheetImport = await this.resolveSpreadsheetImport(buffer)
+    const database = this.getDatabase()
+    const importRows = database.transaction(
+      (rows: NoteValues[], mappedColumnCount: number): ImportResultDto => {
+        let importedNotes = 0
+
+        for (const values of rows) {
+          if (Object.keys(values).length === 0) {
+            continue
+          }
+
+          this.notesService.createNote({ values })
+          importedNotes += 1
+        }
+
+        return {
+          importedColumns: mappedColumnCount,
+          importedNotes,
+          updatedGeneralSettings: false,
+        }
+      }
+    )
+
+    return importRows(
+      spreadsheetImport.rows,
+      spreadsheetImport.mappedColumnCount
+    )
+  }
+
+  private async resolveSpreadsheetImport(
+    buffer: Buffer
+  ): Promise<ResolvedSpreadsheetImport> {
+    const workbook = new Workbook()
+
+    try {
+      const workbookBuffer = buffer as unknown as Parameters<(typeof workbook.xlsx)['load']>[0]
+      await workbook.xlsx.load(workbookBuffer)
+    } catch {
+      throw new BadRequestException('Import file must contain a valid XLSX workbook.')
+    }
+
+    const worksheet = workbook.worksheets[0]
+
+    if (!worksheet) {
+      throw new BadRequestException('XLSX import file must contain at least one worksheet.')
+    }
+
+    const headerRow = worksheet.getRow(1)
+    const columnIndexes = Array.from({ length: worksheet.columnCount }, (_, index) => index + 1)
+
+    if (columnIndexes.length === 0) {
+      throw new BadRequestException('XLSX import file must contain a header row.')
+    }
+
+    const existingColumnsByName = new Map(
+      this.settingsService
+        .listColumns()
+        .filter((column) => !this.isSystemTimestampColumn(column))
+        .map((column) => [column.name, column])
+    )
+    const mappedColumnsByIndex = new Map<number, NoteColumn>()
+    const headerNames: string[] = []
+
+    for (const columnIndex of columnIndexes) {
+      const headerName = headerRow.getCell(columnIndex).text.trim()
+
+      if (!headerName) {
+        continue
+      }
+
+      headerNames.push(headerName)
+
+      const existingColumn = existingColumnsByName.get(headerName)
+
+      if (existingColumn) {
+        mappedColumnsByIndex.set(columnIndex, existingColumn)
+      }
+    }
+
+    this.ensureUniqueValues(
+      headerNames,
+      'XLSX header column names must be unique.'
+    )
+
+    const imagesByCellAddress = this.resolveWorksheetImages(worksheet, workbook)
+    const rows: NoteValues[] = []
+
+    for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+      const row = worksheet.getRow(rowNumber)
+      const values: NoteValues = {}
+
+      for (const [columnIndex, column] of mappedColumnsByIndex.entries()) {
+        const cell = row.getCell(columnIndex)
+        const imageValue = imagesByCellAddress.get(cell.address)
+        const resolvedValue = this.resolveSpreadsheetCellValue(
+          cell.value,
+          cell.text,
+          column,
+          imageValue,
+          Boolean(workbook.properties.date1904)
+        )
+
+        if (resolvedValue !== null) {
+          values[column.id] = resolvedValue
+        }
+      }
+
+      rows.push(values)
+    }
+
+    return {
+      mappedColumnCount: mappedColumnsByIndex.size,
+      rows,
+    }
+  }
+
+  private resolveWorksheetImages(
+    worksheet: Workbook['worksheets'][number],
+    workbook: Workbook
+  ): Map<string, NoteImageValue> {
+    const imagesByCellAddress = new Map<string, NoteImageValue>()
+
+    const workbookMedia = workbook.model.media as unknown as
+      | SpreadsheetWorkbookMedia[]
+      | undefined
+
+    for (const image of worksheet.getImages()) {
+      const mediaIndex = Number(image.imageId)
+      const media = Number.isInteger(mediaIndex) ? workbookMedia?.[mediaIndex] : undefined
+      const imageValue = this.resolveWorksheetImageValue(media)
+
+      if (!imageValue) {
+        continue
+      }
+
+      const columnNumber = image.range.tl.nativeCol + 1
+      const rowNumber = image.range.tl.nativeRow + 1
+      const cellAddress = worksheet.getCell(rowNumber, columnNumber).address
+
+      if (!imagesByCellAddress.has(cellAddress)) {
+        imagesByCellAddress.set(cellAddress, imageValue)
+      }
+    }
+
+    return imagesByCellAddress
+  }
+
+  private resolveWorksheetImageValue(
+    media: SpreadsheetWorkbookMedia | undefined
+  ): NoteImageValue | null {
+    if (
+      !media ||
+      media.type !== 'image' ||
+      !media.extension ||
+      !media.buffer?.length
+    ) {
+      return null
+    }
+
+    const mimeType = `image/${media.extension.toLowerCase()}`
+    const fileName = media.name
+      ? `${media.name}.${media.extension}`
+      : `imported-image.${media.extension}`
+
+    return {
+      dataUrl: `data:${mimeType};base64,${media.buffer.toString('base64')}`,
+      fileName,
+      mimeType,
+      size: media.buffer.length,
+    }
+  }
+
+  private resolveSpreadsheetCellValue(
+    rawCellValue: unknown,
+    cellText: string,
+    column: NoteColumn,
+    imageValue: NoteImageValue | undefined,
+    usesDate1904: boolean
+  ): NoteValue | null {
+    const value = this.unwrapSpreadsheetCellValue(rawCellValue, cellText)
+
+    switch (column.type) {
+      case ColumnTypeEnum.Text: {
+        const textValue = this.resolveSpreadsheetTextValue(value, cellText)
+
+        return textValue === '' ? null : textValue
+      }
+      case ColumnTypeEnum.Link: {
+        const linkValue = this.resolveSpreadsheetLinkValue(value, cellText)
+
+        return linkValue === '' ? null : linkValue
+      }
+      case ColumnTypeEnum.Number:
+        return this.resolveSpreadsheetNumberValue(value, cellText)
+      case ColumnTypeEnum.Date:
+        return this.resolveSpreadsheetDateValue(value, cellText, usesDate1904)
+      case ColumnTypeEnum.Image:
+        return this.resolveSpreadsheetImageCellValue(value, imageValue)
+      default:
+        throw new BadRequestException('Column type is not supported.')
+    }
+  }
+
+  private unwrapSpreadsheetCellValue(
+    rawCellValue: unknown,
+    cellText: string
+  ): unknown {
+    if (rawCellValue === undefined || rawCellValue === null) {
+      return null
+    }
+
+    if (
+      typeof rawCellValue === 'string' ||
+      typeof rawCellValue === 'number' ||
+      typeof rawCellValue === 'boolean' ||
+      rawCellValue instanceof Date
+    ) {
+      return rawCellValue
+    }
+
+    if (typeof rawCellValue !== 'object' || Array.isArray(rawCellValue)) {
+      return cellText.trim()
+    }
+
+    if ('result' in rawCellValue) {
+      return this.unwrapSpreadsheetCellValue(
+        (rawCellValue as { result?: unknown }).result,
+        cellText
+      )
+    }
+
+    if ('hyperlink' in rawCellValue) {
+      return {
+        hyperlink: (rawCellValue as { hyperlink?: unknown }).hyperlink,
+        text: (rawCellValue as { text?: unknown }).text,
+      }
+    }
+
+    if ('richText' in rawCellValue) {
+      return cellText.trim()
+    }
+
+    return cellText.trim()
+  }
+
+  private resolveSpreadsheetTextValue(value: unknown, cellText: string): string {
+    if (typeof value === 'string') {
+      return value.trim()
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value)
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString()
+    }
+
+    return cellText.trim()
+  }
+
+  private resolveSpreadsheetLinkValue(value: unknown, cellText: string): string {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'hyperlink' in value &&
+      typeof (value as { hyperlink?: unknown }).hyperlink === 'string'
+    ) {
+      return (value as { hyperlink: string }).hyperlink.trim()
+    }
+
+    return this.resolveSpreadsheetTextValue(value, cellText)
+  }
+
+  private resolveSpreadsheetNumberValue(
+    value: unknown,
+    cellText: string
+  ): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+
+    const normalizedValue = cellText.trim()
+
+    if (!normalizedValue) {
+      return null
+    }
+
+    const numericValue = Number(normalizedValue)
+
+    if (!Number.isFinite(numericValue)) {
+      throw new BadRequestException('Number note values must be finite numbers.')
+    }
+
+    return numericValue
+  }
+
+  private resolveSpreadsheetDateValue(
+    value: unknown,
+    cellText: string,
+    usesDate1904: boolean
+  ): string | null {
+    const resolvedDate = this.resolveDateFromSpreadsheetValue(
+      value,
+      cellText,
+      usesDate1904
+    )
+
+    return resolvedDate ? resolvedDate.toISOString() : null
+  }
+
+  private resolveDateFromSpreadsheetValue(
+    value: unknown,
+    cellText: string,
+    usesDate1904: boolean
+  ): Date | null {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return this.convertExcelSerialDateToUtc(value, usesDate1904)
+    }
+
+    const normalizedValue = cellText.trim()
+
+    if (!normalizedValue) {
+      return null
+    }
+
+    const parsedDate = new Date(normalizedValue)
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException('Date note values must be valid date strings.')
+    }
+
+    return parsedDate
+  }
+
+  private convertExcelSerialDateToUtc(
+    serialValue: number,
+    usesDate1904: boolean
+  ): Date {
+    const wholeDays = Math.floor(serialValue)
+    const millisecondsFromTime = Math.round(
+      (serialValue - wholeDays) * 24 * 60 * 60 * 1000
+    )
+    const baseDate = usesDate1904
+      ? Date.UTC(1904, 0, 1)
+      : Date.UTC(1899, 11, 30)
+
+    return new Date(baseDate + wholeDays * 24 * 60 * 60 * 1000 + millisecondsFromTime)
+  }
+
+  private resolveSpreadsheetImageCellValue(
+    value: unknown,
+    imageValue: NoteImageValue | undefined
+  ): NoteImageValue | null {
+    if (imageValue) {
+      return imageValue
+    }
+
+    if (typeof value !== 'string') {
+      return null
+    }
+
+    const normalizedValue = value.trim()
+
+    if (!normalizedValue) {
+      return null
+    }
+
+    if (normalizedValue.startsWith('data:image/')) {
+      return { dataUrl: normalizedValue }
+    }
+
+    if (/^https?:\/\//i.test(normalizedValue)) {
+      return { url: normalizedValue }
+    }
+
+    return { path: normalizedValue }
   }
 
   private importColumnsWithFreshIds(
