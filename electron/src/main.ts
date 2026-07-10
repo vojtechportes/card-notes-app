@@ -17,7 +17,7 @@ const { autoUpdater } = electronUpdater
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const workspaceRoot = path.resolve(dirname, '..', '..')
-const preloadEntryPath = path.join(dirname, 'preload.js')
+const preloadEntryPath = path.join(dirname, 'preload.cjs')
 const packagedFrontendEntryPath = path.join(
   workspaceRoot,
   'frontend',
@@ -313,3 +313,4 @@ function delay(timeoutMs: number): Promise<void> {
     setTimeout(resolve, timeoutMs)
   })
 }
+
