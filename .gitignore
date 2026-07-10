@@ -8,3 +8,4 @@ coverage/
 *.tsbuildinfo
 
 electron/release/
+electron/.backend-runtime/
