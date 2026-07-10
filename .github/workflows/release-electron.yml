@@ -70,7 +70,18 @@ jobs:
 
           $releaseUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ github.event.release.id }}"
           $release = Invoke-RestMethod -Headers $headers -Uri $releaseUri
-          $uploadBaseUri = $release.upload_url -replace '\{\?name,label\}$', ''
+          $uploadBaseUri = [string]$release.upload_url
+
+          if ([string]::IsNullOrWhiteSpace($uploadBaseUri)) {
+            throw 'The GitHub release payload did not include an upload_url.'
+          }
+
+          $uploadBaseUri = $uploadBaseUri.Split('{')[0]
+
+          if (-not [System.Uri]::IsWellFormedUriString($uploadBaseUri, [System.UriKind]::Absolute)) {
+            throw "The GitHub release upload_url is not a valid absolute URI: $uploadBaseUri"
+          }
+
           $releaseRoot = Join-Path $PWD 'electron\release'
           $latestYmlPath = Join-Path $releaseRoot 'latest.yml'
 
@@ -117,7 +128,8 @@ jobs:
               'Content-Type' = 'application/octet-stream'
               'X-GitHub-Api-Version' = '2022-11-28'
             }
-            $uploadUri = "$uploadBaseUri?name=$([uri]::EscapeDataString($assetName))"
+            $encodedAssetName = [System.Uri]::EscapeDataString($assetName)
+            $uploadUri = '{0}?name={1}' -f $uploadBaseUri, $encodedAssetName
             Invoke-RestMethod -Headers $uploadHeaders -Uri $uploadUri -Method Post -InFile $assetPath | Out-Null
           }
 
