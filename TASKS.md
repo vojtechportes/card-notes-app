@@ -209,7 +209,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Show current app version, last known updater status, and whether an update is available/downloading/ready to install.
   - Allow the user to trigger install/restart once the update is downloaded.
 
-- [ ] T56. Add periodic background update checks
+- [x] T56. Add periodic background update checks
   - Check for updates on app startup when packaged.
   - Re-check roughly once per hour while the app is running.
   - Avoid overlapping checks and keep user-facing behavior quiet unless an update is found or a manual check was requested.
