@@ -19,10 +19,12 @@ import {
   type SetStateAction,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import type { DetailContentContainerProps as DetailContentContainerOptions } from './detail-content'
 
 export type SideDrawerInfo = {
@@ -35,6 +37,8 @@ export type SideDrawerInfo = {
   drawerActions?: ReactNode
   onClose?: () => void
   width?: number | 'full'
+  targetPathname?: string
+  targetPathnameRoot?: string
   DetailContentContainerProps?: Omit<DetailContentContainerOptions, 'children'>
 }
 
@@ -53,12 +57,42 @@ export const SideDrawerContext = createContext<SideDrawerContextValue>({
 })
 
 export const SideDrawerProvider: FC<PropsWithChildren> = ({ children }) => {
-  const [sideDrawerInfo, toggleDrawer] =
+  const location = useLocation()
+  const [sideDrawerInfo, setSideDrawerInfo] =
     useState<SideDrawerInfo>(drawerInitialState)
+  const toggleDrawer = useCallback<Dispatch<SetStateAction<SideDrawerInfo>>>(
+    (value) => {
+      setTimeout(() => {
+        if (typeof value === 'function') {
+          setSideDrawerInfo((currentValue) => value(currentValue))
+          return
+        }
+
+        setSideDrawerInfo(value)
+      }, 0)
+    },
+    []
+  )
   const value = useMemo(
     () => ({ sideDrawerInfo, toggleDrawer }),
-    [sideDrawerInfo]
+    [sideDrawerInfo, toggleDrawer]
   )
+
+  useEffect(() => {
+    const targetPathname = sideDrawerInfo.targetPathname
+    const targetPathnameRoot = sideDrawerInfo.targetPathnameRoot
+
+    if (!targetPathname && !targetPathnameRoot) {
+      return
+    }
+
+    if (
+      (targetPathname && location.pathname !== targetPathname) ||
+      (targetPathnameRoot && !location.pathname.startsWith(targetPathnameRoot))
+    ) {
+      setSideDrawerInfo(drawerInitialState)
+    }
+  }, [location.pathname, sideDrawerInfo.targetPathname, sideDrawerInfo.targetPathnameRoot])
 
   return (
     <SideDrawerContext.Provider value={value}>
@@ -80,7 +114,11 @@ export const SideDrawer: FC = () => {
   }, [])
 
   const handleCloseButtonClick = useCallback(() => {
-    drawerOnClose?.()
+    if (drawerOnClose) {
+      drawerOnClose()
+      return
+    }
+
     toggleDrawer(drawerInitialState)
   }, [drawerOnClose, toggleDrawer])
 

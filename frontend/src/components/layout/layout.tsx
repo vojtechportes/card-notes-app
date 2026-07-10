@@ -28,7 +28,7 @@ import {
 } from 'react-router-dom'
 import { NotesPage } from '../../pages/notes-page/notes-page'
 import { SettingsPage } from '../../pages/settings-page/settings-page'
-import { SideDrawer, SideDrawerProvider } from '../side-drawer'
+import { SideDrawer } from '../side-drawer'
 
 const drawerWidth = 248
 
@@ -38,7 +38,8 @@ const navItems = [
     icon: ArticleOutlinedIcon,
     labelKey: 'navigation.notes',
     summaryKey: 'navigation.notesSummary',
-    isActive: (pathname: string) => pathname === '/notes' || pathname === '/',
+    isActive: (pathname: string) =>
+      pathname === '/' || pathname.startsWith('/notes'),
   },
   {
     path: '/settings',
@@ -57,7 +58,6 @@ export const Layout: FC = () => {
   const navigationLabel = mobileOpen
     ? t('navigation.close')
     : t('navigation.open')
-  const showSideDrawer = location.pathname === '/notes'
 
   useEffect(() => {
     document.title = t('app.title')
@@ -127,82 +127,81 @@ export const Layout: FC = () => {
   )
 
   return (
-    <SideDrawerProvider>
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-        <AppBar
-          position="fixed"
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+        }}
+      >
+        <Toolbar sx={{ gap: 2 }}>
+          {!desktop && (
+            <Tooltip title={navigationLabel}>
+              <IconButton
+                edge="start"
+                color="inherit"
+                onClick={handleMobileNavigationToggle}
+                aria-label={t('navigation.toggle')}
+                sx={{ mr: 1 }}
+              >
+                {mobileOpen ? (
+                  <CloseIcon fontSize="small" />
+                ) : (
+                  <MenuIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
+          <Typography variant="h2" component="div" sx={{ flexGrow: 1 }}>
+            {t('app.title')}
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      {desktop ? (
+        <Drawer
+          variant="permanent"
           sx={{
-            zIndex: (theme) => theme.zIndex.drawer + 1,
+            width: drawerWidth,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+            },
           }}
         >
-          <Toolbar sx={{ gap: 2 }}>
-            {!desktop && (
-              <Tooltip title={navigationLabel}>
-                <IconButton
-                  edge="start"
-                  color="inherit"
-                  onClick={handleMobileNavigationToggle}
-                  aria-label={t('navigation.toggle')}
-                  sx={{ mr: 1 }}
-                >
-                  {mobileOpen ? (
-                    <CloseIcon fontSize="small" />
-                  ) : (
-                    <MenuIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </Tooltip>
-            )}
-            <Typography variant="h2" component="div" sx={{ flexGrow: 1 }}>
-              {t('app.title')}
-            </Typography>
-          </Toolbar>
-        </AppBar>
-
-        {desktop ? (
-          <Drawer
-            variant="permanent"
-            sx={{
+          {navigation}
+        </Drawer>
+      ) : (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleMobileNavigationClose}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': {
               width: drawerWidth,
-              flexShrink: 0,
-              '& .MuiDrawer-paper': {
-                width: drawerWidth,
-                boxSizing: 'border-box',
-              },
-            }}
-          >
-            {navigation}
-          </Drawer>
-        ) : (
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleMobileNavigationClose}
-            ModalProps={{ keepMounted: true }}
-            sx={{
-              '& .MuiDrawer-paper': {
-                width: drawerWidth,
-                boxSizing: 'border-box',
-              },
-            }}
-          >
-            {navigation}
-          </Drawer>
-        )}
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          {navigation}
+        </Drawer>
+      )}
 
-        <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Toolbar />
-          <Container maxWidth="xl" sx={{ py: 3 }}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/notes" replace />} />
-              <Route path="/notes" element={<NotesPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Container>
-        </Box>
-        {showSideDrawer && <SideDrawer />}
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Toolbar />
+        <Container maxWidth="xl" sx={{ py: 3 }}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/notes" replace />} />
+            <Route path="/notes" element={<NotesPage />} />
+            <Route path="/notes/:noteId" element={<NotesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Container>
       </Box>
-    </SideDrawerProvider>
+      <SideDrawer />
+    </Box>
   )
 }

@@ -9,6 +9,23 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { App } from './app'
 import './i18n'
 
+class IntersectionObserverMock {
+  observe() {
+    return undefined
+  }
+
+  unobserve() {
+    return undefined
+  }
+
+  disconnect() {
+    return undefined
+  }
+}
+
+globalThis.IntersectionObserver =
+  IntersectionObserverMock as unknown as typeof IntersectionObserver
+
 describe('App routing', () => {
   afterEach(() => {
     cleanup()
@@ -32,6 +49,22 @@ describe('App routing', () => {
     expect(
       await screen.findByRole('heading', { name: 'Settings' })
     ).toBeTruthy()
+  })
+
+  it('renders notes from a note detail route and still allows navigation to settings', async () => {
+    window.location.hash = '#/notes/note-1'
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Settings' })
+    ).toBeTruthy()
+    expect(window.location.hash).toBe('#/settings')
   })
 
   it('updates the route when navigation links are clicked', async () => {
