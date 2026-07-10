@@ -7,6 +7,7 @@ import {
   within,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Route, Routes } from 'react-router-dom'
 import { AppProviders } from '../../components/app-providers/app-providers'
 import { SideDrawer, SideDrawerProvider } from '../../components/side-drawer'
 import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../types/api'
@@ -179,20 +180,42 @@ const secondNote: NoteDto = {
   values: { 'title-column': 'Beta note' },
 }
 
-const renderNotesPage = () => {
+const renderNotesPage = (route = '#/notes') => {
+  window.location.hash = route
+
   return render(
     <AppProviders>
       <SideDrawerProvider>
-        <NotesPage />
+        <Routes>
+          <Route path="/notes" element={<NotesPage />} />
+          <Route path="/notes/:noteId" element={<NotesPage />} />
+        </Routes>
         <SideDrawer />
       </SideDrawerProvider>
     </AppProviders>
   )
 }
 
+const getRenderedSideDrawer = async () => {
+  await waitFor(() => {
+    expect(document.querySelector('[data-test-name="side-drawer"]')).not.toBeNull()
+  })
+
+  const sideDrawer = document.querySelector(
+    '[data-test-name="side-drawer"]'
+  ) as HTMLElement | null
+
+  if (!sideDrawer) {
+    throw new Error('Expected side drawer to be rendered.')
+  }
+
+  return sideDrawer
+}
+
 describe('NotesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.location.hash = '#/notes'
     useCreateNoteMutationMock.mockReturnValue({
       isPending: false,
       mutateAsync: vi.fn(),
@@ -225,6 +248,7 @@ describe('NotesPage', () => {
 
   afterEach(() => {
     cleanup()
+    window.location.hash = ''
   })
 
   it('fetches notes with the default toolbar sort state', () => {
@@ -322,18 +346,14 @@ describe('NotesPage', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
   })
 
-  it('opens and renders the note detail drawer from the card action', () => {
+  it('opens and renders the note detail drawer from the card action', async () => {
     renderNotesPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
 
-    const sideDrawer = document.querySelector(
-      '[data-test-name="side-drawer"]'
-    ) as HTMLElement | null
+    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-1'))
 
-    if (!sideDrawer) {
-      throw new Error('Expected side drawer to be rendered.')
-    }
+    const sideDrawer = await getRenderedSideDrawer()
 
     expect(screen.getByText('Note detail')).toBeTruthy()
     expect(screen.getByText('Created at')).toBeTruthy()
@@ -350,7 +370,15 @@ describe('NotesPage', () => {
     ).toBeTruthy()
   })
 
-  it('merges created and updated timestamps in the detail drawer when enabled', () => {
+  it('opens the note detail drawer when the note id is already in the route', async () => {
+    renderNotesPage('#/notes/note-1')
+
+    const sideDrawer = await getRenderedSideDrawer()
+
+    expect(within(sideDrawer).getByText('Alpha note')).toBeTruthy()
+  })
+
+  it('merges created and updated timestamps in the detail drawer when enabled', async () => {
     useGeneralSettingsQueryMock.mockReturnValue({
       data: {
         ...generalSettings,
@@ -360,9 +388,9 @@ describe('NotesPage', () => {
       isLoading: false,
     })
 
-    renderNotesPage()
+    renderNotesPage('#/notes/note-1')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
+    await getRenderedSideDrawer()
 
     expect(screen.getByText('Last updated at')).toBeTruthy()
     expect(screen.queryByText('Created at')).toBeNull()
@@ -376,6 +404,7 @@ describe('NotesPage', () => {
 
     expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
     expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
+    expect(window.location.hash).toBe('#/notes')
   })
 
   it('does not open the note detail drawer from the card link action', () => {
@@ -386,9 +415,10 @@ describe('NotesPage', () => {
     )
 
     expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
+    expect(window.location.hash).toBe('#/notes')
   })
 
-  it('updates the note detail drawer when switching between notes', () => {
+  it('updates the note detail drawer when switching between notes', async () => {
     useNotesQueryMock.mockReturnValue({
       data: [notes[0], secondNote],
       isError: false,
@@ -400,33 +430,26 @@ describe('NotesPage', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[0])
 
-    let sideDrawer = document.querySelector(
-      '[data-test-name="side-drawer"]'
-    ) as HTMLElement | null
+    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-1'))
 
-    if (!sideDrawer) {
-      throw new Error('Expected side drawer to be rendered.')
-    }
+    let sideDrawer = await getRenderedSideDrawer()
 
     expect(within(sideDrawer).getByText('Alpha note')).toBeTruthy()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[1])
 
-    sideDrawer = document.querySelector(
-      '[data-test-name="side-drawer"]'
-    ) as HTMLElement | null
+    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-2'))
 
-    if (!sideDrawer) {
-      throw new Error('Expected side drawer to be rendered.')
-    }
+    sideDrawer = await getRenderedSideDrawer()
 
     expect(within(sideDrawer).getByText('Beta note')).toBeTruthy()
   })
 
   it('closes the note detail drawer from the close action', async () => {
-    renderNotesPage()
+    renderNotesPage('#/notes/note-1')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
+    await getRenderedSideDrawer()
+
     fireEvent.click(screen.getByRole('button', { name: 'Close detail' }))
 
     await waitFor(() => {
@@ -434,20 +457,20 @@ describe('NotesPage', () => {
         document.querySelector('[data-test-name="side-drawer"]')
       ).toBeNull()
     })
+    expect(window.location.hash).toBe('#/notes')
   })
 
-  it('opens the edit dialog from the note detail drawer', () => {
-    renderNotesPage()
+  it('normalizes an unknown note route back to the notes list', async () => {
+    renderNotesPage('#/notes/missing-note')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/notes'))
+    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
+  })
 
-    const sideDrawer = document.querySelector(
-      '[data-test-name="side-drawer"]'
-    ) as HTMLElement | null
+  it('opens the edit dialog from the note detail drawer', async () => {
+    renderNotesPage('#/notes/note-1')
 
-    if (!sideDrawer) {
-      throw new Error('Expected side drawer to be rendered.')
-    }
+    const sideDrawer = await getRenderedSideDrawer()
 
     fireEvent.click(
       within(sideDrawer).getByRole('button', { name: 'Edit note' })
@@ -486,24 +509,16 @@ describe('NotesPage', () => {
     expect(deleteNoteMutation.mutate).not.toHaveBeenCalled()
   })
 
-  it('confirms note deletion from the detail drawer and calls the delete mutation with the selected note id', async () => {
+  it('confirms note deletion from the detail drawer, closes the route, and calls the delete mutation with the selected note id', async () => {
     const deleteNoteMutation = {
       isPending: false,
       mutate: vi.fn(),
     }
     useDeleteNoteMutationMock.mockReturnValue(deleteNoteMutation)
 
-    renderNotesPage()
+    renderNotesPage('#/notes/note-1')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
-
-    const sideDrawer = document.querySelector(
-      '[data-test-name="side-drawer"]'
-    ) as HTMLElement | null
-
-    if (!sideDrawer) {
-      throw new Error('Expected side drawer to be rendered.')
-    }
+    const sideDrawer = await getRenderedSideDrawer()
 
     fireEvent.click(
       within(sideDrawer).getByRole('button', { name: 'Delete note' })
@@ -513,5 +528,6 @@ describe('NotesPage', () => {
     await waitFor(() => {
       expect(deleteNoteMutation.mutate).toHaveBeenCalledWith('note-1')
     })
+    expect(window.location.hash).toBe('#/notes')
   })
 })

@@ -1,6 +1,7 @@
 import { Button, Stack, Typography } from '@mui/material'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useConfirmation } from '../../components/confirmation'
 import {
   SideDrawerContext,
@@ -25,6 +26,8 @@ const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc'
 
 export const NotesPage = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { noteId } = useParams<{ noteId?: string }>()
   const confirmation = useConfirmation()
   const { toggleDrawer } = useContext(SideDrawerContext)
   const [activeNote, setActiveNote] = useState<NoteDto | undefined>()
@@ -34,7 +37,6 @@ export const NotesPage = () => {
   const [sortDirection, setSortDirection] = useState<NoteSortDirection>(
     DEFAULT_SORT_DIRECTION
   )
-  const [selectedNoteId, setSelectedNoteId] = useState<string | undefined>()
   const notesQuery = useNotesQuery({ sortBy, sortDirection })
   const deleteNoteMutation = useDeleteNoteMutation()
   const noteColumnsQuery = useNoteColumnsQuery()
@@ -45,8 +47,8 @@ export const NotesPage = () => {
   const hasCardConfigurationError =
     noteColumnsQuery.isError || generalSettingsQuery.isError
   const selectedNote = useMemo(
-    () => notesQuery.data?.find((note) => note.id === selectedNoteId),
-    [notesQuery.data, selectedNoteId]
+    () => notesQuery.data?.find((note) => note.id === noteId),
+    [noteId, notesQuery.data]
   )
 
   const handleCloseNoteDialog = useCallback(() => {
@@ -72,27 +74,40 @@ export const NotesPage = () => {
         return
       }
 
-      setSelectedNoteId((currentSelectedNoteId) =>
-        currentSelectedNoteId === note.id ? undefined : currentSelectedNoteId
-      )
+      if (noteId === note.id) {
+        navigate('/notes')
+      }
+
       deleteNoteMutation.mutate(note.id)
     },
-    [confirmation, deleteNoteMutation, t]
+    [confirmation, deleteNoteMutation, navigate, noteId, t]
   )
 
-  const handleOpenNoteDetail = useCallback((note: NoteDto) => {
-    setSelectedNoteId(note.id)
-  }, [])
+  const handleOpenNoteDetail = useCallback(
+    (note: NoteDto) => {
+      navigate(`/notes/${note.id}`)
+    },
+    [navigate]
+  )
 
   useEffect(() => {
-    if (!selectedNote || !noteColumnsQuery.data || !generalSettingsQuery.data) {
-      toggleDrawer(drawerInitialState)
+    if (!noteId || !notesQuery.data || notesQuery.isLoading || selectedNote) {
+      return
+    }
+
+    navigate('/notes', { replace: true })
+  }, [navigate, noteId, notesQuery.data, notesQuery.isLoading, selectedNote])
+
+  useEffect(() => {
+    if (!noteId || !selectedNote || !noteColumnsQuery.data || !generalSettingsQuery.data) {
       return
     }
 
     toggleDrawer({
       open: true,
       title: t('notes.detail.title'),
+      targetPathname: `/notes/${selectedNote.id}`,
+      targetPathnameRoot: '/notes',
       drawerActions: (
         <>
           <Button
@@ -122,7 +137,7 @@ export const NotesPage = () => {
         />
       ),
       onClose: () => {
-        setSelectedNoteId(undefined)
+        navigate('/notes')
       },
       DetailContentContainerProps: {
         fullHeight: true,
@@ -132,11 +147,19 @@ export const NotesPage = () => {
     generalSettingsQuery.data,
     handleDeleteNote,
     handleOpenNoteDialog,
+    navigate,
     noteColumnsQuery.data,
+    noteId,
     selectedNote,
     t,
     toggleDrawer,
   ])
+
+  useEffect(() => {
+    if (!noteId) {
+      toggleDrawer(drawerInitialState)
+    }
+  }, [noteId, toggleDrawer])
 
   return (
     <>

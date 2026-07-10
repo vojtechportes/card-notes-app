@@ -1,10 +1,13 @@
 import { Layout } from './components/layout/layout'
+import { SideDrawerProvider } from './components/side-drawer'
 import { AppProviders } from './components/app-providers/app-providers'
 
 export const App = () => {
   return (
     <AppProviders>
-      <Layout />
+      <SideDrawerProvider>
+        <Layout />
+      </SideDrawerProvider>
     </AppProviders>
   )
 }
