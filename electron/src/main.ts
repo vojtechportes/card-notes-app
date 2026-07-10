@@ -4,6 +4,10 @@ import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
+import {
+  createUpdaterBackgroundSchedule,
+  type UpdaterBackgroundSchedule,
+} from './updater/create-updater-background-schedule/create-updater-background-schedule.js'
 import { createUpdaterService, type UpdaterService } from './updater/create-updater-service.js'
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
@@ -28,6 +32,7 @@ const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
 let backendProcess: ChildProcess | null = null
 let mainWindow: BrowserWindow | null = null
+let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
 let updaterService: UpdaterService | null = null
 
 app.setName('Card Notes App')
@@ -61,6 +66,9 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  updaterBackgroundSchedule?.dispose()
+  updaterBackgroundSchedule = null
+
   if (backendProcess && backendProcess.exitCode === null) {
     backendProcess.kill()
   }
@@ -73,6 +81,9 @@ async function startApplication(): Promise<void> {
       currentVersion: app.getVersion(),
       isEnabled: isUpdaterEnabled(),
       onStateChange: emitUpdaterState,
+    })
+    updaterBackgroundSchedule = createUpdaterBackgroundSchedule({
+      updaterService,
     })
     registerUpdaterIpc(updaterService)
     await ensureBackendAvailable()
@@ -300,4 +311,3 @@ function delay(timeoutMs: number): Promise<void> {
     setTimeout(resolve, timeoutMs)
   })
 }
-

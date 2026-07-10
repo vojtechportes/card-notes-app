@@ -34,6 +34,7 @@ export interface UpdaterClient {
 
 export interface UpdaterService {
   checkForUpdates: () => Promise<UpdaterActionResult>
+  checkForUpdatesSilently: () => Promise<UpdaterActionResult>
   downloadUpdate: () => Promise<UpdaterActionResult>
   getState: () => UpdaterState
   installUpdate: () => Promise<UpdaterActionResult>
@@ -46,6 +47,8 @@ interface CreateUpdaterServiceOptions {
   onStateChange?: (state: UpdaterState) => void
 }
 
+type CheckMode = 'manual' | 'silent' | null
+
 export const createUpdaterService = ({
   client,
   currentVersion,
@@ -56,6 +59,7 @@ export const createUpdaterService = ({
   client.autoInstallOnAppQuit = false
   client.autoRunAppAfterInstall = false
 
+  let activeCheckMode: CheckMode = null
   let isCheckingForUpdates = false
   let isDownloadingUpdate = false
   let lastKnownUpdate: UpdaterRelease | null = null
@@ -93,8 +97,13 @@ export const createUpdaterService = ({
     }
   }
 
-  const setErrorState = (error: unknown): UpdaterActionResult => {
+  const finalizeCheck = (): void => {
     isCheckingForUpdates = false
+    activeCheckMode = null
+  }
+
+  const setErrorState = (error: unknown): UpdaterActionResult => {
+    finalizeCheck()
     isDownloadingUpdate = false
 
     return {
@@ -109,8 +118,51 @@ export const createUpdaterService = ({
     }
   }
 
+  const runCheckForUpdates = async (
+    checkMode: Exclude<CheckMode, null>
+  ): Promise<UpdaterActionResult> => {
+    if (!isEnabled) {
+      return rejectAction('updater-disabled')
+    }
+
+    if (isCheckingForUpdates) {
+      return rejectAction('check-in-progress')
+    }
+
+    isCheckingForUpdates = true
+    activeCheckMode = checkMode
+
+    if (checkMode === 'manual') {
+      setState({
+        currentVersion,
+        kind: 'checking',
+      })
+    }
+
+    try {
+      await client.checkForUpdates()
+      return acceptAction()
+    } catch (error) {
+      if (checkMode === 'silent') {
+        finalizeCheck()
+
+        return {
+          accepted: false,
+          reason: null,
+          state,
+        }
+      }
+
+      return setErrorState(error)
+    }
+  }
+
   if (isEnabled) {
     client.on('checking-for-update', () => {
+      if (activeCheckMode !== 'manual') {
+        return
+      }
+
       setState({
         currentVersion,
         kind: 'checking',
@@ -118,7 +170,7 @@ export const createUpdaterService = ({
     })
 
     client.on('update-available', (updateInfo) => {
-      isCheckingForUpdates = false
+      finalizeCheck()
       lastKnownUpdate = mapUpdateInfo(updateInfo)
       setState({
         currentVersion,
@@ -128,7 +180,7 @@ export const createUpdaterService = ({
     })
 
     client.on('update-not-available', () => {
-      isCheckingForUpdates = false
+      finalizeCheck()
       lastKnownUpdate = null
       setState({
         currentVersion,
@@ -160,6 +212,11 @@ export const createUpdaterService = ({
     })
 
     client.on('error', (error) => {
+      if (activeCheckMode === 'silent') {
+        finalizeCheck()
+        return
+      }
+
       setErrorState(error)
     })
   }
@@ -167,26 +224,10 @@ export const createUpdaterService = ({
   return {
     getState: () => state,
     checkForUpdates: async () => {
-      if (!isEnabled) {
-        return rejectAction('updater-disabled')
-      }
-
-      if (isCheckingForUpdates) {
-        return rejectAction('check-in-progress')
-      }
-
-      isCheckingForUpdates = true
-      setState({
-        currentVersion,
-        kind: 'checking',
-      })
-
-      try {
-        await client.checkForUpdates()
-        return acceptAction()
-      } catch (error) {
-        return setErrorState(error)
-      }
+      return runCheckForUpdates('manual')
+    },
+    checkForUpdatesSilently: async () => {
+      return runCheckForUpdates('silent')
     },
     downloadUpdate: async () => {
       if (!isEnabled) {
