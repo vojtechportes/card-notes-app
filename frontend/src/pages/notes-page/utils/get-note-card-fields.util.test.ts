@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import type { ColumnDto, NoteDto } from '../../../types/api';
-import { getNoteCardFields } from './get-note-card-fields.util';
+import { describe, expect, it } from 'vitest'
+import type { ColumnDto, NoteDto } from '../../../types/api'
+import { getNoteCardFields } from './get-note-card-fields.util'
 
 const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
   return {
@@ -15,8 +15,8 @@ const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
     type: 'text',
     updatedAt: '2026-07-07T10:00:00.000Z',
     ...overrides,
-  };
-};
+  }
+}
 
 const note: NoteDto = {
   createdAt: '2026-07-07T10:00:00.000Z',
@@ -29,7 +29,7 @@ const note: NoteDto = {
     },
     'text-column': 'Alpha note',
   },
-};
+}
 
 describe('getNoteCardFields', () => {
   it('uses visible columns in sort order and reads default timestamps from the note', () => {
@@ -60,7 +60,9 @@ describe('getNoteCardFields', () => {
         }),
       ],
       null,
-    );
+      false,
+      'Last updated at'
+    )
 
     expect(fields).toEqual([
       {
@@ -81,8 +83,56 @@ describe('getNoteCardFields', () => {
         type: 'text',
         value: 'Alpha note',
       },
-    ]);
-  });
+    ])
+  })
+
+  it('merges createdAt and updatedAt into a single frontend field when enabled', () => {
+    const fields = getNoteCardFields(
+      note,
+      [
+        createColumn({
+          id: 'created-column',
+          isDefault: true,
+          name: 'createdAt',
+          sortOrder: 0,
+          title: 'Created at',
+          type: 'date',
+        }),
+        createColumn({
+          id: 'updated-column',
+          isDefault: true,
+          name: 'updatedAt',
+          sortOrder: 1,
+          title: 'Updated at',
+          type: 'date',
+        }),
+        createColumn({
+          id: 'text-column',
+          name: 'title',
+          sortOrder: 2,
+          title: 'Title',
+        }),
+      ],
+      null,
+      true,
+      'Last updated at'
+    )
+
+    expect(fields).toEqual([
+      {
+        columnId: 'last-updated-at',
+        title: 'Last updated at',
+        type: 'date',
+        value: '2026-07-07T12:00:00.000Z',
+      },
+      {
+        columnId: 'text-column',
+        title: 'Title',
+        type: 'text',
+        value: 'Alpha note',
+      },
+    ])
+  })
 
   it('skips hidden or empty fields and applies the configured field count limit', () => {
     const fields = getNoteCardFields(
@@ -125,7 +175,9 @@ describe('getNoteCardFields', () => {
         }),
       ],
       1,
-    );
+      false,
+      'Last updated at'
+    )
 
     expect(fields).toEqual([
       {
@@ -134,6 +186,6 @@ describe('getNoteCardFields', () => {
         type: 'text',
         value: 'Alpha note',
       },
-    ]);
-  });
-});
+    ])
+  })
+})

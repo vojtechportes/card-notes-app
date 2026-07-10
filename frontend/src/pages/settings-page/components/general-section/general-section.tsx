@@ -1,76 +1,57 @@
-import { Alert, Button, CircularProgress, Stack, TextField, Typography } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
-import * as yup from 'yup';
-import type { GeneralSettingsDto } from '../../../../types/api';
-import { createFormResolver } from '../../../../utils/create-form-resolver.util';
-import { useGeneralSettingsQuery } from '../../hooks/use-general-settings-query';
-import { useUpdateGeneralSettingsMutation } from '../../hooks/use-update-general-settings-mutation';
-import { SettingsSection } from '../settings-section';
-
-interface GeneralSettingsFormValues {
-  cardFieldDisplayCount: string;
-  textTruncationLength: string;
-}
-
-const emptyFormValues: GeneralSettingsFormValues = {
-  cardFieldDisplayCount: '',
-  textTruncationLength: '',
-};
-
-const mapSettingsToFormValues = (
-  settings?: GeneralSettingsDto,
-): GeneralSettingsFormValues => {
-  if (!settings) {
-    return emptyFormValues;
-  }
-
-  return {
-    cardFieldDisplayCount: settings.cardFieldDisplayCount?.toString() ?? '',
-    textTruncationLength: settings.textTruncationLength?.toString() ?? '',
-  };
-};
-
-const isPositiveIntegerOrEmpty = (value: string | undefined) => {
-  if (!value?.trim()) {
-    return true;
-  }
-
-  return /^[1-9]\d*$/.test(value.trim());
-};
-
-const mapFormValuesToPayload = (values: GeneralSettingsFormValues) => {
-  const cardFieldDisplayCount = values.cardFieldDisplayCount.trim();
-  const textTruncationLength = values.textTruncationLength.trim();
-
-  return {
-    cardFieldDisplayCount: cardFieldDisplayCount ? Number(cardFieldDisplayCount) : null,
-    textTruncationLength: textTruncationLength ? Number(textTruncationLength) : null,
-  };
-};
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  FormControlLabel,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import * as yup from 'yup'
+import { createFormResolver } from '../../../../utils/create-form-resolver.util'
+import { useGeneralSettingsQuery } from '../../hooks/use-general-settings-query'
+import { useUpdateGeneralSettingsMutation } from '../../hooks/use-update-general-settings-mutation'
+import { SettingsSection } from '../settings-section'
+import { GeneralSettingsFormValues } from './types'
+import { mapFormValuesToPayload } from './utils/map-form-values-to-payload.util'
+import { emptyFormValues } from './constants/empty-form-values'
+import { mapSettingsToFormValues } from './utils/map-settings-to-form-values.util'
+import { isPositiveIntegerOrEmpty } from './utils/is-positive-integer-or-empty.util'
 
 export const GeneralSection = () => {
-  const { t } = useTranslation();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSaved, setIsSaved] = useState(false);
-  const generalSettingsQuery = useGeneralSettingsQuery();
-  const updateGeneralSettingsMutation = useUpdateGeneralSettingsMutation();
+  const { t } = useTranslation()
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSaved, setIsSaved] = useState(false)
+  const generalSettingsQuery = useGeneralSettingsQuery()
+  const updateGeneralSettingsMutation = useUpdateGeneralSettingsMutation()
 
   const schema = useMemo((): yup.ObjectSchema<GeneralSettingsFormValues> => {
-    const validationMessage = t('settings.general.validation.positiveInteger');
+    const validationMessage = t('settings.general.validation.positiveInteger')
 
     return yup.object({
       cardFieldDisplayCount: yup
         .string()
         .defined()
-        .test('positive-integer-or-empty', validationMessage, isPositiveIntegerOrEmpty),
+        .test(
+          'positive-integer-or-empty',
+          validationMessage,
+          isPositiveIntegerOrEmpty
+        ),
       textTruncationLength: yup
         .string()
         .defined()
-        .test('positive-integer-or-empty', validationMessage, isPositiveIntegerOrEmpty),
-    });
-  }, [t]);
+        .test(
+          'positive-integer-or-empty',
+          validationMessage,
+          isPositiveIntegerOrEmpty
+        ),
+      mergeDateTimeFields: yup.boolean().defined(),
+    })
+  }, [t])
 
   const {
     control,
@@ -81,44 +62,46 @@ export const GeneralSection = () => {
     defaultValues: emptyFormValues,
     mode: 'onBlur',
     resolver: createFormResolver(schema),
-  });
+  })
 
-  const isSaving = isSubmitting || updateGeneralSettingsMutation.isPending;
+  const isSaving = isSubmitting || updateGeneralSettingsMutation.isPending
 
   useEffect(() => {
     if (generalSettingsQuery.data) {
-      reset(mapSettingsToFormValues(generalSettingsQuery.data));
-      setSubmitError(null);
-      setIsSaved(false);
-      return;
+      reset(mapSettingsToFormValues(generalSettingsQuery.data))
+      setSubmitError(null)
+      setIsSaved(false)
+      return
     }
 
     if (!generalSettingsQuery.isLoading) {
-      reset(emptyFormValues);
+      reset(emptyFormValues)
     }
-  }, [generalSettingsQuery.data, generalSettingsQuery.isLoading, reset]);
+  }, [generalSettingsQuery.data, generalSettingsQuery.isLoading, reset])
 
   const handleFormSubmit = useCallback(
     async (values: GeneralSettingsFormValues) => {
-      setSubmitError(null);
-      setIsSaved(false);
+      setSubmitError(null)
+      setIsSaved(false)
 
       try {
         const updatedSettings = await updateGeneralSettingsMutation.mutateAsync(
-          mapFormValuesToPayload(values),
-        );
+          mapFormValuesToPayload(values)
+        )
 
-        reset(mapSettingsToFormValues(updatedSettings));
-        setIsSaved(true);
+        reset(mapSettingsToFormValues(updatedSettings))
+        setIsSaved(true)
       } catch {
-        setSubmitError(t('settings.general.errors.submit'));
+        setSubmitError(t('settings.general.errors.submit'))
       }
     },
-    [reset, t, updateGeneralSettingsMutation],
-  );
+    [reset, t, updateGeneralSettingsMutation]
+  )
 
-  const showInitialLoadingState = generalSettingsQuery.isLoading && !generalSettingsQuery.data;
-  const showInitialErrorState = generalSettingsQuery.isError && !generalSettingsQuery.data;
+  const showInitialLoadingState =
+    generalSettingsQuery.isLoading && !generalSettingsQuery.data
+  const showInitialErrorState =
+    generalSettingsQuery.isError && !generalSettingsQuery.data
 
   return (
     <SettingsSection
@@ -135,13 +118,22 @@ export const GeneralSection = () => {
       ) : showInitialErrorState ? (
         <Alert severity="error">{t('settings.general.status.error')}</Alert>
       ) : (
-        <Stack component="form" noValidate onSubmit={handleSubmit(handleFormSubmit)} spacing={2}>
+        <Stack
+          component="form"
+          noValidate
+          onSubmit={handleSubmit(handleFormSubmit)}
+          spacing={2}
+        >
           <Typography color="text.secondary" variant="body2">
             {t('settings.general.hints.optional')}
           </Typography>
 
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-          {isSaved ? <Alert severity="success">{t('settings.general.status.saved')}</Alert> : null}
+          {isSaved ? (
+            <Alert severity="success">
+              {t('settings.general.status.saved')}
+            </Alert>
+          ) : null}
 
           <Controller
             control={control}
@@ -151,16 +143,17 @@ export const GeneralSection = () => {
                 error={!!errors.textTruncationLength}
                 fullWidth
                 helperText={
-                  errors.textTruncationLength?.message ?? t('settings.general.hints.textTruncationLength')
+                  errors.textTruncationLength?.message ??
+                  t('settings.general.hints.textTruncationLength')
                 }
                 inputRef={field.ref}
                 label={t('settings.general.fields.textTruncationLength')}
                 name={field.name}
                 onBlur={field.onBlur}
                 onChange={(event) => {
-                  setSubmitError(null);
-                  setIsSaved(false);
-                  field.onChange(event);
+                  setSubmitError(null)
+                  setIsSaved(false)
+                  field.onChange(event)
                 }}
                 slotProps={{
                   htmlInput: {
@@ -180,16 +173,17 @@ export const GeneralSection = () => {
                 error={!!errors.cardFieldDisplayCount}
                 fullWidth
                 helperText={
-                  errors.cardFieldDisplayCount?.message ?? t('settings.general.hints.cardFieldDisplayCount')
+                  errors.cardFieldDisplayCount?.message ??
+                  t('settings.general.hints.cardFieldDisplayCount')
                 }
                 inputRef={field.ref}
                 label={t('settings.general.fields.cardFieldDisplayCount')}
                 name={field.name}
                 onBlur={field.onBlur}
                 onChange={(event) => {
-                  setSubmitError(null);
-                  setIsSaved(false);
-                  field.onChange(event);
+                  setSubmitError(null)
+                  setIsSaved(false)
+                  field.onChange(event)
                 }}
                 slotProps={{
                   htmlInput: {
@@ -197,6 +191,24 @@ export const GeneralSection = () => {
                   },
                 }}
                 value={field.value}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="mergeDateTimeFields"
+            render={({ field }) => (
+              <FormControlLabel
+                name={field.name}
+                onBlur={field.onBlur}
+                onChange={(event) => {
+                  setSubmitError(null)
+                  setIsSaved(false)
+                  field.onChange(event)
+                }}
+                control={<Switch checked={field.value} />}
+                label={t('settings.general.fields.mergeDateTimeFields')}
               />
             )}
           />
@@ -210,7 +222,11 @@ export const GeneralSection = () => {
             <Typography color="text.secondary" variant="body2">
               {t('settings.general.summary')}
             </Typography>
-            <Button disabled={isSaving || !isDirty} type="submit" variant="contained">
+            <Button
+              disabled={isSaving || !isDirty}
+              type="submit"
+              variant="contained"
+            >
               {isSaving
                 ? t('settings.general.actions.saving')
                 : t('settings.general.actions.save')}
@@ -219,5 +235,5 @@ export const GeneralSection = () => {
         </Stack>
       )}
     </SettingsSection>
-  );
-};
+  )
+}

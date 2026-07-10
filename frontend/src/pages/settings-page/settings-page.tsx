@@ -1,12 +1,12 @@
-import { Stack, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { ColumnsSection } from './components/columns-section/columns-section';
-import { DangerZoneSection } from './components/danger-zone-section/danger-zone-section';
-import { ExportImportSection } from './components/export-import-section/export-import-section';
-import { GeneralSection } from './components/general-section/general-section';
+import { Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
+import { ColumnsSection } from './components/columns-section/columns-section'
+import { DangerZoneSection } from './components/danger-zone-section/danger-zone-section'
+import { ExportImportSection } from './components/export-import-section/export-import-section'
+import { GeneralSection } from './components/general-section/general-section'
 
 export const SettingsPage = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   return (
     <Stack spacing={3}>
@@ -14,7 +14,9 @@ export const SettingsPage = () => {
         <Typography component="h2" variant="h4">
           {t('settings.title')}
         </Typography>
-        <Typography color="text.secondary">{t('settings.description')}</Typography>
+        <Typography color="text.secondary">
+          {t('settings.description')}
+        </Typography>
       </Stack>
 
       <Stack spacing={3}>
@@ -24,5 +26,5 @@ export const SettingsPage = () => {
         <DangerZoneSection />
       </Stack>
     </Stack>
-  );
-};
+  )
+}

@@ -1,4 +1,4 @@
-import type { DatabaseMigration } from '../database-migration';
+import type { DatabaseMigration } from '../database-migration'
 
 export const createAppSchemaMigration: DatabaseMigration = {
   id: '001-create-app-schema',
@@ -43,6 +43,6 @@ export const createAppSchemaMigration: DatabaseMigration = {
       CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
       CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at);
       CREATE INDEX IF NOT EXISTS idx_note_values_column_id ON note_values(column_id);
-    `);
+    `)
   },
-};
+}

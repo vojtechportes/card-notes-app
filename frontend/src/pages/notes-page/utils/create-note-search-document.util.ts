@@ -1,6 +1,6 @@
-import type { NoteDto } from '../../../types/api';
-import type { NoteSearchDocument } from '../types/note-search-document';
-import { normalizeNoteSearchValue } from './normalize-note-search-value.util';
+import type { NoteDto } from '../../../types/api'
+import type { NoteSearchDocument } from '../types/note-search-document'
+import { normalizeNoteSearchValue } from './normalize-note-search-value.util'
 
 export const createNoteSearchDocument = (note: NoteDto): NoteSearchDocument => {
   return {
@@ -11,5 +11,5 @@ export const createNoteSearchDocument = (note: NoteDto): NoteSearchDocument => {
       .filter(Boolean)
       .join(' '),
     updatedAt: note.updatedAt,
-  };
-};
+  }
+}

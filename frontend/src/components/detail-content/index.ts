@@ -1,12 +1,10 @@
-export { DetailContent } from './detail-content';
-export type { DetailContentAction, DetailContentProps } from './detail-content';
-export { DetailContentTabs } from './detail-content-tabs';
-export type { DetailContentTabsProps } from './detail-content-tabs';
-export { TabContent } from './tab-content';
-export type { TabContentProps } from './tab-content';
-export { DetailContentContainer } from './components/detail-content-container';
-export type { DetailContentContainerProps } from './components/detail-content-container';
-export { DetailContentItem } from './components/detail-content-item';
-export type { DetailContentItemProps } from './components/detail-content-item';
-
-
+export { DetailContent } from './detail-content'
+export type { DetailContentAction, DetailContentProps } from './detail-content'
+export { DetailContentTabs } from './detail-content-tabs'
+export type { DetailContentTabsProps } from './detail-content-tabs'
+export { TabContent } from './tab-content'
+export type { TabContentProps } from './tab-content'
+export { DetailContentContainer } from './components/detail-content-container'
+export type { DetailContentContainerProps } from './components/detail-content-container'
+export { DetailContentItem } from './components/detail-content-item'
+export type { DetailContentItemProps } from './components/detail-content-item'

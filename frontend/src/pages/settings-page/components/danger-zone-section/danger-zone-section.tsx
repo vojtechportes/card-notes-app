@@ -1,9 +1,9 @@
-import { Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { SettingsSection } from '../settings-section';
+import { Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
+import { SettingsSection } from '../settings-section'
 
 export const DangerZoneSection = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   return (
     <SettingsSection
@@ -14,5 +14,5 @@ export const DangerZoneSection = () => {
         {t('settings.sections.dangerZone.placeholder')}
       </Typography>
     </SettingsSection>
-  );
-};
+  )
+}

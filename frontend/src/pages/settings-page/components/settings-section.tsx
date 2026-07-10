@@ -1,9 +1,9 @@
-import { Paper, Stack, Typography } from '@mui/material';
-import type { PropsWithChildren } from 'react';
+import { Paper, Stack, Typography } from '@mui/material'
+import type { PropsWithChildren } from 'react'
 
 interface SettingsSectionProps extends PropsWithChildren {
-  description: string;
-  title: string;
+  description: string
+  title: string
 }
 
 export const SettingsSection = ({
@@ -24,5 +24,5 @@ export const SettingsSection = ({
         {children}
       </Stack>
     </Paper>
-  );
-};
+  )
+}

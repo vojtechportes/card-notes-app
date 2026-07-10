@@ -1,136 +1,139 @@
-import { Alert, Button, Stack, Typography } from '@mui/material';
-import { useCallback, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import type { ImportResultDto } from '../../../../types/api';
-import { useExportDataMutation } from '../../hooks/use-export-data-mutation';
-import { useImportDataMutation } from '../../hooks/use-import-data-mutation';
-import { SettingsSection } from '../settings-section';
-import { isExportImportData } from './utils/is-export-import-data.util';
-import { parseJsonFile } from './utils/parse-json-file.util';
+import { Alert, Button, Stack, Typography } from '@mui/material'
+import { useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { ImportResultDto } from '../../../../types/api'
+import { useExportDataMutation } from '../../hooks/use-export-data-mutation'
+import { useImportDataMutation } from '../../hooks/use-import-data-mutation'
+import { SettingsSection } from '../settings-section'
+import { isExportImportData } from './utils/is-export-import-data.util'
+import { parseJsonFile } from './utils/parse-json-file.util'
 
 interface FeedbackState {
-  message: string;
-  severity: 'error' | 'success';
+  message: string
+  severity: 'error' | 'success'
 }
 
 const createExportFileName = (exportedAt: string) => {
-  return `card-notes-export-${exportedAt.replace(/[.:]/g, '-')}.json`;
-};
+  return `card-notes-export-${exportedAt.replace(/[.:]/g, '-')}.json`
+}
 
 const createImportSuccessMessage = (
   t: ReturnType<typeof useTranslation>['t'],
-  result: ImportResultDto,
+  result: ImportResultDto
 ) => {
   const generalSettingsStatus = result.updatedGeneralSettings
     ? t('settings.exportImport.status.generalSettingsUpdated')
-    : t('settings.exportImport.status.generalSettingsUnchanged');
+    : t('settings.exportImport.status.generalSettingsUnchanged')
 
   return t('settings.exportImport.status.imported', {
     generalSettingsStatus,
     importedColumns: result.importedColumns,
     importedNotes: result.importedNotes,
-  });
-};
+  })
+}
 
 export const ExportImportSection = () => {
-  const { t } = useTranslation();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const exportDataMutation = useExportDataMutation();
-  const importDataMutation = useImportDataMutation();
+  const { t } = useTranslation()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const exportDataMutation = useExportDataMutation()
+  const importDataMutation = useImportDataMutation()
 
   const resetFileSelection = useCallback(() => {
-    setSelectedFile(null);
+    setSelectedFile(null)
 
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = ''
     }
-  }, []);
+  }, [])
 
   const handleExport = useCallback(async () => {
-    setFeedback(null);
+    setFeedback(null)
 
     try {
-      const exportData = await exportDataMutation.mutateAsync();
+      const exportData = await exportDataMutation.mutateAsync()
       const exportBlob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: 'application/json',
-      });
-      const objectUrl = URL.createObjectURL(exportBlob);
-      const downloadLink = document.createElement('a');
+      })
+      const objectUrl = URL.createObjectURL(exportBlob)
+      const downloadLink = document.createElement('a')
 
-      downloadLink.href = objectUrl;
-      downloadLink.download = createExportFileName(exportData.exportedAt);
-      downloadLink.click();
+      downloadLink.href = objectUrl
+      downloadLink.download = createExportFileName(exportData.exportedAt)
+      downloadLink.click()
       window.requestAnimationFrame(() => {
-        URL.revokeObjectURL(objectUrl);
-      });
+        URL.revokeObjectURL(objectUrl)
+      })
 
       setFeedback({
         message: t('settings.exportImport.status.exported'),
         severity: 'success',
-      });
+      })
     } catch {
       setFeedback({
         message: t('settings.exportImport.errors.export'),
         severity: 'error',
-      });
+      })
     }
-  }, [exportDataMutation, t]);
+  }, [exportDataMutation, t])
 
-  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0] ?? null;
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextFile = event.target.files?.[0] ?? null
 
-    setFeedback(null);
-    setSelectedFile(nextFile);
-  }, []);
+      setFeedback(null)
+      setSelectedFile(nextFile)
+    },
+    []
+  )
 
   const handleImport = useCallback(async () => {
     if (!selectedFile) {
       setFeedback({
         message: t('settings.exportImport.hints.noFile'),
         severity: 'error',
-      });
-      return;
+      })
+      return
     }
 
-    setFeedback(null);
+    setFeedback(null)
 
-    let parsedData: unknown;
+    let parsedData: unknown
 
     try {
-      parsedData = await parseJsonFile(selectedFile);
+      parsedData = await parseJsonFile(selectedFile)
     } catch {
       setFeedback({
         message: t('settings.exportImport.errors.invalidJson'),
         severity: 'error',
-      });
-      return;
+      })
+      return
     }
 
     if (!isExportImportData(parsedData)) {
       setFeedback({
         message: t('settings.exportImport.errors.invalidShape'),
         severity: 'error',
-      });
-      return;
+      })
+      return
     }
 
     try {
-      const importResult = await importDataMutation.mutateAsync(parsedData);
+      const importResult = await importDataMutation.mutateAsync(parsedData)
 
       setFeedback({
         message: createImportSuccessMessage(t, importResult),
         severity: 'success',
-      });
-      resetFileSelection();
+      })
+      resetFileSelection()
     } catch {
       setFeedback({
         message: t('settings.exportImport.errors.import'),
         severity: 'error',
-      });
+      })
     }
-  }, [importDataMutation, resetFileSelection, selectedFile, t]);
+  }, [importDataMutation, resetFileSelection, selectedFile, t])
 
   return (
     <SettingsSection
@@ -142,11 +145,15 @@ export const ExportImportSection = () => {
           {t('settings.exportImport.summary')}
         </Typography>
 
-        {feedback ? <Alert severity={feedback.severity}>{feedback.message}</Alert> : null}
+        {feedback ? (
+          <Alert severity={feedback.severity}>{feedback.message}</Alert>
+        ) : null}
 
         <Stack direction={{ sm: 'row', xs: 'column' }} spacing={1.5}>
           <Button
-            disabled={exportDataMutation.isPending || importDataMutation.isPending}
+            disabled={
+              exportDataMutation.isPending || importDataMutation.isPending
+            }
             onClick={handleExport}
             variant="contained"
           >
@@ -174,7 +181,11 @@ export const ExportImportSection = () => {
           </Button>
 
           <Button
-            disabled={!selectedFile || exportDataMutation.isPending || importDataMutation.isPending}
+            disabled={
+              !selectedFile ||
+              exportDataMutation.isPending ||
+              importDataMutation.isPending
+            }
             onClick={handleImport}
             variant="contained"
           >
@@ -193,5 +204,5 @@ export const ExportImportSection = () => {
         </Typography>
       </Stack>
     </SettingsSection>
-  );
-};
+  )
+}

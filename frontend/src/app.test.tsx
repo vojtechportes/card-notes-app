@@ -1,54 +1,66 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { App } from './app';
-import './i18n';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { App } from './app'
+import './i18n'
 
 describe('App routing', () => {
   afterEach(() => {
-    cleanup();
-    window.location.hash = '';
-  });
+    cleanup()
+    window.location.hash = ''
+  })
 
   it('redirects the home route to notes', async () => {
-    window.location.hash = '';
+    window.location.hash = ''
 
-    render(<App />);
+    render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy();
-    await waitFor(() => expect(window.location.hash).toBe('#/notes'));
-  });
+    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/notes'))
+  })
 
   it('renders settings from the settings route', async () => {
-    window.location.hash = '#/settings';
+    window.location.hash = '#/settings'
 
-    render(<App />);
+    render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
-  });
+    expect(
+      await screen.findByRole('heading', { name: 'Settings' })
+    ).toBeTruthy()
+  })
 
   it('updates the route when navigation links are clicked', async () => {
-    render(<App />);
+    render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
-    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: /Settings/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    expect(
+      screen.getByRole('navigation', { name: 'Main navigation' })
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeTruthy();
-    expect(window.location.hash).toBe('#/settings');
+    expect(
+      await screen.findByRole('heading', { name: 'Settings' })
+    ).toBeTruthy()
+    expect(window.location.hash).toBe('#/settings')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
-    fireEvent.click(screen.getByRole('link', { name: /Notes/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    fireEvent.click(screen.getByRole('link', { name: /Notes/ }))
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy();
-    expect(window.location.hash).toBe('#/notes');
-  });
+    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    expect(window.location.hash).toBe('#/notes')
+  })
 
   it('redirects unknown routes to notes', async () => {
-    window.location.hash = '#/missing-route';
+    window.location.hash = '#/missing-route'
 
-    render(<App />);
+    render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy();
-    await waitFor(() => expect(window.location.hash).toBe('#/notes'));
-  });
-});
+    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/notes'))
+  })
+})

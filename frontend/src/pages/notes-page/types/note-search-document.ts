@@ -1,6 +1,6 @@
 export interface NoteSearchDocument {
-  id: string;
-  searchableText: string;
-  createdAt: string;
-  updatedAt: string;
+  id: string
+  searchableText: string
+  createdAt: string
+  updatedAt: string
 }

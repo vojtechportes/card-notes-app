@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger'
 
 const noteValueSchema = {
   oneOf: [
@@ -20,22 +20,28 @@ const noteValueSchema = {
       },
     },
   ],
-};
+}
 
 export class NoteDto {
   @ApiProperty({ type: String, description: 'Stable note id.' })
-  id: string;
+  id: string
 
   @ApiProperty({
     type: 'object',
     additionalProperties: noteValueSchema,
     description: 'Structured note values keyed by note column id.',
   })
-  values: Record<string, unknown>;
+  values: Record<string, unknown>
 
-  @ApiProperty({ type: String, description: 'ISO timestamp when the note was created.' })
-  createdAt: string;
+  @ApiProperty({
+    type: String,
+    description: 'ISO timestamp when the note was created.',
+  })
+  createdAt: string
 
-  @ApiProperty({ type: String, description: 'ISO timestamp when the note was last updated.' })
-  updatedAt: string;
+  @ApiProperty({
+    type: String,
+    description: 'ISO timestamp when the note was last updated.',
+  })
+  updatedAt: string
 }

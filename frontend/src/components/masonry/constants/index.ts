@@ -1,4 +1,4 @@
-import type { BreakpointKey } from '../types';
+import type { BreakpointKey } from '../types'
 
 export const BREAKPOINTS: Record<BreakpointKey, number> = {
   xs: 0,
@@ -6,12 +6,6 @@ export const BREAKPOINTS: Record<BreakpointKey, number> = {
   md: 768,
   lg: 1024,
   xl: 1280,
-};
+}
 
-export const BREAKPOINTS_ORDER: BreakpointKey[] = [
-  'xs',
-  'sm',
-  'md',
-  'lg',
-  'xl',
-];
+export const BREAKPOINTS_ORDER: BreakpointKey[] = ['xs', 'sm', 'md', 'lg', 'xl']

@@ -1,28 +1,22 @@
-import { createContext, type FC, type PropsWithChildren } from 'react';
+import { createContext, type FC, type PropsWithChildren } from 'react'
 
 type DetailContentContainerContextProps = {
-  fullHeight?: boolean;
-};
+  fullHeight?: boolean
+}
 
 type DetailContentContainerProviderProps = PropsWithChildren<{
-  fullHeight?: boolean;
-}>;
+  fullHeight?: boolean
+}>
 
 export const DetailContentContainerContext =
-  createContext<DetailContentContainerContextProps>({});
+  createContext<DetailContentContainerContextProps>({})
 
-export const DetailContentContainerProvider: FC<DetailContentContainerProviderProps> = ({
-  children,
-  fullHeight,
-}) => {
+export const DetailContentContainerProvider: FC<
+  DetailContentContainerProviderProps
+> = ({ children, fullHeight }) => {
   return (
     <DetailContentContainerContext.Provider value={{ fullHeight }}>
       {children}
     </DetailContentContainerContext.Provider>
-  );
-};
-
-
-
-
-
+  )
+}

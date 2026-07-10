@@ -14,23 +14,23 @@ import {
   Stack,
   Switch,
   TextField,
-} from '@mui/material';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
-import type { ColumnDto } from '../../../../../types/api';
-import { createFormResolver } from '../../../../../utils/create-form-resolver.util';
-import { columnTypeOptions } from '../constants/column-type-options';
-import type { ColumnFormValues } from '../types/column-form-values';
-import { createColumnFormSchema } from '../utils/create-column-form-schema.util';
-import { getColumnFormDefaultValues } from '../utils/get-column-form-default-values.util';
+} from '@mui/material'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import type { ColumnDto } from '../../../../../types/api'
+import { createFormResolver } from '../../../../../utils/create-form-resolver.util'
+import { columnTypeOptions } from '../constants/column-type-options'
+import type { ColumnFormValues } from '../types/column-form-values'
+import { createColumnFormSchema } from '../utils/create-column-form-schema.util'
+import { getColumnFormDefaultValues } from '../utils/get-column-form-default-values.util'
 
 interface ColumnDialogProps {
-  columns: ColumnDto[];
-  column?: ColumnDto;
-  onClose: () => void;
-  onSubmit: (values: ColumnFormValues) => Promise<void>;
-  open: boolean;
+  columns: ColumnDto[]
+  column?: ColumnDto
+  onClose: () => void
+  onSubmit: (values: ColumnFormValues) => Promise<void>
+  open: boolean
 }
 
 export const ColumnDialog = ({
@@ -40,18 +40,18 @@ export const ColumnDialog = ({
   onSubmit,
   open,
 }: ColumnDialogProps) => {
-  const { t } = useTranslation();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const formId = useId().replace(/:/g, '-');
-  const initializedColumnIdRef = useRef<string | null>(null);
+  const { t } = useTranslation()
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const formId = useId().replace(/:/g, '-')
+  const initializedColumnIdRef = useRef<string | null>(null)
 
   const defaultValues = useMemo(() => {
-    return getColumnFormDefaultValues(column);
-  }, [column]);
+    return getColumnFormDefaultValues(column)
+  }, [column])
 
   const schema = useMemo(() => {
-    return createColumnFormSchema(columns, t, column?.id);
-  }, [column?.id, columns, t]);
+    return createColumnFormSchema(columns, t, column?.id)
+  }, [column?.id, columns, t])
 
   const {
     control,
@@ -62,54 +62,54 @@ export const ColumnDialog = ({
     defaultValues,
     mode: 'onBlur',
     resolver: createFormResolver(schema),
-  });
+  })
 
-  const isEditing = !!column;
-  const isDefaultColumn = column?.isDefault ?? false;
+  const isEditing = !!column
+  const isDefaultColumn = column?.isDefault ?? false
 
   useEffect(() => {
     if (!open) {
-      initializedColumnIdRef.current = null;
-      return;
+      initializedColumnIdRef.current = null
+      return
     }
 
-    const currentColumnId = column?.id ?? 'create';
+    const currentColumnId = column?.id ?? 'create'
 
     if (initializedColumnIdRef.current === currentColumnId) {
-      return;
+      return
     }
 
-    reset(defaultValues);
-    setSubmitError(null);
-    initializedColumnIdRef.current = currentColumnId;
-  }, [column?.id, defaultValues, open, reset]);
+    reset(defaultValues)
+    setSubmitError(null)
+    initializedColumnIdRef.current = currentColumnId
+  }, [column?.id, defaultValues, open, reset])
 
   const handleDialogClose = useCallback(() => {
     if (isSubmitting) {
-      return;
+      return
     }
 
-    initializedColumnIdRef.current = null;
-    setSubmitError(null);
-    reset(defaultValues);
-    onClose();
-  }, [defaultValues, isSubmitting, onClose, reset]);
+    initializedColumnIdRef.current = null
+    setSubmitError(null)
+    reset(defaultValues)
+    onClose()
+  }, [defaultValues, isSubmitting, onClose, reset])
 
   const handleFormSubmit = useCallback(
     async (values: ColumnFormValues) => {
-      setSubmitError(null);
+      setSubmitError(null)
 
       try {
-        await onSubmit(values);
-        initializedColumnIdRef.current = null;
-        reset(getColumnFormDefaultValues(column));
-        onClose();
+        await onSubmit(values)
+        initializedColumnIdRef.current = null
+        reset(getColumnFormDefaultValues(column))
+        onClose()
       } catch {
-        setSubmitError(t('settings.columns.errors.submit'));
+        setSubmitError(t('settings.columns.errors.submit'))
       }
     },
-    [column, onClose, onSubmit, reset, t],
-  );
+    [column, onClose, onSubmit, reset, t]
+  )
 
   return (
     <Dialog
@@ -118,10 +118,10 @@ export const ColumnDialog = ({
       open={open}
       onClose={(_, reason) => {
         if (reason === 'backdropClick' && isSubmitting) {
-          return;
+          return
         }
 
-        handleDialogClose();
+        handleDialogClose()
       }}
     >
       <DialogTitle>
@@ -228,7 +228,12 @@ export const ColumnDialog = ({
         <Button disabled={isSubmitting} onClick={handleDialogClose}>
           {t('settings.columns.actions.cancel')}
         </Button>
-        <Button disabled={isSubmitting} form={formId} type="submit" variant="contained">
+        <Button
+          disabled={isSubmitting}
+          form={formId}
+          type="submit"
+          variant="contained"
+        >
           {isSubmitting
             ? t('settings.columns.actions.saving')
             : isEditing
@@ -237,6 +242,5 @@ export const ColumnDialog = ({
         </Button>
       </DialogActions>
     </Dialog>
-  );
-};
-
+  )
+}

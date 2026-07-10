@@ -6,10 +6,10 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
-import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+} from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
+import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import {
   createContext,
   type Dispatch,
@@ -21,76 +21,77 @@ import {
   useContext,
   useMemo,
   useState,
-} from 'react';
-import { useTranslation } from 'react-i18next';
-import type { DetailContentContainerProps as DetailContentContainerOptions } from './detail-content';
+} from 'react'
+import { useTranslation } from 'react-i18next'
+import type { DetailContentContainerProps as DetailContentContainerOptions } from './detail-content'
 
 export type SideDrawerInfo = {
-  open?: boolean;
-  title?: ReactNode;
-  loading?: boolean;
-  data?: unknown;
-  drawerContent?: ReactNode;
-  drawerHeaderRightContent?: ReactNode;
-  drawerActions?: ReactNode;
-  onClose?: () => void;
-  width?: number | 'full';
-  DetailContentContainerProps?: Omit<DetailContentContainerOptions, 'children'>;
-};
+  open?: boolean
+  title?: ReactNode
+  loading?: boolean
+  data?: unknown
+  drawerContent?: ReactNode
+  drawerHeaderRightContent?: ReactNode
+  drawerActions?: ReactNode
+  onClose?: () => void
+  width?: number | 'full'
+  DetailContentContainerProps?: Omit<DetailContentContainerOptions, 'children'>
+}
 
 export const drawerInitialState: SideDrawerInfo = {
   open: false,
-};
+}
 
 type SideDrawerContextValue = {
-  sideDrawerInfo: SideDrawerInfo;
-  toggleDrawer: Dispatch<SetStateAction<SideDrawerInfo>>;
-};
+  sideDrawerInfo: SideDrawerInfo
+  toggleDrawer: Dispatch<SetStateAction<SideDrawerInfo>>
+}
 
 export const SideDrawerContext = createContext<SideDrawerContextValue>({
   sideDrawerInfo: drawerInitialState,
   toggleDrawer: () => undefined,
-});
+})
 
 export const SideDrawerProvider: FC<PropsWithChildren> = ({ children }) => {
-  const [sideDrawerInfo, toggleDrawer] = useState<SideDrawerInfo>(drawerInitialState);
+  const [sideDrawerInfo, toggleDrawer] =
+    useState<SideDrawerInfo>(drawerInitialState)
   const value = useMemo(
     () => ({ sideDrawerInfo, toggleDrawer }),
-    [sideDrawerInfo],
-  );
+    [sideDrawerInfo]
+  )
 
   return (
     <SideDrawerContext.Provider value={value}>
       {children}
     </SideDrawerContext.Provider>
-  );
-};
+  )
+}
 
 export const SideDrawer: FC = () => {
-  const { sideDrawerInfo, toggleDrawer } = useContext(SideDrawerContext);
-  const { t } = useTranslation();
-  const theme = useTheme();
-  const upLg = useMediaQuery(theme.breakpoints.up('lg'));
-  const [expanded, setExpanded] = useState(false);
-  const drawerOnClose = sideDrawerInfo.onClose;
+  const { sideDrawerInfo, toggleDrawer } = useContext(SideDrawerContext)
+  const { t } = useTranslation()
+  const theme = useTheme()
+  const upLg = useMediaQuery(theme.breakpoints.up('lg'))
+  const [expanded, setExpanded] = useState(false)
+  const drawerOnClose = sideDrawerInfo.onClose
 
   const handleExpandedButtonClick = useCallback(() => {
-    setExpanded((value) => !value);
-  }, []);
+    setExpanded((value) => !value)
+  }, [])
 
   const handleCloseButtonClick = useCallback(() => {
-    drawerOnClose?.();
-    toggleDrawer(drawerInitialState);
-  }, [drawerOnClose, toggleDrawer]);
+    drawerOnClose?.()
+    toggleDrawer(drawerInitialState)
+  }, [drawerOnClose, toggleDrawer])
 
   if (!sideDrawerInfo.open) {
-    return null;
+    return null
   }
 
   const resolvedWidth =
     expanded || sideDrawerInfo.width === 'full'
       ? 'calc(100vw - 248px)'
-      : sideDrawerInfo.width ?? Math.max(520, window.innerWidth / 3);
+      : (sideDrawerInfo.width ?? Math.max(520, window.innerWidth / 3))
 
   return (
     <Box
@@ -185,5 +186,5 @@ export const SideDrawer: FC = () => {
         {sideDrawerInfo.drawerContent}
       </Box>
     </Box>
-  );
-};
+  )
+}

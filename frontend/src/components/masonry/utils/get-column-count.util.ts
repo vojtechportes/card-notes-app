@@ -1,27 +1,27 @@
-import { BREAKPOINTS, BREAKPOINTS_ORDER } from '../constants';
-import type { ResponsiveColumns } from '../types';
+import { BREAKPOINTS, BREAKPOINTS_ORDER } from '../constants'
+import type { ResponsiveColumns } from '../types'
 
 export const getColumnCount = (
   columns: number | ResponsiveColumns | undefined,
-  windowWidth: number,
+  windowWidth: number
 ): number => {
   if (!columns) {
-    return 1;
+    return 1
   }
 
   if (typeof columns === 'number') {
-    return columns;
+    return columns
   }
 
-  let resolved = columns.xs ?? 1;
+  let resolved = columns.xs ?? 1
 
   for (const key of BREAKPOINTS_ORDER) {
-    const value = columns[key];
+    const value = columns[key]
 
     if (value !== undefined && windowWidth >= BREAKPOINTS[key]) {
-      resolved = value;
+      resolved = value
     }
   }
 
-  return resolved;
-};
+  return resolved
+}

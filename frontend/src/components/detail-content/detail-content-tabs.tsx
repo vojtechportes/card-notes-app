@@ -1,11 +1,14 @@
-import { Box, type SxProps, type Theme } from '@mui/material';
-import type { FC, PropsWithChildren } from 'react';
+import { Box, type SxProps, type Theme } from '@mui/material'
+import type { FC, PropsWithChildren } from 'react'
 
 export type DetailContentTabsProps = PropsWithChildren<{
-  sx?: SxProps<Theme>;
-}>;
+  sx?: SxProps<Theme>
+}>
 
-export const DetailContentTabs: FC<DetailContentTabsProps> = ({ children, sx }) => {
+export const DetailContentTabs: FC<DetailContentTabsProps> = ({
+  children,
+  sx,
+}) => {
   return (
     <Box
       sx={{
@@ -17,10 +20,5 @@ export const DetailContentTabs: FC<DetailContentTabsProps> = ({ children, sx }) 
     >
       {children}
     </Box>
-  );
-};
-
-
-
-
-
+  )
+}

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Card,
   CardActions,
@@ -6,23 +6,23 @@
   Divider,
   Stack,
   Typography,
-} from '@mui/material';
-import { useTranslation } from 'react-i18next';
+} from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import type {
   ColumnDto,
   GeneralSettingsDto,
   NoteDto,
-} from '../../../../types/api';
-import { getNoteCardFields } from '../../utils/get-note-card-fields.util';
-import { NoteFieldValue as NoteCardFieldValue } from '../note-field-value/note-field-value';
+} from '../../../../types/api'
+import { getNoteCardFields } from '../../utils/get-note-card-fields.util'
+import { NoteFieldValue as NoteCardFieldValue } from '../note-field-value/note-field-value'
 
 interface NoteCardProps {
-  columns: ColumnDto[];
-  generalSettings: GeneralSettingsDto;
-  note: NoteDto;
-  onDeleteNote?: (note: NoteDto) => void;
-  onEditNote?: (note: NoteDto) => void;
-  onOpenNoteDetail?: (note: NoteDto) => void;
+  columns: ColumnDto[]
+  generalSettings: GeneralSettingsDto
+  note: NoteDto
+  onDeleteNote?: (note: NoteDto) => void
+  onEditNote?: (note: NoteDto) => void
+  onOpenNoteDetail?: (note: NoteDto) => void
 }
 
 export const NoteCard = ({
@@ -33,13 +33,15 @@ export const NoteCard = ({
   onEditNote,
   onOpenNoteDetail,
 }: NoteCardProps) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const fields = getNoteCardFields(
     note,
     columns,
     generalSettings.cardFieldDisplayCount,
-  );
-  const hasActions = Boolean(onOpenNoteDetail || onEditNote || onDeleteNote);
+    !!generalSettings.mergeDateTimeFields,
+    t('notes.fields.lastUpdatedAt')
+  )
+  const hasActions = Boolean(onOpenNoteDetail || onEditNote || onDeleteNote)
 
   return (
     <Card sx={{ height: '100%' }} variant="outlined">
@@ -99,5 +101,5 @@ export const NoteCard = ({
         </CardActions>
       )}
     </Card>
-  );
-};
+  )
+}

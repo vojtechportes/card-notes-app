@@ -1,18 +1,16 @@
-import type { ColumnDto, NoteDto } from '../../../types/api';
-import type { NoteCardField } from '../types/note-card-field';
-import { resolveNoteCardColumnValue } from './resolve-note-card-column-value.util';
+import type { ColumnDto, NoteDto } from '../../../types/api'
+import type { NoteCardField } from '../types/note-card-field'
+import { getNoteDisplayFields } from './get-note-display-fields.util'
 
 export const getNoteDetailFields = (
   note: NoteDto,
   columns: ColumnDto[],
+  mergeDateTimeFields: boolean,
+  mergedDateTitle: string
 ): NoteCardField[] => {
-  return columns
-    .filter((column) => column.isDefault || !column.isHidden)
-    .sort((leftColumn, rightColumn) => leftColumn.sortOrder - rightColumn.sortOrder)
-    .map((column) => ({
-      columnId: column.id,
-      title: column.title,
-      type: column.type,
-      value: resolveNoteCardColumnValue(note, column),
-    }));
-};
+  return getNoteDisplayFields(note, columns, {
+    includeDefaultHiddenFields: true,
+    mergeDateTimeFields,
+    mergedDateTitle,
+  })
+}

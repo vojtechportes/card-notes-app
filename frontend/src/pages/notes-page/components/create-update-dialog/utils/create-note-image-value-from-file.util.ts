@@ -1,14 +1,15 @@
-import type { NoteFormImageValue } from '../types/note-form-image-value';
-import { readFileAsDataUrl } from './read-file-as-data-url.util';
-import { readImageDimensions } from './read-image-dimensions.util';
+import type { NoteFormImageValue } from '../types/note-form-image-value'
+import { readFileAsDataUrl } from './read-file-as-data-url.util'
+import { readImageDimensions } from './read-image-dimensions.util'
 
 export const createNoteImageValueFromFile = async (
-  file: File,
+  file: File
 ): Promise<NoteFormImageValue> => {
-  const dataUrl = await readFileAsDataUrl(file);
-  const dimensions = await readImageDimensions(dataUrl);
-  const lastExtensionIndex = file.name.lastIndexOf('.');
-  const altText = lastExtensionIndex > 0 ? file.name.slice(0, lastExtensionIndex) : file.name;
+  const dataUrl = await readFileAsDataUrl(file)
+  const dimensions = await readImageDimensions(dataUrl)
+  const lastExtensionIndex = file.name.lastIndexOf('.')
+  const altText =
+    lastExtensionIndex > 0 ? file.name.slice(0, lastExtensionIndex) : file.name
 
   return {
     altText,
@@ -18,5 +19,5 @@ export const createNoteImageValueFromFile = async (
     mimeType: file.type || undefined,
     size: file.size,
     width: dimensions.width,
-  };
-};
+  }
+}

@@ -1,4 +1,11 @@
-import { Alert, Button, CircularProgress, List, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  List,
+  Stack,
+  Typography,
+} from '@mui/material'
 import {
   closestCenter,
   DndContext,
@@ -7,40 +14,40 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from '@dnd-kit/core';
+} from '@dnd-kit/core'
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { useCallback, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import type { ColumnDto, DeleteColumnQueryDto } from '../../../../types/api';
-import { useConfirmation } from '../../../../components/confirmation';
-import { useCreateColumnMutation } from '../../hooks/use-create-column-mutation';
-import { useDeleteColumnMutation } from '../../hooks/use-delete-column-mutation';
-import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query';
-import { useReorderColumnsMutation } from '../../hooks/use-reorder-columns-mutation';
-import { useUpdateColumnMutation } from '../../hooks/use-update-column-mutation';
-import { SettingsSection } from '../settings-section';
-import { ColumnDialog } from './components/column-dialog';
-import { SortableColumnItem } from './components/sortable-column-item';
-import type { ColumnFormValues } from './types/column-form-values';
-import { getReorderedColumnIds } from './utils/get-reordered-column-ids.util';
+} from '@dnd-kit/sortable'
+import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { ColumnDto, DeleteColumnQueryDto } from '../../../../types/api'
+import { useConfirmation } from '../../../../components/confirmation'
+import { useCreateColumnMutation } from '../../hooks/use-create-column-mutation'
+import { useDeleteColumnMutation } from '../../hooks/use-delete-column-mutation'
+import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query'
+import { useReorderColumnsMutation } from '../../hooks/use-reorder-columns-mutation'
+import { useUpdateColumnMutation } from '../../hooks/use-update-column-mutation'
+import { SettingsSection } from '../settings-section'
+import { ColumnDialog } from './components/column-dialog'
+import { SortableColumnItem } from './components/sortable-column-item'
+import type { ColumnFormValues } from './types/column-form-values'
+import { getReorderedColumnIds } from './utils/get-reordered-column-ids.util'
 
-type ColumnDeleteMode = NonNullable<DeleteColumnQueryDto['deleteMode']>;
+type ColumnDeleteMode = NonNullable<DeleteColumnQueryDto['deleteMode']>
 
 export const ColumnsSection = () => {
-  const { t } = useTranslation();
-  const confirmation = useConfirmation();
-  const [activeColumn, setActiveColumn] = useState<ColumnDto | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [sectionError, setSectionError] = useState<string | null>(null);
-  const noteColumnsQuery = useNoteColumnsQuery();
-  const createColumnMutation = useCreateColumnMutation();
-  const updateColumnMutation = useUpdateColumnMutation();
-  const reorderColumnsMutation = useReorderColumnsMutation();
-  const deleteColumnMutation = useDeleteColumnMutation();
+  const { t } = useTranslation()
+  const confirmation = useConfirmation()
+  const [activeColumn, setActiveColumn] = useState<ColumnDto | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [sectionError, setSectionError] = useState<string | null>(null)
+  const noteColumnsQuery = useNoteColumnsQuery()
+  const createColumnMutation = useCreateColumnMutation()
+  const updateColumnMutation = useUpdateColumnMutation()
+  const reorderColumnsMutation = useReorderColumnsMutation()
+  const deleteColumnMutation = useDeleteColumnMutation()
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -50,73 +57,73 @@ export const ColumnsSection = () => {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
+    })
+  )
 
   const columns = useMemo(() => {
-    return noteColumnsQuery.data ?? [];
-  }, [noteColumnsQuery.data]);
+    return noteColumnsQuery.data ?? []
+  }, [noteColumnsQuery.data])
 
   const closeDialog = useCallback(() => {
-    setActiveColumn(null);
-    setIsDialogOpen(false);
-  }, []);
+    setActiveColumn(null)
+    setIsDialogOpen(false)
+  }, [])
 
   const openCreateDialog = useCallback(() => {
-    setSectionError(null);
-    setActiveColumn(null);
-    setIsDialogOpen(true);
-  }, []);
+    setSectionError(null)
+    setActiveColumn(null)
+    setIsDialogOpen(true)
+  }, [])
 
   const openEditDialog = useCallback((column: ColumnDto) => {
-    setSectionError(null);
-    setActiveColumn(column);
-    setIsDialogOpen(true);
-  }, []);
+    setSectionError(null)
+    setActiveColumn(column)
+    setIsDialogOpen(true)
+  }, [])
 
   const handleDialogSubmit = useCallback(
     async (values: ColumnFormValues) => {
-      setSectionError(null);
+      setSectionError(null)
 
       const payload = {
         isHidden: values.isHidden,
         name: values.name.trim(),
         title: values.title.trim(),
         type: values.type,
-      };
+      }
 
       if (activeColumn) {
         await updateColumnMutation.mutateAsync({
           column: payload,
           id: activeColumn.id,
-        });
-        return;
+        })
+        return
       }
 
-      await createColumnMutation.mutateAsync(payload);
+      await createColumnMutation.mutateAsync(payload)
     },
-    [activeColumn, createColumnMutation, updateColumnMutation],
-  );
+    [activeColumn, createColumnMutation, updateColumnMutation]
+  )
 
   const handleToggleHidden = useCallback(
     async (column: ColumnDto) => {
-      setSectionError(null);
+      setSectionError(null)
 
       try {
         await updateColumnMutation.mutateAsync({
           column: { isHidden: !column.isHidden },
           id: column.id,
-        });
+        })
       } catch {
-        setSectionError(t('settings.columns.errors.updateHidden'));
+        setSectionError(t('settings.columns.errors.updateHidden'))
       }
     },
-    [t, updateColumnMutation],
-  );
+    [t, updateColumnMutation]
+  )
 
   const handleDelete = useCallback(
     async (column: ColumnDto) => {
-      setSectionError(null);
+      setSectionError(null)
 
       const deleteMode = await confirmation.choose<ColumnDeleteMode>({
         cancelLabel: t('settings.columns.confirmDelete.cancel'),
@@ -127,62 +134,70 @@ export const ColumnsSection = () => {
         choices: [
           {
             value: 'definitionOnly',
-            label: t('settings.columns.confirmDelete.choices.definitionOnly.label'),
-            description: t('settings.columns.confirmDelete.choices.definitionOnly.description'),
+            label: t(
+              'settings.columns.confirmDelete.choices.definitionOnly.label'
+            ),
+            description: t(
+              'settings.columns.confirmDelete.choices.definitionOnly.description'
+            ),
           },
           {
             value: 'definitionAndValues',
-            label: t('settings.columns.confirmDelete.choices.definitionAndValues.label'),
-            description: t('settings.columns.confirmDelete.choices.definitionAndValues.description'),
+            label: t(
+              'settings.columns.confirmDelete.choices.definitionAndValues.label'
+            ),
+            description: t(
+              'settings.columns.confirmDelete.choices.definitionAndValues.description'
+            ),
             destructive: true,
           },
         ],
-      });
+      })
 
       if (!deleteMode) {
-        return;
+        return
       }
 
-      setSectionError(null);
+      setSectionError(null)
 
       try {
         await deleteColumnMutation.mutateAsync({
           id: column.id,
           query: { deleteMode },
-        });
+        })
       } catch {
-        setSectionError(t('settings.columns.errors.delete'));
+        setSectionError(t('settings.columns.errors.delete'))
       }
     },
-    [confirmation, deleteColumnMutation, t],
-  );
+    [confirmation, deleteColumnMutation, t]
+  )
 
   const handleDragEnd = useCallback(
     async ({ active, over }: DragEndEvent) => {
       if (!over || active.id === over.id) {
-        return;
+        return
       }
 
       const columnIds = getReorderedColumnIds(
         columns,
         String(active.id),
-        String(over.id),
-      );
+        String(over.id)
+      )
 
       if (!columnIds) {
-        return;
+        return
       }
 
-      setSectionError(null);
+      setSectionError(null)
 
       try {
-        await reorderColumnsMutation.mutateAsync({ columnIds });
+        await reorderColumnsMutation.mutateAsync({ columnIds })
       } catch {
-        setSectionError(t('settings.columns.errors.reorder'));
+        setSectionError(t('settings.columns.errors.reorder'))
       }
     },
-    [columns, reorderColumnsMutation, t],
-  );
+    [columns, reorderColumnsMutation, t]
+  )
 
   return (
     <SettingsSection
@@ -255,5 +270,5 @@ export const ColumnsSection = () => {
         open={isDialogOpen}
       />
     </SettingsSection>
-  );
-};
+  )
+}

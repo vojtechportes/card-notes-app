@@ -1,26 +1,32 @@
-import type { NoteCardFieldValue } from '../types/note-card-field';
-import { isImageNoteValue } from './is-image-note-value.util';
+import type { NoteCardFieldValue } from '../types/note-card-field'
+import { isImageNoteValue } from './is-image-note-value.util'
 
 export const hasRenderableNoteCardValue = (
-  value: NoteCardFieldValue | undefined,
+  value: NoteCardFieldValue | undefined
 ): value is NoteCardFieldValue => {
   if (value === undefined) {
-    return false;
+    return false
   }
 
   if (typeof value === 'string') {
-    return value.trim().length > 0;
+    return value.trim().length > 0
   }
 
   if (typeof value === 'number') {
-    return Number.isFinite(value);
+    return Number.isFinite(value)
   }
 
   if (!isImageNoteValue(value)) {
-    return false;
+    return false
   }
 
-  return [value.dataUrl, value.url, value.path, value.fileName, value.altText].some(
-    (candidate) => typeof candidate === 'string' && candidate.trim().length > 0,
-  );
-};
+  return [
+    value.dataUrl,
+    value.url,
+    value.path,
+    value.fileName,
+    value.altText,
+  ].some(
+    (candidate) => typeof candidate === 'string' && candidate.trim().length > 0
+  )
+}

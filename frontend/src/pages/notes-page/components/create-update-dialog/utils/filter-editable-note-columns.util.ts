@@ -1,12 +1,15 @@
-import type { ColumnDto } from '../../../../../types/api';
+import type { ColumnDto } from '../../../../../types/api'
 
-export const filterEditableNoteColumns = (columns: ColumnDto[]): ColumnDto[] => {
+export const filterEditableNoteColumns = (
+  columns: ColumnDto[]
+): ColumnDto[] => {
   return [...columns]
     .filter((column) => {
       const isSystemTimestampColumn =
-        column.isDefault && (column.name === 'createdAt' || column.name === 'updatedAt');
+        column.isDefault &&
+        (column.name === 'createdAt' || column.name === 'updatedAt')
 
-      return !column.isHidden && !isSystemTimestampColumn;
+      return !column.isHidden && !isSystemTimestampColumn
     })
-    .sort((left, right) => left.sortOrder - right.sortOrder);
-};
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+}

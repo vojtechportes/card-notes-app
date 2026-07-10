@@ -1,9 +1,11 @@
-import { ColumnTypeEnum } from '../types/column-type-enum';
-import type { CreateColumnInput } from '../types/note-column';
+import { ColumnTypeEnum } from '../types/column-type-enum'
+import type { CreateColumnInput } from '../types/note-column'
 
-export interface DefaultNoteColumn extends Required<Pick<CreateColumnInput, 'name' | 'title' | 'type'>> {
-  id: string;
-  sortOrder: number;
+export interface DefaultNoteColumn extends Required<
+  Pick<CreateColumnInput, 'name' | 'title' | 'type'>
+> {
+  id: string
+  sortOrder: number
 }
 
 export const defaultNoteColumns: DefaultNoteColumn[] = [
@@ -21,4 +23,4 @@ export const defaultNoteColumns: DefaultNoteColumn[] = [
     type: ColumnTypeEnum.Date,
     sortOrder: 1,
   },
-];
+]

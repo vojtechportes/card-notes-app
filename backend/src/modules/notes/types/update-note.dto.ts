@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger'
 
 const noteValuePatchSchema = {
   oneOf: [
@@ -21,13 +21,14 @@ const noteValuePatchSchema = {
       },
     },
   ],
-};
+}
 
 export class UpdateNoteDto {
   @ApiPropertyOptional({
     type: 'object',
     additionalProperties: noteValuePatchSchema,
-    description: 'Structured note value patch keyed by note column id. Use null to remove a value.',
+    description:
+      'Structured note value patch keyed by note column id. Use null to remove a value.',
   })
-  values?: Record<string, unknown>;
+  values?: Record<string, unknown>
 }

@@ -6,13 +6,13 @@ import {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import Box from '@mui/material/Box';
-import { normalizeSize } from './utils/normalize-size.util';
-import { type BreakpointKey, type IMasonryProps } from './types';
-import { getColumnCount } from './utils/get-column-count.util';
-import { getBreakpoint } from './utils/get-breakpoint.util';
-import { getItemKey } from './utils/get-item-key.util';
+} from 'react'
+import Box from '@mui/material/Box'
+import { normalizeSize } from './utils/normalize-size.util'
+import { type BreakpointKey, type IMasonryProps } from './types'
+import { getColumnCount } from './utils/get-column-count.util'
+import { getBreakpoint } from './utils/get-breakpoint.util'
+import { getItemKey } from './utils/get-item-key.util'
 
 export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
   children,
@@ -22,46 +22,46 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
   columnClassName,
   itemClassName,
 }) => {
-  const [breakpoint, setBreakpoint] = useState<BreakpointKey | undefined>();
+  const [breakpoint, setBreakpoint] = useState<BreakpointKey | undefined>()
   const [columnCount, setColumnCount] = useState<number>(() => {
     if (typeof window === 'undefined') {
-      return typeof columns === 'number' ? columns : (columns.xs ?? 1);
+      return typeof columns === 'number' ? columns : (columns.xs ?? 1)
     }
 
-    return getColumnCount(columns, window.innerWidth);
-  });
+    return getColumnCount(columns, window.innerWidth)
+  })
 
   useEffect(() => {
     const updateColumnCount = (): void => {
-      setColumnCount(getColumnCount(columns, window.innerWidth));
-      setBreakpoint(getBreakpoint(columns, window.innerWidth));
-    };
+      setColumnCount(getColumnCount(columns, window.innerWidth))
+      setBreakpoint(getBreakpoint(columns, window.innerWidth))
+    }
 
-    updateColumnCount();
+    updateColumnCount()
 
-    window.addEventListener('resize', updateColumnCount);
+    window.addEventListener('resize', updateColumnCount)
 
     return () => {
-      window.removeEventListener('resize', updateColumnCount);
-    };
-  }, [columns]);
+      window.removeEventListener('resize', updateColumnCount)
+    }
+  }, [columns])
 
-  const childArray = useMemo(() => Children.toArray(children), [children]);
+  const childArray = useMemo(() => Children.toArray(children), [children])
 
   const distributedChildren = useMemo(() => {
     const nextColumns = Array.from(
       { length: columnCount },
-      () => [] as ReactNode[],
-    );
+      () => [] as ReactNode[]
+    )
 
     childArray.forEach((child, index) => {
-      nextColumns[index % columnCount]?.push(child);
-    });
+      nextColumns[index % columnCount]?.push(child)
+    })
 
-    return nextColumns;
-  }, [childArray, columnCount]);
+    return nextColumns
+  }, [childArray, columnCount])
 
-  const resolvedGap = normalizeSize(gap);
+  const resolvedGap = normalizeSize(gap)
 
   return (
     <Box
@@ -101,5 +101,5 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
         </Box>
       ))}
     </Box>
-  );
-};
+  )
+}

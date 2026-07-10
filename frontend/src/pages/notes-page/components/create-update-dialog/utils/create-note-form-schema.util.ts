@@ -1,12 +1,12 @@
-import * as yup from 'yup';
-import type { TFunction } from 'i18next';
-import type { ColumnDto } from '../../../../../types/api';
-import type { FormValues } from '../types/form-values';
-import type { NoteFormImageValue } from '../types/note-form-image-value';
+import * as yup from 'yup'
+import type { TFunction } from 'i18next'
+import type { ColumnDto } from '../../../../../types/api'
+import type { FormValues } from '../types/form-values'
+import type { NoteFormImageValue } from '../types/note-form-image-value'
 
 export const createNoteFormSchema = (
   columns: ColumnDto[],
-  t: TFunction,
+  t: TFunction
 ): yup.ObjectSchema<FormValues> => {
   const valueShape = columns.reduce<Record<string, yup.Schema<unknown>>>(
     (accumulator, column) => {
@@ -20,13 +20,13 @@ export const createNoteFormSchema = (
               t('notes.createUpdateDialog.errors.invalidNumber'),
               (value) => {
                 if (!value || value.trim().length === 0) {
-                  return true;
+                  return true
                 }
 
-                return Number.isFinite(Number(value));
-              },
-            );
-          break;
+                return Number.isFinite(Number(value))
+              }
+            )
+          break
         case 'date':
           accumulator[column.id] = yup
             .string()
@@ -36,13 +36,13 @@ export const createNoteFormSchema = (
               t('notes.createUpdateDialog.errors.invalidDate'),
               (value) => {
                 if (!value || value.trim().length === 0) {
-                  return true;
+                  return true
                 }
 
-                return !Number.isNaN(Date.parse(value));
-              },
-            );
-          break;
+                return !Number.isNaN(Date.parse(value))
+              }
+            )
+          break
         case 'image':
           accumulator[column.id] = yup
             .mixed<NoteFormImageValue>()
@@ -52,32 +52,32 @@ export const createNoteFormSchema = (
               t('notes.createUpdateDialog.errors.invalidImage'),
               (value) => {
                 if (value === null || value === undefined) {
-                  return true;
+                  return true
                 }
 
                 if (typeof value !== 'object' || Array.isArray(value)) {
-                  return false;
+                  return false
                 }
 
                 return (
                   typeof value.dataUrl === 'string' ||
                   typeof value.path === 'string' ||
                   typeof value.url === 'string'
-                );
-              },
-            );
-          break;
+                )
+              }
+            )
+          break
         default:
-          accumulator[column.id] = yup.string().defined();
-          break;
+          accumulator[column.id] = yup.string().defined()
+          break
       }
 
-      return accumulator;
+      return accumulator
     },
-    {},
-  );
+    {}
+  )
 
   return yup.object({
     values: yup.object(valueShape).defined(),
-  }) as yup.ObjectSchema<FormValues>;
-};
+  }) as yup.ObjectSchema<FormValues>
+}
