@@ -219,6 +219,30 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Validate the secret-based Windows signing flow still works with updater publishing.
   - Document the release/update process and known self-signed certificate limitations.
 
+- [ ] T58. Replace Windows PFX signing with Certum SimplySign cloud signing
+  - Status: waiting for Certum identity verification and issued cloud code-signing certificate.
+  - Reference implementation to follow closely: ReactiveUI Extensions release workflow and shared Certum signing action.
+  - Primary reference: `https://github.com/reactiveui/Extensions/blob/main/.github/workflows/release.yml`
+  - Shared workflow reference: `https://github.com/reactiveui/actions-common/blob/main/.github/workflows/workflow-common-release.yml`
+  - Signing action reference: `https://github.com/reactiveui/actions-common/blob/main/.github/actions/certum-sign/action.yml`
+  - Use Variant A: build unsigned Electron release artifacts first, then sign the produced Windows artifacts in a dedicated signing step/job.
+  - Replace the current `WINDOWS_CERT_BASE64` / `WINDOWS_CERT_PASSWORD` release flow with Certum SimplySign secrets.
+  - Expected secrets: `CERTUM_USER_ID`, `CERTUM_OTP_URI`, `CERTUM_CERT_FINGERPRINT`.
+  - Keep `GH_TOKEN` for release asset upload and updater publishing.
+  - Add or vendor a small Certum signing action/script that starts `Xvfb`, opens SimplySign Desktop, logs in using the generated TOTP, exposes the certificate through PKCS#11, and signs with `jsign` or equivalent tooling.
+  - Keep the Certum-specific automation isolated from the build script so regular local packaging can still run without signing credentials.
+  - Sign the final NSIS installer referenced by `latest.yml`.
+  - Investigate whether electron-builder already signs the inner app executable when signing is disabled; if not, add a follow-up subtask to sign inner `.exe` files before installer creation.
+  - Verify the final installer signature before upload.
+  - Verify `latest.yml`, installer, and blockmap are still uploaded together and remain compatible with `electron-updater`.
+  - Document the CI behavior, required GitHub secrets, and known fragility around SimplySign GUI automation.
+  - Test checklist:
+    - `npm run package:release` still works locally without Certum secrets.
+    - Release workflow fails early with a clear message when Certum secrets are missing.
+    - A test release signs the Windows installer successfully.
+    - Signature verification passes before GitHub asset upload.
+    - Published release still includes `latest.yml`, signed installer, and installer blockmap.
+
 ## Phase 6: Testing and Verification
 
 - [ ] T60. Backend tests
@@ -254,4 +278,3 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-
