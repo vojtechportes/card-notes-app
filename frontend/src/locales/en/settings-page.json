@@ -28,7 +28,8 @@
       "summary": "These preferences affect how note cards are summarized on the Notes page.",
       "fields": {
         "textTruncationLength": "Text truncation character count",
-        "cardFieldDisplayCount": "Fields displayed on cards"
+        "cardFieldDisplayCount": "Fields displayed on cards",
+        "mergeDateTimeFields": "Merge date time fields into \"Last updated at field\""
       },
       "hints": {
         "optional": "Leave either field empty to keep that limit unset.",
