@@ -283,7 +283,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep general settings shared across all note types.
   - Ensure `createdAt` and `updatedAt` default fields exist separately for every note type and remain undeletable per type.
 
-- [ ] T71. Backend note type API and scoped fields API
+- [x] T71. Backend note type API and scoped fields API
   - Add CRUD endpoints for note types, with destructive operations guarded by frontend confirmation.
   - Support note type deletion with explicit modes: delete associated notes, or move associated notes to another note type.
   - If no other note type exists during move, support creating a replacement note type as part of the migration flow.
@@ -294,7 +294,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep column/field configuration owned by the settings domain.
   - Expose note type and scoped field contracts through Swagger.
 
-- [ ] T72. Backend notes behavior across note types
+- [x] T72. Backend notes behavior across note types
   - Update note create/update APIs to accept `noteTypeId`.
   - Keep the notes list endpoint returning all notes together by default.
   - Include note type metadata or enough IDs for the frontend to render each note with the correct fields.
@@ -372,4 +372,5 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+
 

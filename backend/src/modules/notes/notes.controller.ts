@@ -30,6 +30,7 @@ import type { NoteValuePatch, NoteValues } from './types/note-value'
 import { UpdateNoteDto } from './types/update-note.dto'
 
 interface NoteSortOptions {
+  noteTypeIds?: string[]
   sortBy: NoteSortFieldEnum
   sortDirection: NoteSortDirectionEnum
 }
@@ -44,8 +45,9 @@ export class NotesController {
   @Post()
   @ApiOperation({ summary: 'Create a note' })
   @ApiCreatedResponse({ description: 'Created note.', type: NoteDto })
-  createNote(@Body() body: CreateNoteDto = {}): NoteDto {
+  createNote(@Body() body: CreateNoteDto = {} as CreateNoteDto): NoteDto {
     return this.notesService.createNote({
+      noteTypeId: this.resolveNoteTypeId(body),
       values: this.resolveNoteValues(body),
     })
   }
@@ -101,6 +103,16 @@ export class NotesController {
   @ApiNoContentResponse({ description: 'Note was deleted.' })
   deleteNote(@Param('id') id: string): void {
     this.notesService.deleteNote(id)
+  }
+
+  private resolveNoteTypeId(body: CreateNoteDto): string {
+    this.ensureRequestBodyIsRecord(body)
+
+    if (typeof body.noteTypeId !== 'string' || !body.noteTypeId.trim()) {
+      throw new BadRequestException('Note type id is required.')
+    }
+
+    return body.noteTypeId.trim()
   }
 
   private resolveNoteValues(body: CreateNoteDto): NoteValues | undefined {
@@ -161,7 +173,41 @@ export class NotesController {
       throw new BadRequestException('Note sort direction is not supported.')
     }
 
-    return { sortBy, sortDirection }
+    return {
+      noteTypeIds: this.resolveNoteTypeIds(query.noteTypeIds),
+      sortBy,
+      sortDirection,
+    }
+  }
+
+  private resolveNoteTypeIds(
+    noteTypeIds: ListNotesQueryDto['noteTypeIds']
+  ): string[] | undefined {
+    if (noteTypeIds === undefined) {
+      return undefined
+    }
+
+    const rawValues = Array.isArray(noteTypeIds) ? noteTypeIds : [noteTypeIds]
+    const resolvedNoteTypeIds = rawValues.flatMap((value) => {
+      if (typeof value !== 'string') {
+        throw new BadRequestException(
+          'Note type filters must be strings.'
+        )
+      }
+
+      return value
+        .split(',')
+        .map((noteTypeId) => noteTypeId.trim())
+        .filter((noteTypeId) => noteTypeId.length > 0)
+    })
+
+    if (resolvedNoteTypeIds.length === 0) {
+      throw new BadRequestException(
+        'Note type filters must include at least one id.'
+      )
+    }
+
+    return resolvedNoteTypeIds
   }
 
   private normalizeSortDirection(
@@ -170,3 +216,4 @@ export class NotesController {
     return String(sortDirection).toLowerCase() as NoteSortDirectionEnum
   }
 }
+

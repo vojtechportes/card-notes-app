@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { beforeEach, afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { NotesService } from '../../../src/modules/notes/notes.service'
@@ -16,6 +16,8 @@ const uuidV4Pattern =
 let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesService: NotesService
+
+const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
 
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
@@ -37,7 +39,7 @@ afterEach(() => {
 })
 
 describe(NotesService.name, () => {
-  it('creates notes with uuid ids, timestamps, and values keyed by column id', () => {
+  it('creates notes with explicit note type ids, uuid ids, timestamps, and values keyed by column id', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',
       title: 'Summary',
@@ -50,6 +52,7 @@ describe(NotesService.name, () => {
     })
 
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: {
         [summaryColumn.id]: 'A compact note',
         [ratingColumn.id]: 4,
@@ -57,6 +60,7 @@ describe(NotesService.name, () => {
     })
 
     expect(note.id).toMatch(uuidV4Pattern)
+    expect(note.noteTypeId).toBe(getDefaultNoteTypeId())
     expect(note.createdAt).toBeTruthy()
     expect(note.updatedAt).toBeTruthy()
     expect(note.values).toEqual({
@@ -94,6 +98,7 @@ describe(NotesService.name, () => {
     })
 
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: {
         [textColumn.id]: 'Round trip',
         [dateColumn.id]: '2026-07-07',
@@ -118,6 +123,7 @@ describe(NotesService.name, () => {
 
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           [createdAtColumn.id]: '2026-07-07',
         },
@@ -125,6 +131,7 @@ describe(NotesService.name, () => {
     ).toThrow(BadRequestException)
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           [updatedAtColumn.id]: '2026-07-07',
         },
@@ -149,6 +156,7 @@ describe(NotesService.name, () => {
       type: ColumnTypeEnum.Link,
     })
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: {
         [summaryColumn.id]: 'Original summary',
         [ratingColumn.id]: 2,
@@ -179,6 +187,7 @@ describe(NotesService.name, () => {
       type: ColumnTypeEnum.Image,
     })
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: {
         [imageColumn.id]: {
           fileName: 'dropped.png',
@@ -197,6 +206,15 @@ describe(NotesService.name, () => {
     })
   })
 
+  it('rejects missing or unknown note type ids on create', () => {
+    expect(() =>
+      notesService.createNote({
+        noteTypeId: 'missing-note-type-id',
+        values: {},
+      })
+    ).toThrow(NotFoundException)
+  })
+
   it('rejects null values when creating a note', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',
@@ -206,6 +224,7 @@ describe(NotesService.name, () => {
 
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           [summaryColumn.id]: null as never,
         },
@@ -216,6 +235,7 @@ describe(NotesService.name, () => {
   it('rejects values for unknown columns', () => {
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           'missing-column-id': 'Missing',
         },
@@ -237,6 +257,7 @@ describe(NotesService.name, () => {
 
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           [ratingColumn.id]: 'high' as never,
         },
@@ -244,6 +265,7 @@ describe(NotesService.name, () => {
     ).toThrow(BadRequestException)
     expect(() =>
       notesService.createNote({
+        noteTypeId: getDefaultNoteTypeId(),
         values: {
           [imageColumn.id]: { fileName: 'missing-source.png' },
         },
@@ -251,54 +273,100 @@ describe(NotesService.name, () => {
     ).toThrow(BadRequestException)
   })
 
-  it('throws when updating or deleting an unknown note', () => {
-    expect(() => notesService.getNote('missing-note-id')).toThrow(
-      NotFoundException
-    )
-    expect(() =>
-      notesService.updateNote('missing-note-id', { values: {} })
-    ).toThrow(NotFoundException)
-    expect(() => notesService.deleteNote('missing-note-id')).toThrow(
-      NotFoundException
-    )
-  })
-
-  it('deletes values for a column only when explicitly requested', () => {
-    const summaryColumn = settingsService.createColumn({
+  it('rejects create and update values that belong to another note type', () => {
+    const recipes = settingsService.getDefaultNoteType()
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const recipeColumn = settingsService.createColumn(recipes.id, {
       name: 'summary',
       title: 'Summary',
       type: ColumnTypeEnum.Text,
     })
-    const ratingColumn = settingsService.createColumn({
-      name: 'rating',
-      title: 'Rating',
-      type: ColumnTypeEnum.Number,
+    const booksColumn = settingsService.createColumn(books.id, {
+      name: 'author',
+      title: 'Author',
+      type: ColumnTypeEnum.Text,
     })
-    const note = notesService.createNote({
+    const recipeNote = notesService.createNote({
+      noteTypeId: recipes.id,
       values: {
-        [summaryColumn.id]: 'Keep me',
-        [ratingColumn.id]: 5,
+        [recipeColumn.id]: 'Soup',
       },
     })
 
-    expect(notesService.deleteValuesForColumn(ratingColumn.id)).toBe(1)
-
-    expect(notesService.getNote(note.id).values).toEqual({
-      [summaryColumn.id]: 'Keep me',
-    })
+    expect(() =>
+      notesService.createNote({
+        noteTypeId: recipes.id,
+        values: {
+          [booksColumn.id]: 'Terry Pratchett',
+        },
+      })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesService.updateNote(recipeNote.id, {
+        values: {
+          [booksColumn.id]: 'Terry Pratchett',
+        },
+      })
+    ).toThrow(BadRequestException)
   })
 
-  it('lists notes sorted by createdAt and updatedAt in the requested direction', () => {
-    const summaryColumn = settingsService.createColumn({
+  it('lists notes from multiple note types together by default and filters by note type ids when requested', () => {
+    const recipes = settingsService.getDefaultNoteType()
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const recipeColumn = settingsService.createColumn(recipes.id, {
       name: 'summary',
       title: 'Summary',
       type: ColumnTypeEnum.Text,
     })
+    const booksColumn = settingsService.createColumn(books.id, {
+      name: 'author',
+      title: 'Author',
+      type: ColumnTypeEnum.Text,
+    })
+    const recipeNote = notesService.createNote({
+      noteTypeId: recipes.id,
+      values: { [recipeColumn.id]: 'Soup' },
+    })
+    const booksNote = notesService.createNote({
+      noteTypeId: books.id,
+      values: { [booksColumn.id]: 'Ursula K. Le Guin' },
+    })
+
+    expect(notesService.listNotes().map((note) => note.id).sort()).toEqual(
+      [booksNote.id, recipeNote.id].sort()
+    )
+    expect(
+      notesService
+        .listNotes({ noteTypeIds: [recipes.id] })
+        .map((note) => note.id)
+    ).toEqual([recipeNote.id])
+    expect(
+      notesService
+        .listNotes({ noteTypeIds: [books.id] })
+        .map((note) => note.id)
+    ).toEqual([booksNote.id])
+  })
+
+  it('lists notes sorted by createdAt and updatedAt in the requested direction across note types', () => {
+    const recipes = settingsService.getDefaultNoteType()
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const recipeColumn = settingsService.createColumn(recipes.id, {
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+    const booksColumn = settingsService.createColumn(books.id, {
+      name: 'author',
+      title: 'Author',
+      type: ColumnTypeEnum.Text,
+    })
     const firstNote = notesService.createNote({
-      values: { [summaryColumn.id]: 'First' },
+      noteTypeId: recipes.id,
+      values: { [recipeColumn.id]: 'First' },
     })
     const secondNote = notesService.createNote({
-      values: { [summaryColumn.id]: 'Second' },
+      noteTypeId: books.id,
+      values: { [booksColumn.id]: 'Second' },
     })
 
     databaseService
@@ -348,6 +416,44 @@ describe(NotesService.name, () => {
     ).toEqual([secondNote.id, firstNote.id])
   })
 
+  it('throws when updating or deleting an unknown note', () => {
+    expect(() => notesService.getNote('missing-note-id')).toThrow(
+      NotFoundException
+    )
+    expect(() =>
+      notesService.updateNote('missing-note-id', { values: {} })
+    ).toThrow(NotFoundException)
+    expect(() => notesService.deleteNote('missing-note-id')).toThrow(
+      NotFoundException
+    )
+  })
+
+  it('deletes values for a column only when explicitly requested', () => {
+    const summaryColumn = settingsService.createColumn({
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+    const ratingColumn = settingsService.createColumn({
+      name: 'rating',
+      title: 'Rating',
+      type: ColumnTypeEnum.Number,
+    })
+    const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+      values: {
+        [summaryColumn.id]: 'Keep me',
+        [ratingColumn.id]: 5,
+      },
+    })
+
+    expect(notesService.deleteValuesForColumn(ratingColumn.id)).toBe(1)
+
+    expect(notesService.getNote(note.id).values).toEqual({
+      [summaryColumn.id]: 'Keep me',
+    })
+  })
+
   it('deletes notes and cascades their values', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',
@@ -355,6 +461,7 @@ describe(NotesService.name, () => {
       type: ColumnTypeEnum.Text,
     })
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Delete me' },
     })
 
@@ -371,9 +478,11 @@ describe(NotesService.name, () => {
       type: ColumnTypeEnum.Text,
     })
     const firstNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'First' },
     })
     const secondNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Second' },
     })
 
@@ -397,3 +506,4 @@ describe(NotesService.name, () => {
     expect(notesService.deleteAllNotes()).toBe(0)
   })
 })
+

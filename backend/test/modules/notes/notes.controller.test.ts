@@ -15,6 +15,8 @@ let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesController: NotesController
 
+const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
   databaseService.initialize()
@@ -42,24 +44,35 @@ describe(NotesController.name, () => {
     })
 
     const createdNote = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'API note' },
     })
 
+    expect(createdNote.noteTypeId).toBe(getDefaultNoteTypeId())
     expect(createdNote.values).toEqual({ [summaryColumn.id]: 'API note' })
     expect(notesController.getNote(createdNote.id)).toEqual(createdNote)
   })
 
-  it('lists notes with default and explicit sort query options', () => {
-    const summaryColumn = settingsService.createColumn({
+  it('lists notes with default, filtered, and explicit sort query options', () => {
+    const recipes = settingsService.getDefaultNoteType()
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const recipeColumn = settingsService.createColumn(recipes.id, {
       name: 'summary',
       title: 'Summary',
       type: ColumnTypeEnum.Text,
     })
+    const booksColumn = settingsService.createColumn(books.id, {
+      name: 'author',
+      title: 'Author',
+      type: ColumnTypeEnum.Text,
+    })
     const firstNote = notesController.createNote({
-      values: { [summaryColumn.id]: 'First' },
+      noteTypeId: recipes.id,
+      values: { [recipeColumn.id]: 'First' },
     })
     const secondNote = notesController.createNote({
-      values: { [summaryColumn.id]: 'Second' },
+      noteTypeId: books.id,
+      values: { [booksColumn.id]: 'Second' },
     })
 
     databaseService
@@ -82,14 +95,16 @@ describe(NotesController.name, () => {
     expect(
       notesController
         .listNotes({
+          noteTypeIds: recipes.id,
           sortBy: NoteSortFieldEnum.CreatedAt,
           sortDirection: NoteSortDirectionEnum.Asc,
         })
         .map((note) => note.id)
-    ).toEqual([firstNote.id, secondNote.id])
+    ).toEqual([firstNote.id])
     expect(
       notesController
         .listNotes({
+          noteTypeIds: `${recipes.id},${books.id}`,
           sortBy: NoteSortFieldEnum.UpdatedAt,
           sortDirection: NoteSortDirectionEnum.Desc,
         })
@@ -109,6 +124,7 @@ describe(NotesController.name, () => {
       type: ColumnTypeEnum.Link,
     })
     const note = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: {
         [summaryColumn.id]: 'Original',
         [sourceColumn.id]: 'https://example.com',
@@ -126,7 +142,9 @@ describe(NotesController.name, () => {
   })
 
   it('deletes notes through the API surface', () => {
-    const note = notesController.createNote({})
+    const note = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+    })
 
     notesController.deleteNote(note.id)
 
@@ -134,8 +152,8 @@ describe(NotesController.name, () => {
   })
 
   it('deletes all notes through the explicit destructive API surface', () => {
-    notesController.createNote({})
-    notesController.createNote({})
+    notesController.createNote({ noteTypeId: getDefaultNoteTypeId() })
+    notesController.createNote({ noteTypeId: getDefaultNoteTypeId() })
 
     expect(notesController.deleteAllNotes()).toEqual({ deletedCount: 2 })
     expect(notesController.listNotes({})).toEqual([])
@@ -143,7 +161,9 @@ describe(NotesController.name, () => {
   })
 
   it('rejects malformed create and update request bodies', () => {
-    const note = notesController.createNote({})
+    const note = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+    })
 
     expect(() => notesController.createNote(null as never)).toThrow(
       BadRequestException
@@ -151,10 +171,16 @@ describe(NotesController.name, () => {
     expect(() => notesController.createNote([] as never)).toThrow(
       BadRequestException
     )
-    expect(() => notesController.createNote({ values: [] as never })).toThrow(
+    expect(() => notesController.createNote({ values: [] as never } as never)).toThrow(
       BadRequestException
     )
-    expect(() => notesController.createNote({ values: null as never })).toThrow(
+    expect(() => notesController.createNote({ values: null as never } as never)).toThrow(
+      BadRequestException
+    )
+    expect(() => notesController.createNote({ noteTypeId: '' } as never)).toThrow(
+      BadRequestException
+    )
+    expect(() => notesController.createNote({ noteTypeId: 1 as never } as never)).toThrow(
       BadRequestException
     )
     expect(() => notesController.updateNote(note.id, null as never)).toThrow(
@@ -170,7 +196,8 @@ describe(NotesController.name, () => {
       notesController.updateNote(note.id, { values: null as never })
     ).toThrow(BadRequestException)
   })
-  it('rejects invalid sort query values', () => {
+
+  it('rejects invalid sort and note type filter query values', () => {
     expect(() =>
       notesController.listNotes({ sortBy: 'title' as NoteSortFieldEnum })
     ).toThrow(BadRequestException)
@@ -178,6 +205,12 @@ describe(NotesController.name, () => {
       notesController.listNotes({
         sortDirection: 'sideways' as NoteSortDirectionEnum,
       })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.listNotes({ noteTypeIds: '' })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.listNotes({ noteTypeIds: [1 as never] })
     ).toThrow(BadRequestException)
   })
 })

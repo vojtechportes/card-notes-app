@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 
 const noteValueSchema = {
   oneOf: [
@@ -23,6 +23,12 @@ const noteValueSchema = {
 }
 
 export class CreateNoteDto {
+  @ApiProperty({
+    type: String,
+    description: 'Owning note type id.',
+  })
+  noteTypeId: string
+
   @ApiPropertyOptional({
     type: 'object',
     additionalProperties: noteValueSchema,

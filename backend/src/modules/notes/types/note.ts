@@ -9,6 +9,7 @@ export interface Note {
 }
 
 export interface CreateNoteInput {
+  noteTypeId: string
   values?: NoteValues
 }
 

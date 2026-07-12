@@ -15,6 +15,8 @@ let settingsService: SettingsService
 let notesService: NotesService
 let exportImportService: ExportImportService
 
+const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+
 const singlePixelPngBuffer = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8nQAAAABJRU5ErkJggg==',
   'base64'
@@ -57,6 +59,23 @@ afterEach(() => {
 })
 
 describe(ExportImportService.name, () => {
+  it('rejects export when additional note types are configured', () => {
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const booksColumn = settingsService.createColumn(books.id, {
+      name: 'author',
+      title: 'Author',
+      type: ColumnTypeEnum.Text,
+    })
+
+    notesService.createNote({
+      noteTypeId: books.id,
+      values: { [booksColumn.id]: 'Octavia Butler' },
+    })
+
+    expect(() => exportImportService.exportData()).toThrow(
+      BadRequestException
+    )
+  })
   it('exports default columns, general settings, and notes in a versioned payload', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',
@@ -69,6 +88,7 @@ describe(ExportImportService.name, () => {
       mergeDateTimeFields: true,
     })
     const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Export me' },
     })
 
@@ -101,6 +121,7 @@ describe(ExportImportService.name, () => {
       mergeDateTimeFields: true,
     })
     const originalNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Original note' },
     })
     const exportedData = exportImportService.exportData()
@@ -111,6 +132,7 @@ describe(ExportImportService.name, () => {
       mergeDateTimeFields: null,
     })
     const existingNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Existing note' },
     })
 
@@ -147,6 +169,7 @@ describe(ExportImportService.name, () => {
       type: ColumnTypeEnum.Text,
     })
     const sourceNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [summaryColumn.id]: 'Fresh import value' },
     })
     const exportedData = exportImportService.exportData()
@@ -528,4 +551,6 @@ describe(ExportImportService.name, () => {
     expect(notesService.listNotes()).toEqual([])
   })
 })
+
+
 
