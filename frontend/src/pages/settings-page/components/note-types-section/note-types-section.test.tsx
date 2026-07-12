@@ -17,7 +17,10 @@ import {
 } from '@testing-library/react'
 import '../../../../i18n'
 import { AppProviders } from '../../../../components/app-providers/app-providers'
-import { SideDrawer, SideDrawerProvider } from '../../../../components/side-drawer'
+import {
+  SideDrawer,
+  SideDrawerProvider,
+} from '../../../../components/side-drawer'
 import { NoteTypesSection } from './note-types-section'
 
 const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
@@ -54,9 +57,20 @@ vi.mock('../columns-section/columns-section', () => ({
     noteTypeId: string
     variant?: 'embedded' | 'section'
   }) => {
-    return <div>Fields section for {noteTypeId} ({variant ?? 'section'})</div>
+    return (
+      <div>
+        Fields section for {noteTypeId} ({variant ?? 'section'})
+      </div>
+    )
   },
 }))
+
+const createdNoteType = {
+  createdAt: '2026-07-11T10:00:00.000Z',
+  id: 'note-type-3',
+  title: 'Recipes',
+  updatedAt: '2026-07-11T10:00:00.000Z',
+}
 
 const noteTypes = [
   {
@@ -71,6 +85,7 @@ const noteTypes = [
     title: 'Ideas',
     updatedAt: '2026-07-10T10:00:00.000Z',
   },
+  createdNoteType,
 ]
 
 const noteTypeDetails = {
@@ -162,6 +177,37 @@ const noteTypeDetails = {
       },
     ],
   },
+  'note-type-3': {
+    ...createdNoteType,
+    columns: [
+      {
+        config: null,
+        createdAt: '2026-07-11T10:00:00.000Z',
+        id: 'recipe-created',
+        isDefault: true,
+        isHidden: false,
+        name: 'createdAt',
+        noteTypeId: 'note-type-3',
+        sortOrder: 0,
+        title: 'Created at',
+        type: 'date',
+        updatedAt: '2026-07-11T10:00:00.000Z',
+      },
+      {
+        config: null,
+        createdAt: '2026-07-11T10:00:00.000Z',
+        id: 'recipe-title',
+        isDefault: false,
+        isHidden: false,
+        name: 'title',
+        noteTypeId: 'note-type-3',
+        sortOrder: 1,
+        title: 'Recipe title',
+        type: 'text',
+        updatedAt: '2026-07-11T10:00:00.000Z',
+      },
+    ],
+  },
 }
 
 const createMutation = {
@@ -203,7 +249,7 @@ beforeEach(() => {
     isError: false,
     isLoading: false,
   }))
-  createMutation.mutateAsync.mockResolvedValue(noteTypes[0])
+  createMutation.mutateAsync.mockResolvedValue(createdNoteType)
   updateMutation.mutateAsync.mockResolvedValue(noteTypes[0])
   deleteMutation.mutateAsync.mockResolvedValue({
     deletedNoteTypeId: 'note-type-1',
@@ -247,7 +293,7 @@ describe('NoteTypesSection', () => {
     expect(screen.getAllByText('Updated at').length).toBeGreaterThan(0)
   })
 
-  it('creates a new note type from the section action', async () => {
+  it('creates a new note type from the section action and opens its detail drawer', async () => {
     renderNoteTypesSection()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Add note type' })[0])
@@ -261,12 +307,19 @@ describe('NoteTypesSection', () => {
         title: 'Recipes',
       })
     })
+
+    expect(
+      await screen.findByText('Fields section for note-type-3 (embedded)')
+    ).toBeTruthy()
+    expect(screen.getAllByText('Recipes').length).toBeGreaterThan(0)
   })
 
   it('edits only the note type name', async () => {
     renderNoteTypesSection()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit note type' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Edit note type' })[0]
+    )
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Projects updated' },
     })
@@ -285,7 +338,9 @@ describe('NoteTypesSection', () => {
   it('submits move-notes delete payload with compatible preselected mappings', async () => {
     renderNoteTypesSection()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete note type' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete note type' })[0]
+    )
     fireEvent.click(
       screen.getByRole('radio', {
         name: 'Delete this note type and move its notes to another note type',
@@ -337,7 +392,9 @@ describe('NoteTypesSection', () => {
 
     renderNoteTypesSection()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete note type' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete note type' })[0]
+    )
 
     expect(screen.getByText(/recreate Default/)).toBeTruthy()
   })

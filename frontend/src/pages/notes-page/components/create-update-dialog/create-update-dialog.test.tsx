@@ -6,14 +6,19 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ColumnDto, NoteDto } from '../../../../types/api'
+import type { ColumnDto, NoteDto, NoteTypeDto } from '../../../../types/api'
 import '../../../../i18n'
 import { CreateUpdateDialog } from './create-update-dialog'
 
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
+const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useCreateNoteMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
 const createNoteImageValueFromFileMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../settings-page/hooks/use-note-types-query', () => ({
+  useNoteTypesQuery: useNoteTypesQueryMock,
+}))
 
 vi.mock('../../hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
@@ -28,7 +33,22 @@ vi.mock('./utils/create-note-image-value-from-file.util', () => ({
   createNoteImageValueFromFile: createNoteImageValueFromFileMock,
 }))
 
-const columns: ColumnDto[] = [
+const noteTypes: NoteTypeDto[] = [
+  {
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'note-type-1',
+    title: 'Books',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'note-type-2',
+    title: 'Movies',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+]
+
+const bookColumns: ColumnDto[] = [
   {
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
@@ -107,16 +127,32 @@ const columns: ColumnDto[] = [
     type: 'image',
     updatedAt: '2026-07-07T10:00:00.000Z',
   },
+]
+
+const movieColumns: ColumnDto[] = [
   {
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
-    id: 'hidden-column',
-    noteTypeId: 'note-type-1',
-    isDefault: false,
+    id: 'movie-created-column',
+    noteTypeId: 'note-type-2',
+    isDefault: true,
     isHidden: true,
-    name: 'internalNote',
-    sortOrder: 6,
-    title: 'Internal note',
+    name: 'createdAt',
+    sortOrder: 0,
+    title: 'Created at',
+    type: 'date',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'director-column',
+    noteTypeId: 'note-type-2',
+    isDefault: false,
+    isHidden: false,
+    name: 'director',
+    sortOrder: 1,
+    title: 'Director',
     type: 'text',
     updatedAt: '2026-07-07T10:00:00.000Z',
   },
@@ -132,13 +168,37 @@ const updateMutation = {
   mutateAsync: vi.fn(),
 }
 
+const selectNoteType = async (label: string) => {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: label }))
+  fireEvent.click(
+    await screen.findByRole('option', {
+      name: label === 'Note type' ? /.*/ : label,
+    })
+  )
+}
+
+const selectSpecificNoteType = async (title: string) => {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note type' }))
+  fireEvent.click(await screen.findByRole('option', { name: title }))
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  useNoteColumnsQueryMock.mockReturnValue({
-    data: columns,
+  useNoteTypesQueryMock.mockReturnValue({
+    data: noteTypes,
     isError: false,
     isLoading: false,
   })
+  useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+    data:
+      noteTypeId === 'note-type-2'
+        ? movieColumns
+        : noteTypeId === 'note-type-1'
+          ? bookColumns
+          : undefined,
+    isError: false,
+    isLoading: false,
+  }))
   createMutation.mutateAsync.mockResolvedValue({})
   updateMutation.mutateAsync.mockResolvedValue({})
   useCreateNoteMutationMock.mockReturnValue(createMutation)
@@ -159,22 +219,27 @@ afterEach(() => {
 })
 
 describe('CreateUpdateDialog', () => {
-  it('renders editable fields in sort order and skips hidden or system columns', () => {
+  it('renders note type selection first and waits to load fields in create mode', () => {
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
-    expect(screen.getByRole('textbox', { name: 'Title' })).toBeTruthy()
-    expect(screen.getByLabelText('Due date')).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Amount' })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Reference link' })).toBeTruthy()
+    expect(screen.getByLabelText('Note type')).toBeTruthy()
     expect(
-      screen.getByRole('group', { name: 'Receipt image image drop zone' })
+      screen.getByText('Select a note type to load its fields.')
     ).toBeTruthy()
-    expect(screen.queryByLabelText('Created at')).toBeNull()
-    expect(screen.queryByRole('textbox', { name: 'Internal note' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
   })
 
-  it('shows the loading state from the note columns query', () => {
-    useNoteColumnsQueryMock.mockReturnValue({
+  it('loads editable fields for the selected create note type only', async () => {
+    render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
+
+    await selectSpecificNoteType('Movies')
+
+    expect(screen.getByRole('textbox', { name: 'Director' })).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
+  })
+
+  it('shows the loading state from the note types query', () => {
+    useNoteTypesQueryMock.mockReturnValue({
       data: undefined,
       isError: false,
       isLoading: true,
@@ -182,10 +247,10 @@ describe('CreateUpdateDialog', () => {
 
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
-    expect(screen.getByText('Loading note fields...')).toBeTruthy()
+    expect(screen.getByText('Loading note types...')).toBeTruthy()
   })
 
-  it('shows the error state from the note columns query', () => {
+  it('shows the error state from the note columns query after note type selection', async () => {
     useNoteColumnsQueryMock.mockReturnValue({
       data: undefined,
       isError: true,
@@ -194,19 +259,28 @@ describe('CreateUpdateDialog', () => {
 
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
+    await selectSpecificNoteType('Books')
+
     expect(screen.getByText('Note fields could not be loaded.')).toBeTruthy()
   })
-  it('creates an empty note when the active note type has no editable columns', async () => {
+
+  it('creates an empty note when the selected note type has no editable columns', async () => {
     const onClose = vi.fn()
 
-    useNoteColumnsQueryMock.mockReturnValue({
-      data: [columns[0]],
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data:
+        noteTypeId === 'note-type-1'
+          ? [bookColumns[0]]
+          : noteTypeId === 'note-type-2'
+            ? movieColumns
+            : undefined,
       isError: false,
       isLoading: false,
-    })
+    }))
 
     render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
 
+    await selectSpecificNoteType('Books')
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }))
 
     await waitFor(() => {
@@ -218,12 +292,12 @@ describe('CreateUpdateDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('preserves in-progress values when note columns refetch while the dialog stays open', () => {
-    let currentColumns = columns
+  it('preserves in-progress values when note columns refetch while the dialog stays open for the same note type', async () => {
+    let currentColumns = bookColumns
     const onClose = vi.fn()
 
-    useNoteColumnsQueryMock.mockImplementation(() => ({
-      data: currentColumns,
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data: noteTypeId ? currentColumns : undefined,
       isError: false,
       isLoading: false,
     }))
@@ -232,11 +306,12 @@ describe('CreateUpdateDialog', () => {
       <CreateUpdateDialog mode="create" onClose={onClose} open />
     )
 
+    await selectSpecificNoteType('Books')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Draft note' },
     })
 
-    currentColumns = [...columns]
+    currentColumns = [...bookColumns]
     rerender(<CreateUpdateDialog mode="create" onClose={onClose} open />)
 
     expect(
@@ -244,58 +319,11 @@ describe('CreateUpdateDialog', () => {
     ).toBe('Draft note')
   })
 
-  it('switches from create mode to update mode without reusing the create submit handler', async () => {
-    const createOnClose = vi.fn()
-    const note: NoteDto = {
-      createdAt: '2026-07-07T10:00:00.000Z',
-      id: 'note-2',
-      noteTypeId: 'note-type-1',
-      updatedAt: '2026-07-07T10:00:00.000Z',
-      values: {
-        'title-column': 'Original title',
-      },
-    }
-
-    const { rerender } = render(
-      <CreateUpdateDialog mode="create" onClose={createOnClose} open />
-    )
-
-    rerender(
-      <CreateUpdateDialog
-        mode="update"
-        note={note}
-        onClose={createOnClose}
-        open
-      />
-    )
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
-      target: { value: 'Updated title' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
-
-    await waitFor(() => {
-      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
-        id: 'note-2',
-        note: {
-          values: {
-            'amount-column': null,
-            'due-date-column': null,
-            'link-column': null,
-            'receipt-column': null,
-            'title-column': 'Updated title',
-          },
-        },
-      })
-    })
-
-    expect(createMutation.mutateAsync).not.toHaveBeenCalled()
-  })
-
-  it('submits create values keyed by column id and supports image drop', async () => {
+  it('submits create values keyed by column id for the selected note type and supports image, link, and date fields', async () => {
     const onClose = vi.fn()
     render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
 
+    await selectSpecificNoteType('Books')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Weekly summary' },
     })
@@ -349,7 +377,7 @@ describe('CreateUpdateDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('hydrates update values, normalizes stored dates, blocks invalid numbers, and sends null for cleared fields', async () => {
+  it('keeps the note type fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
@@ -367,19 +395,16 @@ describe('CreateUpdateDialog', () => {
       <CreateUpdateDialog mode="update" note={note} onClose={vi.fn()} open />
     )
 
-    const titleInput = screen.getByRole('textbox', {
-      name: 'Title',
-    }) as HTMLInputElement
-    const amountInput = screen.getByRole('textbox', {
-      name: 'Amount',
-    }) as HTMLInputElement
-    const dueDateInput = screen.getByLabelText('Due date') as HTMLInputElement
+    expect(
+      screen
+        .getByRole('combobox', { name: 'Note type' })
+        .getAttribute('aria-disabled')
+    ).toBe('true')
+    expect((screen.getByLabelText('Due date') as HTMLInputElement).value).toBe(
+      '2026-07-08'
+    )
 
-    expect(titleInput.value).toBe('Existing title')
-    expect(amountInput.value).toBe('12.5')
-    expect(dueDateInput.value).toBe('2026-07-08')
-
-    fireEvent.change(amountInput, {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Amount' }), {
       target: { value: 'abc' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -387,10 +412,10 @@ describe('CreateUpdateDialog', () => {
     expect(await screen.findByText('Enter a valid number.')).toBeTruthy()
     expect(updateMutation.mutateAsync).not.toHaveBeenCalled()
 
-    fireEvent.change(titleInput, {
-      target: { value: '' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Updated title' },
     })
-    fireEvent.change(amountInput, {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Amount' }), {
       target: { value: '' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -404,14 +429,10 @@ describe('CreateUpdateDialog', () => {
             'due-date-column': '2026-07-08',
             'link-column': 'https://example.com/current',
             'receipt-column': null,
-            'title-column': null,
+            'title-column': 'Updated title',
           },
         },
       })
     })
   })
 })
-
-
-
-

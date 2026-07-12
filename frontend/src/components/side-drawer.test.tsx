@@ -1,4 +1,4 @@
-import { ThemeProvider } from '@mui/material'
+import { MenuItem, ThemeProvider } from '@mui/material'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../i18n'
@@ -61,5 +61,23 @@ describe('SideDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close detail' }))
 
     expect(toggleDrawer).toHaveBeenCalledWith(drawerInitialState)
+  })
+
+  it('opens drawer actions from the overflow menu', async () => {
+    const handleDelete = vi.fn()
+
+    renderSideDrawer({
+      open: true,
+      title: 'Note detail',
+      drawerActions: <MenuItem onClick={handleDelete}>Delete note</MenuItem>,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Delete note' })
+    )
+
+    expect(handleDelete).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menuitem', { name: 'Delete note' })).toBeNull()
   })
 })

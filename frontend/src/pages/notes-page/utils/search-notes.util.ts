@@ -6,7 +6,11 @@ import { createNotesSearchIndex } from './create-notes-search-index.util'
 export const searchNotes = (
   notes: NoteDto[],
   searchQuery: string,
-  searchIndex: MiniSearch<NoteSearchDocument> = createNotesSearchIndex(notes)
+  noteTypeTitleById: Record<string, string>,
+  searchIndex: MiniSearch<NoteSearchDocument> = createNotesSearchIndex(
+    notes,
+    noteTypeTitleById
+  )
 ): NoteDto[] => {
   const normalizedSearchQuery = searchQuery.trim()
 

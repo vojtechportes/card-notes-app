@@ -33,6 +33,15 @@ const generalSettings: GeneralSettingsDto = {
   mergeDateTimeFields: null,
 }
 
+const openCardMenu = async () => {
+  fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+
+  return {
+    delete: await screen.findByRole('menuitem', { name: 'Delete' }),
+    edit: screen.queryByRole('menuitem', { name: 'Edit' }),
+  }
+}
+
 afterEach(() => {
   cleanup()
 })
@@ -231,13 +240,91 @@ describe('NoteCardList', () => {
       />
     )
 
-    expect(screen.getByRole('heading', { name: 'Last updated at' })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: 'Last updated at' })
+    ).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Created at' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Updated at' })).toBeNull()
     expect(screen.getByText(expectedTimestamp)).toBeTruthy()
   })
 
-  it('calls the edit handler when a card edit action is pressed', () => {
+  it('opens note detail from the card surface and marks the selected card', () => {
+    const handleOpenNoteDetail = vi.fn()
+    const note: NoteDto = {
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-1',
+      noteTypeId: 'note-type-1',
+      updatedAt: '2026-07-07T12:00:00.000Z',
+      values: {
+        'summary-column': 'Alpha note',
+      },
+    }
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            id: 'summary-column',
+            name: 'summary',
+            sortOrder: 0,
+            title: 'Summary',
+          }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[note]}
+        onOpenNoteDetail={handleOpenNoteDetail}
+        selectedNoteId="note-1"
+      />
+    )
+
+    fireEvent.click(screen.getByText('Alpha note'))
+
+    expect(handleOpenNoteDetail).toHaveBeenCalledWith(note)
+    expect(
+      screen
+        .getByRole('button', { name: /Open detail for/i })
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+  })
+
+  it('does not open note detail when a card link is pressed', () => {
+    const handleOpenNoteDetail = vi.fn()
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            id: 'link-column',
+            name: 'source',
+            sortOrder: 0,
+            title: 'Source',
+            type: 'link',
+          }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[
+          {
+            createdAt: '2026-07-07T10:00:00.000Z',
+            id: 'note-1',
+            noteTypeId: 'note-type-1',
+            updatedAt: '2026-07-07T12:00:00.000Z',
+            values: {
+              'link-column': 'https://example.com/reference',
+            },
+          },
+        ]}
+        onOpenNoteDetail={handleOpenNoteDetail}
+      />
+    )
+
+    fireEvent.click(
+      screen.getByRole('link', { name: 'https://example.com/reference' })
+    )
+
+    expect(handleOpenNoteDetail).not.toHaveBeenCalled()
+  })
+
+  it('calls the edit handler when a card edit action is pressed from the menu', async () => {
     const handleEditNote = vi.fn()
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
@@ -265,12 +352,13 @@ describe('NoteCardList', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
 
     expect(handleEditNote).toHaveBeenCalledWith(note)
   })
 
-  it('calls the delete handler when a card delete action is pressed', () => {
+  it('calls the delete handler when a card delete action is pressed from the menu', async () => {
     const handleDeleteNote = vi.fn()
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
@@ -298,7 +386,8 @@ describe('NoteCardList', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const actions = await openCardMenu()
+    fireEvent.click(actions.delete)
 
     expect(handleDeleteNote).toHaveBeenCalledWith(note)
   })
@@ -345,7 +434,7 @@ describe('NoteCardList', () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        'Add a note or adjust your search to populate the masonry list.'
+        'Add a note or adjust your filters to populate the masonry list.'
       )
     ).toBeTruthy()
   })

@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import SearchIcon from '@mui/icons-material/Search'
 import {
   Box,
@@ -13,38 +14,96 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
-  useTheme,
 } from '@mui/material'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ListNotesQueryDto } from '../../../../types/api'
-import { useEffect, useRef, useState } from 'react'
+import type { ListNotesQueryDto, NoteTypeDto } from '../../../../types/api'
+import { NoteTypeFilterPopover } from './components/note-type-filter-popover'
 
 export type NoteSortBy = NonNullable<ListNotesQueryDto['sortBy']>
 export type NoteSortDirection = NonNullable<ListNotesQueryDto['sortDirection']>
 
 interface NotesToolbarProps {
+  isNoteTypesLoading: boolean
+  noteTypes: NoteTypeDto[]
   searchQuery: string
+  selectedNoteTypeIds: string[]
   sortBy: NoteSortBy
   sortDirection: NoteSortDirection
   onAddNote: () => void
+  onNoteTypeIdsChange: (noteTypeIds: string[]) => void
   onSearchQueryChange: (searchQuery: string) => void
   onSortByChange: (sortBy: NoteSortBy) => void
   onSortDirectionChange: (sortDirection: NoteSortDirection) => void
 }
 
+interface ToolbarMetrics {
+  contentWidth: number | null
+  mainLeft: number
+  mainWidth: number | null
+  shellHeight: number | null
+}
+
+const defaultToolbarMetrics: ToolbarMetrics = {
+  contentWidth: null,
+  mainLeft: 0,
+  mainWidth: null,
+  shellHeight: null,
+}
+
 export const NotesToolbar = ({
+  isNoteTypesLoading,
+  noteTypes,
   searchQuery,
+  selectedNoteTypeIds,
   sortBy,
   sortDirection,
   onAddNote,
+  onNoteTypeIdsChange,
   onSearchQueryChange,
   onSortByChange,
   onSortDirectionChange,
 }: NotesToolbarProps) => {
   const { t } = useTranslation()
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const shellRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(null)
   const [isSticky, setIsSticky] = useState(false)
-  const { spacing } = useTheme()
+  const [toolbarMetrics, setToolbarMetrics] = useState<ToolbarMetrics>(
+    defaultToolbarMetrics
+  )
+  
+  const filterButtonLabel =
+    selectedNoteTypeIds.length > 0
+      ? t('notes.toolbar.filters.buttonWithCount', {
+          count: selectedNoteTypeIds.length,
+        })
+      : t('notes.toolbar.filters.button')
+
+  const updateToolbarMetrics = useCallback(() => {
+    if (!wrapperRef.current || !shellRef.current || !contentRef.current) {
+      return
+    }
+
+    const mainElement = wrapperRef.current.closest('main')
+
+    if (!(mainElement instanceof HTMLElement)) {
+      return
+    }
+
+    const mainRect = mainElement.getBoundingClientRect()
+    const contentRect = contentRef.current.getBoundingClientRect()
+    const shellRect = shellRef.current.getBoundingClientRect()
+
+    setToolbarMetrics({
+      contentWidth: contentRect.width,
+      mainLeft: mainRect.left,
+      mainWidth: mainRect.width,
+      shellHeight: shellRect.height,
+    })
+  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -63,131 +122,198 @@ export const NotesToolbar = ({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    updateToolbarMetrics()
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateToolbarMetrics()
+    })
+
+    if (wrapperRef.current) {
+      resizeObserver.observe(wrapperRef.current)
+    }
+
+    if (shellRef.current) {
+      resizeObserver.observe(shellRef.current)
+    }
+
+    window.addEventListener('resize', updateToolbarMetrics)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateToolbarMetrics)
+    }
+  }, [updateToolbarMetrics])
+
   return (
     <>
       <div ref={sentinelRef} />
 
       <Box
+        ref={wrapperRef}
         sx={{
-          position: 'sticky',
-          zIndex: 1,
-          top: '64px',
-          bgcolor: 'background.paper',
-          border: 1,
-          borderColor: 'divider',
-          borderRadius: 1,
-          transition: (theme) =>
-            theme.transitions.create([
-              'padding-left',
-              'padding-right',
-              'margin-left',
-              'margin-right',
-            ]),
-          p: 2,
-          ...(isSticky && {
-            boxShadow: (theme) => theme.shadows[1],
-            borderRadius: 0,
-            borderLeft: 0,
-            borderRight: 0,
-            borderTop: 0,
-            px: 3.125,
-          }),
+          height:
+            isSticky && toolbarMetrics.shellHeight
+              ? `${toolbarMetrics.shellHeight}px`
+              : 'auto',
         }}
-        style={
-          isSticky ? { marginLeft: spacing(-3), marginRight: spacing(-3) } : {}
-        }
       >
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ alignItems: { xs: 'stretch', md: 'center' } }}
+        <Box
+          ref={shellRef}
+          sx={{
+            position: isSticky ? 'fixed' : 'relative',
+            top: isSticky ? { xs: '56px', sm: '64px' } : 'auto',
+            left: isSticky ? `${toolbarMetrics.mainLeft}px` : 'auto',
+            width:
+              isSticky && toolbarMetrics.mainWidth
+                ? `${toolbarMetrics.mainWidth}px`
+                : '100%',
+            zIndex: isSticky ? (theme) => theme.zIndex.appBar - 1 : 'auto',
+            bgcolor: 'background.paper',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            ...(isSticky && {
+              borderRadius: 0,
+              borderLeft: 0,
+              borderRight: 0,
+              boxShadow: (theme) => theme.shadows[1],
+            }),
+          }}
         >
-          <TextField
-            fullWidth
-            label={t('notes.toolbar.search.label')}
-            placeholder={t('notes.toolbar.search.placeholder')}
-            size="small"
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
+          <Box
+            ref={contentRef}
+            sx={{
+              p: 2,
+              ...(isSticky && {
+                boxSizing: 'border-box',
+                width: toolbarMetrics.contentWidth
+                  ? `${toolbarMetrics.contentWidth}px`
+                  : '100%',
+                maxWidth: '100%',
+                mx: 'auto',
+              }),
             }}
-          />
-
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.5}
-            sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
           >
-            <FormControl
-              size="small"
-              sx={{ minWidth: { xs: '100%', sm: 180 } }}
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { xs: 'stretch', md: 'center' } }}
             >
-              <InputLabel htmlFor="notes-sort-by">
-                {t('notes.toolbar.sortBy.label')}
-              </InputLabel>
+              <TextField
+                fullWidth
+                label={t('notes.toolbar.search.label')}
+                placeholder={t('notes.toolbar.search.placeholder')}
+                size="small"
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={{
+                  flex: { md: '1 1 auto' },
+                  minWidth: 0,
+                }}
+              />
 
-              <Select
-                native
-                label={t('notes.toolbar.sortBy.label')}
-                value={sortBy}
-                onChange={(event) =>
-                  onSortByChange(event.target.value as NoteSortBy)
-                }
-                inputProps={{ id: 'notes-sort-by' }}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
               >
-                <option value="createdAt">
-                  {t('notes.toolbar.sortBy.options.createdAt')}
-                </option>
-                <option value="updatedAt">
-                  {t('notes.toolbar.sortBy.options.updatedAt')}
-                </option>
-              </Select>
-            </FormControl>
+                <FormControl
+                  size="small"
+                  sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                >
+                  <InputLabel htmlFor="notes-sort-by">
+                    {t('notes.toolbar.sortBy.label')}
+                  </InputLabel>
 
-            <ToggleButtonGroup
-              exclusive
-              aria-label={t('notes.toolbar.sortDirection.label')}
-              size="small"
-              value={sortDirection}
-              onChange={(_, value: NoteSortDirection | null) => {
-                if (value) {
-                  onSortDirectionChange(value)
-                }
-              }}
-            >
-              <ToggleButton
-                aria-label={t('notes.toolbar.sortDirection.options.asc')}
-                value="asc"
-              >
-                <ArrowUpwardIcon fontSize="small" />
-              </ToggleButton>
+                  <Select
+                    native
+                    label={t('notes.toolbar.sortBy.label')}
+                    value={sortBy}
+                    onChange={(event) =>
+                      onSortByChange(event.target.value as NoteSortBy)
+                    }
+                    inputProps={{ id: 'notes-sort-by' }}
+                  >
+                    <option value="createdAt">
+                      {t('notes.toolbar.sortBy.options.createdAt')}
+                    </option>
+                    <option value="updatedAt">
+                      {t('notes.toolbar.sortBy.options.updatedAt')}
+                    </option>
+                  </Select>
+                </FormControl>
 
-              <ToggleButton
-                aria-label={t('notes.toolbar.sortDirection.options.desc')}
-                value="desc"
-              >
-                <ArrowDownwardIcon fontSize="small" />
-              </ToggleButton>
-            </ToggleButtonGroup>
+                <ToggleButtonGroup
+                  exclusive
+                  aria-label={t('notes.toolbar.sortDirection.label')}
+                  size="small"
+                  value={sortDirection}
+                  onChange={(_, value: NoteSortDirection | null) => {
+                    if (value) {
+                      onSortDirectionChange(value)
+                    }
+                  }}
+                >
+                  <ToggleButton
+                    aria-label={t('notes.toolbar.sortDirection.options.asc')}
+                    value="asc"
+                  >
+                    <ArrowUpwardIcon fontSize="small" />
+                  </ToggleButton>
 
-            <Button
-              startIcon={<AddIcon />}
-              variant="contained"
-              onClick={onAddNote}
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              {t('notes.toolbar.actions.add')}
-            </Button>
-          </Stack>
-        </Stack>
+                  <ToggleButton
+                    aria-label={t('notes.toolbar.sortDirection.options.desc')}
+                    value="desc"
+                  >
+                    <ArrowDownwardIcon fontSize="small" />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                <Button
+                  startIcon={<FilterListIcon />}
+                  variant="outlined"
+                  onClick={(event) => setFilterAnchorEl(event.currentTarget)}
+                >
+                  {filterButtonLabel}
+                </Button>
+
+                <Button
+                  startIcon={<AddIcon />}
+                  variant="contained"
+                  onClick={onAddNote}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {t('notes.toolbar.actions.add')}
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        </Box>
       </Box>
+
+      <NoteTypeFilterPopover
+        anchorEl={filterAnchorEl}
+        isLoading={isNoteTypesLoading}
+        noteTypes={noteTypes}
+        open={Boolean(filterAnchorEl)}
+        selectedNoteTypeIds={selectedNoteTypeIds}
+        onClose={() => setFilterAnchorEl(null)}
+        onNoteTypeIdsChange={onNoteTypeIdsChange}
+      />
     </>
   )
 }

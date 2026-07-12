@@ -6,12 +6,13 @@ import { searchNotes } from './search-notes.util'
 const createNote = (
   id: string,
   values: NoteDto['values'],
+  noteTypeId = 'bookscode1',
   timestamps?: Partial<Pick<NoteDto, 'createdAt' | 'updatedAt'>>
 ): NoteDto => {
   return {
     createdAt: timestamps?.createdAt ?? '2026-07-07T10:00:00.000Z',
     id,
-    noteTypeId: 'note-type-1',
+    noteTypeId,
     updatedAt: timestamps?.updatedAt ?? '2026-07-07T10:00:00.000Z',
     values,
   }
@@ -53,7 +54,7 @@ describe('searchNotes', () => {
   it('returns all notes for an empty search query', () => {
     const notes = [createNote('note-1', { title: 'Alpha' })]
 
-    expect(searchNotes(notes, '   ')).toBe(notes)
+    expect(searchNotes(notes, '   ', { bookscode1: 'Books' })).toBe(notes)
   })
 
   it('searches text, date, number, image metadata, and link values', () => {
@@ -73,11 +74,41 @@ describe('searchNotes', () => {
       createNote('link-note', { source: 'https://example.com/roadmap' }),
     ]
 
-    expect(searchNotes(notes, 'alpha')).toEqual([notes[0]])
-    expect(searchNotes(notes, '2031')).toEqual([notes[1]])
-    expect(searchNotes(notes, '42')).toEqual([notes[2]])
-    expect(searchNotes(notes, 'receipt')).toEqual([notes[3]])
-    expect(searchNotes(notes, 'roadmap')).toEqual([notes[4]])
+    expect(searchNotes(notes, 'alpha', { bookscode1: 'Books' })).toEqual([
+      notes[0],
+    ])
+    expect(searchNotes(notes, '2031', { bookscode1: 'Books' })).toEqual([
+      notes[1],
+    ])
+    expect(searchNotes(notes, '42', { bookscode1: 'Books' })).toEqual([
+      notes[2],
+    ])
+    expect(searchNotes(notes, 'receipt', { bookscode1: 'Books' })).toEqual([
+      notes[3],
+    ])
+    expect(searchNotes(notes, 'roadmap', { bookscode1: 'Books' })).toEqual([
+      notes[4],
+    ])
+  })
+
+  it('searches by note type title and note type id context', () => {
+    const notes = [
+      createNote('note-1', { title: 'Alpha' }, 'bookscode1'),
+      createNote('note-2', { title: 'Beta' }, 'moviecode2'),
+    ]
+
+    expect(
+      searchNotes(notes, 'movies', {
+        bookscode1: 'Books',
+        moviecode2: 'Movies',
+      })
+    ).toEqual([notes[1]])
+    expect(
+      searchNotes(notes, 'bookscode1', {
+        bookscode1: 'Books',
+        moviecode2: 'Movies',
+      })
+    ).toEqual([notes[0]])
   })
 
   it('searches across dynamic note value keys', () => {
@@ -86,25 +117,30 @@ describe('searchNotes', () => {
       createNote('note-2', { anotherColumn: 'Quiet note' }),
     ]
 
-    expect(searchNotes(notes, 'zephyr')).toEqual([notes[0]])
+    expect(searchNotes(notes, 'zephyr', { bookscode1: 'Books' })).toEqual([
+      notes[0],
+    ])
   })
 
   it('searches createdAt and updatedAt timestamps', () => {
     const notes = [
-      createNote(
-        'created-note',
-        { title: 'Timestamp note' },
-        { createdAt: '2040-01-01T10:00:00.000Z' }
-      ),
+      createNote('created-note', { title: 'Timestamp note' }, 'bookscode1', {
+        createdAt: '2040-01-01T10:00:00.000Z',
+      }),
       createNote(
         'updated-note',
         { title: 'Another timestamp note' },
+        'bookscode1',
         { updatedAt: '2041-02-02T10:00:00.000Z' }
       ),
     ]
 
-    expect(searchNotes(notes, '2040')).toEqual([notes[0]])
-    expect(searchNotes(notes, '2041')).toEqual([notes[1]])
+    expect(searchNotes(notes, '2040', { bookscode1: 'Books' })).toEqual([
+      notes[0],
+    ])
+    expect(searchNotes(notes, '2041', { bookscode1: 'Books' })).toEqual([
+      notes[1],
+    ])
   })
 
   it('does not search image data URL payloads', () => {
@@ -117,8 +153,12 @@ describe('searchNotes', () => {
       }),
     ]
 
-    expect(searchNotes(notes, 'hiddenneedle')).toEqual([])
-    expect(searchNotes(notes, 'visible')).toEqual(notes)
+    expect(searchNotes(notes, 'hiddenneedle', { bookscode1: 'Books' })).toEqual(
+      []
+    )
+    expect(searchNotes(notes, 'visible', { bookscode1: 'Books' })).toEqual(
+      notes
+    )
   })
 
   it('preserves fetched note order for matching results', () => {
@@ -127,6 +167,6 @@ describe('searchNotes', () => {
       createNote('note-1', { tag: 'shared match' }),
     ]
 
-    expect(searchNotes(notes, 'shared')).toEqual(notes)
+    expect(searchNotes(notes, 'shared', { bookscode1: 'Books' })).toEqual(notes)
   })
 })

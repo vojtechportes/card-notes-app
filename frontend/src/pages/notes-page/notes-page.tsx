@@ -1,4 +1,10 @@
-import { Button, Stack, Typography } from '@mui/material'
+import {
+  Button,
+  ListItemText,
+  MenuItem,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -20,6 +26,7 @@ import { useGeneralSettingsQuery } from './hooks/use-general-settings-query'
 import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query'
 import { useNotesSearch } from './hooks/use-notes-search'
 import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
+import { useNoteTypesQuery } from '../settings-page/hooks/use-note-types-query'
 
 const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt'
 const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc'
@@ -33,14 +40,34 @@ export const NotesPage = () => {
   const [activeNote, setActiveNote] = useState<NoteDto | undefined>()
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedNoteTypeIds, setSelectedNoteTypeIds] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<NoteSortBy>(DEFAULT_SORT_BY)
   const [sortDirection, setSortDirection] = useState<NoteSortDirection>(
     DEFAULT_SORT_DIRECTION
   )
-  const notesQuery = useNotesQuery({ sortBy, sortDirection })
+  const noteTypesQuery = useNoteTypesQuery()
+  const notesQuery = useNotesQuery({
+    noteTypeIds:
+      selectedNoteTypeIds.length > 0 ? selectedNoteTypeIds : undefined,
+    sortBy,
+    sortDirection,
+  })
   const deleteNoteMutation = useDeleteNoteMutation()
   const generalSettingsQuery = useGeneralSettingsQuery()
-  const filteredNotes = useNotesSearch(notesQuery.data, searchQuery)
+  const noteTypeTitleById = useMemo(() => {
+    return (noteTypesQuery.data ?? []).reduce<Record<string, string>>(
+      (accumulator, noteType) => {
+        accumulator[noteType.id] = noteType.title
+        return accumulator
+      },
+      {}
+    )
+  }, [noteTypesQuery.data])
+  const filteredNotes = useNotesSearch(
+    notesQuery.data,
+    searchQuery,
+    noteTypeTitleById
+  )
   const noteTypeIds = useMemo(() => {
     return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
   }, [notesQuery.data])
@@ -53,15 +80,6 @@ export const NotesPage = () => {
     () => notesQuery.data?.find((note) => note.id === noteId),
     [noteId, notesQuery.data]
   )
-  const defaultColumns = useMemo(() => {
-    const firstNoteTypeId = noteTypeIds[0]
-
-    if (!firstNoteTypeId) {
-      return []
-    }
-
-    return noteTypeColumnsMapQuery.data[firstNoteTypeId] ?? []
-  }, [noteTypeColumnsMapQuery.data, noteTypeIds])
 
   const handleCloseNoteDialog = useCallback(() => {
     setActiveNote(undefined)
@@ -129,31 +147,30 @@ export const NotesPage = () => {
       targetPathnameRoot: '/notes',
       drawerActions: (
         <>
-          <Button
-            onClick={() => handleOpenNoteDialog(selectedNote)}
-            size="small"
-            variant="outlined"
+          <MenuItem
+            onClick={() => {
+              handleOpenNoteDialog(selectedNote)
+            }}
           >
-            {t('notes.detail.actions.edit')}
-          </Button>
-          <Button
-            color="error"
+            <ListItemText>{t('notes.detail.actions.edit')}</ListItemText>
+          </MenuItem>
+          <MenuItem
             onClick={() => {
               void handleDeleteNote(selectedNote)
             }}
-            size="small"
-            variant="outlined"
+            sx={{ color: 'error.main' }}
           >
-            {t('notes.detail.actions.delete')}
-          </Button>
+            <ListItemText>{t('notes.detail.actions.delete')}</ListItemText>
+          </MenuItem>
         </>
       ),
       drawerContent: (
         <NoteDetailPanel
-          columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? defaultColumns}
+          columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? []}
           generalSettings={generalSettingsQuery.data}
           note={selectedNote}
           noteTypeColumnsById={noteTypeColumnsMapQuery.data}
+          noteTypeTitle={noteTypeTitleById[selectedNote.noteTypeId]}
         />
       ),
       onClose: () => {
@@ -164,7 +181,6 @@ export const NotesPage = () => {
       },
     })
   }, [
-    defaultColumns,
     generalSettingsQuery.data,
     handleDeleteNote,
     handleOpenNoteDialog,
@@ -173,6 +189,7 @@ export const NotesPage = () => {
     navigate,
     noteId,
     noteTypeColumnsMapQuery.data,
+    noteTypeTitleById,
     selectedNote,
     t,
     toggleDrawer,
@@ -197,11 +214,17 @@ export const NotesPage = () => {
         </Stack>
 
         <NotesToolbar
+          isNoteTypesLoading={noteTypesQuery.isLoading}
+          noteTypes={noteTypesQuery.data ?? []}
           searchQuery={searchQuery}
+          selectedNoteTypeIds={selectedNoteTypeIds}
           sortBy={sortBy}
           sortDirection={sortDirection}
           onAddNote={() => {
             handleOpenNoteDialog()
+          }}
+          onNoteTypeIdsChange={(noteTypeIds) => {
+            setSelectedNoteTypeIds([...noteTypeIds].sort())
           }}
           onSearchQueryChange={setSearchQuery}
           onSortByChange={setSortBy}
@@ -232,13 +255,14 @@ export const NotesPage = () => {
           !hasCardConfigurationError &&
           generalSettingsQuery.data && (
             <NoteCardList
-              columns={defaultColumns}
+              columns={[]}
               generalSettings={generalSettingsQuery.data}
               noteTypeColumnsById={noteTypeColumnsMapQuery.data}
               notes={filteredNotes}
               onDeleteNote={handleDeleteNote}
               onEditNote={handleOpenNoteDialog}
               onOpenNoteDetail={handleOpenNoteDetail}
+              selectedNoteId={noteId}
             />
           )}
       </Stack>
@@ -252,7 +276,3 @@ export const NotesPage = () => {
     </>
   )
 }
-
-
-
-

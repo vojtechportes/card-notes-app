@@ -3,4 +3,6 @@ export interface NoteSearchDocument {
   searchableText: string
   createdAt: string
   updatedAt: string
+  noteTypeId: string
+  noteTypeTitle: string
 }

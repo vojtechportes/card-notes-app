@@ -174,10 +174,10 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Reflect state of mergeDateTifleFields in CardNote
 
 - [x] T48. Add support for XLSX imports
- - Allow xlsx imports
- - Map row names in first column in xlsx to column names
- - Extract images in xlsx and map them to correct column
- - Integrate import on frontend
+- Allow xlsx imports
+- Map row names in first column in xlsx to column names
+- Extract images in xlsx and map them to correct column
+- Integrate import on frontend
 
 ## Phase 5: Electron Integration
 
@@ -323,7 +323,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep Export / Import and Danger Zone behavior clear after note types are introduced.
   - Localize all new copy.
 
-- [ ] T75. Notes page support for mixed note types
+- [x] T75. Notes page support for mixed note types
   - Render all notes together on the Notes page.
   - In the create note dialog, the first input must be a note type select.
   - Load note fields only after the user selects a note type in create mode.
@@ -374,5 +374,3 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-
-

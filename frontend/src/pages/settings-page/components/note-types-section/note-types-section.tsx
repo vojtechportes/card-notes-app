@@ -43,19 +43,27 @@ export const NoteTypesSection = () => {
   const { t } = useTranslation()
   const { toggleDrawer } = useContext(SideDrawerContext)
   const [activeNoteTypeId, setActiveNoteTypeId] = useState<string | null>(null)
-  const [dialogState, setDialogState] = useState<NoteTypeDialogState | null>(null)
-  const [deleteCandidate, setDeleteCandidate] = useState<NoteTypeDto | null>(null)
+  const [dialogState, setDialogState] = useState<NoteTypeDialogState | null>(
+    null
+  )
+  const [deleteCandidate, setDeleteCandidate] = useState<NoteTypeDto | null>(
+    null
+  )
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const noteTypesQuery = useNoteTypesQuery()
   const createNoteTypeMutation = useCreateNoteTypeMutation()
   const updateNoteTypeMutation = useUpdateNoteTypeMutation()
   const deleteNoteTypeMutation = useDeleteNoteTypeMutation()
-  const noteTypeDetailQuery = useNoteTypeDetailQuery(activeNoteTypeId ?? undefined)
+  const noteTypeDetailQuery = useNoteTypeDetailQuery(
+    activeNoteTypeId ?? undefined
+  )
 
   const noteTypes = noteTypesQuery.data ?? []
   const activeNoteType = useMemo(() => {
-    return noteTypes.find((noteType) => noteType.id === activeNoteTypeId) ?? null
+    return (
+      noteTypes.find((noteType) => noteType.id === activeNoteTypeId) ?? null
+    )
   }, [activeNoteTypeId, noteTypes])
 
   const rows = useMemo(() => {
@@ -101,9 +109,11 @@ export const NoteTypesSection = () => {
             },
           })
         } else {
-          await createNoteTypeMutation.mutateAsync({
+          const createdNoteType = await createNoteTypeMutation.mutateAsync({
             title: values.title.trim(),
           })
+
+          setActiveNoteTypeId(createdNoteType.id)
         }
 
         handleCloseDialog()
@@ -111,7 +121,13 @@ export const NoteTypesSection = () => {
         setDialogError(t('settings.noteTypes.errors.submit'))
       }
     },
-    [createNoteTypeMutation, dialogState, handleCloseDialog, t, updateNoteTypeMutation]
+    [
+      createNoteTypeMutation,
+      dialogState,
+      handleCloseDialog,
+      t,
+      updateNoteTypeMutation,
+    ]
   )
 
   const handleDeleteSubmit = useCallback(
@@ -133,7 +149,14 @@ export const NoteTypesSection = () => {
         setDeleteError(t('settings.noteTypes.errors.delete'))
       }
     },
-    [activeNoteTypeId, closeDrawer, deleteCandidate, deleteNoteTypeMutation, handleCloseDeleteDialog, t]
+    [
+      activeNoteTypeId,
+      closeDrawer,
+      deleteCandidate,
+      deleteNoteTypeMutation,
+      handleCloseDeleteDialog,
+      t,
+    ]
   )
 
   const gridColumns = useMemo<GridColDef[]>(() => {
@@ -170,7 +193,13 @@ export const NoteTypesSection = () => {
           const row = params.row as NoteTypeDto
 
           return (
-            <Stack direction="row" spacing={0.5}>
+            <Stack
+              alignItems="center"
+              direction="row"
+              justifyContent="flex-end"
+              spacing={0.5}
+              sx={{ height: '100%', width: '100%' }}
+            >
               <Tooltip title={t('settings.noteTypes.actions.edit')}>
                 <IconButton
                   aria-label={t('settings.noteTypes.actions.edit')}
@@ -229,7 +258,16 @@ export const NoteTypesSection = () => {
       onClose: closeDrawer,
       width: 640,
     })
-  }, [activeNoteType, activeNoteTypeId, closeDrawer, noteTypeDetailQuery.data, noteTypeDetailQuery.isError, noteTypeDetailQuery.isLoading, t, toggleDrawer])
+  }, [
+    activeNoteType,
+    activeNoteTypeId,
+    closeDrawer,
+    noteTypeDetailQuery.data,
+    noteTypeDetailQuery.isError,
+    noteTypeDetailQuery.isLoading,
+    t,
+    toggleDrawer,
+  ])
 
   return (
     <>
@@ -264,9 +302,13 @@ export const NoteTypesSection = () => {
               </Typography>
             </Stack>
           ) : noteTypesQuery.isError ? (
-            <Alert severity="error">{t('settings.noteTypes.status.error')}</Alert>
+            <Alert severity="error">
+              {t('settings.noteTypes.status.error')}
+            </Alert>
           ) : noteTypes.length === 0 ? (
-            <Alert severity="info">{t('settings.noteTypes.status.empty')}</Alert>
+            <Alert severity="info">
+              {t('settings.noteTypes.status.empty')}
+            </Alert>
           ) : (
             <DataGrid
               autoHeight
@@ -283,6 +325,9 @@ export const NoteTypesSection = () => {
                 '& .MuiDataGrid-cell': {
                   cursor: 'pointer',
                 },
+                '& .MuiDataGrid-cell[data-field="actions"]': {
+                  alignItems: 'center',
+                },
               }}
             />
           )}
@@ -293,7 +338,9 @@ export const NoteTypesSection = () => {
         isPending={
           createNoteTypeMutation.isPending || updateNoteTypeMutation.isPending
         }
-        noteType={dialogState?.mode === 'edit' ? dialogState.noteType : undefined}
+        noteType={
+          dialogState?.mode === 'edit' ? dialogState.noteType : undefined
+        }
         onClose={handleCloseDialog}
         onSubmit={handleDialogSubmit}
         open={Boolean(dialogState)}

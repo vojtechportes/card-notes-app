@@ -5,6 +5,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Stack,
   Typography,
 } from '@mui/material'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -12,12 +13,14 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { NoteDto } from '../../../../types/api'
 import { createFormResolver } from '../../../../utils/create-form-resolver.util'
+import { useNoteTypesQuery } from '../../../settings-page/hooks/use-note-types-query'
 import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query'
 import {
   useCreateNoteMutation,
   useUpdateNoteMutation,
 } from '../../hooks/use-notes-query'
 import { NoteFormFields } from './components/note-form-fields'
+import { NoteTypeSelectField } from './components/note-type-select-field'
 import type { FormValues } from './types/form-values'
 import { createNoteFormSchema } from './utils/create-note-form-schema.util'
 import { filterEditableNoteColumns } from './utils/filter-editable-note-columns.util'
@@ -41,20 +44,22 @@ export const CreateUpdateDialog = ({
   onClose,
 }: CreateUpdateDialogProps) => {
   const { t } = useTranslation()
+  const [selectedCreateNoteTypeId, setSelectedCreateNoteTypeId] = useState<
+    string | undefined
+  >()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const formId = useId().replace(/:/g, '-')
   const initializationKeyRef = useRef<string | null>(null)
-  const noteColumnsQuery = useNoteColumnsQuery(note?.noteTypeId)
+  const noteTypesQuery = useNoteTypesQuery()
+  const activeNoteTypeId =
+    mode === 'update' ? note?.noteTypeId : selectedCreateNoteTypeId
+  const noteColumnsQuery = useNoteColumnsQuery(activeNoteTypeId)
   const createNoteMutation = useCreateNoteMutation()
   const updateNoteMutation = useUpdateNoteMutation()
 
   const editableColumns = useMemo(() => {
     return filterEditableNoteColumns(noteColumnsQuery.data ?? [])
   }, [noteColumnsQuery.data])
-
-  const activeNoteTypeId = useMemo(() => {
-    return note?.noteTypeId ?? noteColumnsQuery.data?.[0]?.noteTypeId
-  }, [note?.noteTypeId, noteColumnsQuery.data])
 
   const defaultValues = useMemo(() => {
     return getNoteFormDefaultValues(editableColumns, note)
@@ -84,7 +89,9 @@ export const CreateUpdateDialog = ({
   const hasColumnsError = noteColumnsQuery.isError
   const hasMissingNote = mode === 'update' && !note
   const hasMissingNoteType = mode === 'create' && !activeNoteTypeId
-  const initializationKey = `${mode}:${note?.id ?? 'create'}`
+  const hasNoteTypesError = mode === 'create' && noteTypesQuery.isError
+  const isNoteTypesLoading = mode === 'create' && noteTypesQuery.isLoading
+  const initializationKey = `${mode}:${note?.id ?? 'create'}:${activeNoteTypeId ?? 'none'}`
   const titleKey =
     mode === 'create' ? 'notes.createDialog.title' : 'notes.updateDialog.title'
   const submitLabelKey =
@@ -113,10 +120,11 @@ export const CreateUpdateDialog = ({
     }
 
     initializationKeyRef.current = null
+    setSelectedCreateNoteTypeId(undefined)
     reset(defaultValues)
     setSubmitError(null)
     onClose()
-  }, [onClose, reset, defaultValues, isSubmitting])
+  }, [defaultValues, isSubmitting, onClose, reset])
 
   const handleFormSubmit = useCallback(
     async (values: FormValues) => {
@@ -134,7 +142,11 @@ export const CreateUpdateDialog = ({
       try {
         if (mode === 'create' && activeNoteTypeId) {
           await createNoteMutation.mutateAsync(
-            mapFormValuesToCreateNoteDto(editableColumns, values, activeNoteTypeId)
+            mapFormValuesToCreateNoteDto(
+              editableColumns,
+              values,
+              activeNoteTypeId
+            )
           )
         } else if (note) {
           await updateNoteMutation.mutateAsync({
@@ -144,6 +156,7 @@ export const CreateUpdateDialog = ({
         }
 
         initializationKeyRef.current = null
+        setSelectedCreateNoteTypeId(undefined)
         reset(
           getNoteFormDefaultValues(
             editableColumns,
@@ -190,15 +203,7 @@ export const CreateUpdateDialog = ({
           </Alert>
         )}
 
-        {noteColumnsQuery.isLoading ? (
-          <Typography color="text.secondary">
-            {t('notes.createUpdateDialog.status.loadingColumns')}
-          </Typography>
-        ) : hasColumnsError ? (
-          <Alert severity="error">
-            {t('notes.createUpdateDialog.status.columnsError')}
-          </Alert>
-        ) : hasMissingNote ? (
+        {hasMissingNote ? (
           <Alert severity="error">
             {t('notes.createUpdateDialog.errors.missingNote')}
           </Alert>
@@ -208,18 +213,52 @@ export const CreateUpdateDialog = ({
             noValidate
             onSubmit={handleSubmit(handleFormSubmit)}
           >
-            {editableColumns.length === 0 ? (
-              <Typography color="text.secondary">
-                {t('notes.createUpdateDialog.emptyEditableColumns')}
-              </Typography>
-            ) : (
-              <NoteFormFields
-                clearErrors={clearErrors}
-                columns={editableColumns}
-                control={control}
-                setError={setError}
+            <Stack spacing={2}>
+              <NoteTypeSelectField
+                disabled={
+                  isSubmitting || mode === 'update' || noteTypesQuery.isLoading
+                }
+                mode={mode}
+                noteTypes={noteTypesQuery.data ?? []}
+                selectedNoteTypeId={activeNoteTypeId}
+                onNoteTypeChange={(noteTypeId) => {
+                  setSelectedCreateNoteTypeId(noteTypeId || undefined)
+                }}
               />
-            )}
+
+              {isNoteTypesLoading ? (
+                <Typography color="text.secondary">
+                  {t('notes.createUpdateDialog.status.loadingNoteTypes')}
+                </Typography>
+              ) : hasNoteTypesError ? (
+                <Alert severity="error">
+                  {t('notes.createUpdateDialog.status.noteTypesError')}
+                </Alert>
+              ) : hasMissingNoteType ? (
+                <Typography color="text.secondary">
+                  {t('notes.createUpdateDialog.status.selectNoteType')}
+                </Typography>
+              ) : noteColumnsQuery.isLoading ? (
+                <Typography color="text.secondary">
+                  {t('notes.createUpdateDialog.status.loadingColumns')}
+                </Typography>
+              ) : hasColumnsError ? (
+                <Alert severity="error">
+                  {t('notes.createUpdateDialog.status.columnsError')}
+                </Alert>
+              ) : editableColumns.length === 0 ? (
+                <Typography color="text.secondary">
+                  {t('notes.createUpdateDialog.emptyEditableColumns')}
+                </Typography>
+              ) : (
+                <NoteFormFields
+                  clearErrors={clearErrors}
+                  columns={editableColumns}
+                  control={control}
+                  setError={setError}
+                />
+              )}
+            </Stack>
           </form>
         )}
       </DialogContent>
@@ -231,6 +270,8 @@ export const CreateUpdateDialog = ({
         <Button
           disabled={
             isSubmitting ||
+            isNoteTypesLoading ||
+            hasNoteTypesError ||
             noteColumnsQuery.isLoading ||
             hasColumnsError ||
             hasMissingNote ||
