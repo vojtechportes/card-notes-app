@@ -20,14 +20,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDto, DeleteColumnQueryDto } from '../../../../types/api'
 import { useConfirmation } from '../../../../components/confirmation'
 import { useCreateColumnMutation } from '../../hooks/use-create-column-mutation'
 import { useDeleteColumnMutation } from '../../hooks/use-delete-column-mutation'
 import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query'
-import { useNoteTypesQuery } from '../../hooks/use-note-types-query'
 import { useReorderColumnsMutation } from '../../hooks/use-reorder-columns-mutation'
 import { useUpdateColumnMutation } from '../../hooks/use-update-column-mutation'
 import { SettingsSection } from '../settings-section'
@@ -38,14 +37,23 @@ import { getReorderedColumnIds } from './utils/get-reordered-column-ids.util'
 
 type ColumnDeleteMode = NonNullable<DeleteColumnQueryDto['deleteMode']>
 
-export const ColumnsSection = () => {
+type ColumnsSectionVariant = 'embedded' | 'section'
+
+interface ColumnsSectionProps {
+  noteTypeId: string
+  variant?: ColumnsSectionVariant
+}
+
+export const ColumnsSection = ({
+  noteTypeId,
+  variant = 'section',
+}: ColumnsSectionProps) => {
   const { t } = useTranslation()
   const confirmation = useConfirmation()
   const [activeColumn, setActiveColumn] = useState<ColumnDto | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [sectionError, setSectionError] = useState<string | null>(null)
-  const noteColumnsQuery = useNoteColumnsQuery()
-  const noteTypesQuery = useNoteTypesQuery()
+  const noteColumnsQuery = useNoteColumnsQuery(noteTypeId)
   const createColumnMutation = useCreateColumnMutation()
   const updateColumnMutation = useUpdateColumnMutation()
   const reorderColumnsMutation = useReorderColumnsMutation()
@@ -62,12 +70,7 @@ export const ColumnsSection = () => {
     })
   )
 
-  const columns = useMemo(() => {
-    return noteColumnsQuery.data ?? []
-  }, [noteColumnsQuery.data])
-  const activeNoteTypeId = useMemo(() => {
-    return columns[0]?.noteTypeId ?? noteTypesQuery.data?.[0]?.id
-  }, [columns, noteTypesQuery.data])
+  const columns = noteColumnsQuery.data ?? []
 
   const closeDialog = useCallback(() => {
     setActiveColumn(null)
@@ -88,10 +91,6 @@ export const ColumnsSection = () => {
 
   const handleDialogSubmit = useCallback(
     async (values: ColumnFormValues) => {
-      if (!activeNoteTypeId) {
-        return
-      }
-
       setSectionError(null)
 
       const payload = {
@@ -112,10 +111,10 @@ export const ColumnsSection = () => {
 
       await createColumnMutation.mutateAsync({
         column: payload,
-        noteTypeId: activeNoteTypeId,
+        noteTypeId,
       })
     },
-    [activeColumn, activeNoteTypeId, createColumnMutation, updateColumnMutation]
+    [activeColumn, createColumnMutation, noteTypeId, updateColumnMutation]
   )
 
   const handleToggleHidden = useCallback(
@@ -172,8 +171,6 @@ export const ColumnsSection = () => {
         return
       }
 
-      setSectionError(null)
-
       try {
         await deleteColumnMutation.mutateAsync({
           id: column.id,
@@ -189,7 +186,7 @@ export const ColumnsSection = () => {
 
   const handleDragEnd = useCallback(
     async ({ active, over }: DragEndEvent) => {
-      if (!activeNoteTypeId || !over || active.id === over.id) {
+      if (!over || active.id === over.id) {
         return
       }
 
@@ -208,20 +205,17 @@ export const ColumnsSection = () => {
       try {
         await reorderColumnsMutation.mutateAsync({
           columnOrder: { columnIds },
-          noteTypeId: activeNoteTypeId,
+          noteTypeId,
         })
       } catch {
         setSectionError(t('settings.columns.errors.reorder'))
       }
     },
-    [activeNoteTypeId, columns, reorderColumnsMutation, t]
+    [columns, noteTypeId, reorderColumnsMutation, t]
   )
 
-  return (
-    <SettingsSection
-      description={t('settings.sections.columns.description')}
-      title={t('settings.sections.columns.title')}
-    >
+  const content = (
+    <>
       <Stack spacing={2}>
         <Stack
           alignItems={{ sm: 'center', xs: 'stretch' }}
@@ -287,6 +281,19 @@ export const ColumnsSection = () => {
         onSubmit={handleDialogSubmit}
         open={isDialogOpen}
       />
+    </>
+  )
+
+  if (variant === 'embedded') {
+    return content
+  }
+
+  return (
+    <SettingsSection
+      description={t('settings.sections.columns.description')}
+      title={t('settings.sections.columns.title')}
+    >
+      {content}
     </SettingsSection>
   )
 }

@@ -1,9 +1,9 @@
 import { Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { ColumnsSection } from './components/columns-section/columns-section'
 import { DangerZoneSection } from './components/danger-zone-section/danger-zone-section'
 import { ExportImportSection } from './components/export-import-section/export-import-section'
 import { GeneralSection } from './components/general-section/general-section'
+import { NoteTypesSection } from './components/note-types-section/note-types-section'
 import { UpdaterSection } from './components/updater-section/updater-section'
 
 export const SettingsPage = () => {
@@ -21,7 +21,7 @@ export const SettingsPage = () => {
       </Stack>
 
       <Stack spacing={3}>
-        <ColumnsSection />
+        <NoteTypesSection />
         <GeneralSection />
         <UpdaterSection />
         <ExportImportSection />

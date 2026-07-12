@@ -308,7 +308,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Update existing notes/settings hooks to fetch fields by note type where needed.
   - Keep `/api/*/requests.ts` functions returning Axios promises directly without `await`.
 
-- [ ] T74. Settings UI for note types and per-type fields
+- [x] T74. Settings UI for note types and per-type fields
   - Add a note type management area in Settings using a data grid.
   - Show grid columns: `Name`, `Created at`, `Updated at`, and row actions for edit/delete.
   - Let the user create a new note type from the grid area.
@@ -374,4 +374,5 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+
 
