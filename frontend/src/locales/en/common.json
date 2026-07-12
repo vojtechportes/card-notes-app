@@ -16,6 +16,7 @@
   "detail": {
     "actions": {
       "close": "Close detail",
+      "more": "More actions",
       "expandWidth": "Expand detail width",
       "collapseWidth": "Collapse detail width"
     }

@@ -41,7 +41,7 @@ describe('notes requests', () => {
     vi.clearAllMocks()
   })
 
-  it('fetches notes with query params and an abort signal', () => {
+  it('fetches notes with serialized note type ids and an abort signal', () => {
     const query: ListNotesQueryDto = {
       noteTypeIds: ['note-type-1', 'note-type-2'],
       sortBy: 'updatedAt',
@@ -55,7 +55,11 @@ describe('notes requests', () => {
 
     expect(result).toBe(response)
     expect(apiClientMock.get).toHaveBeenCalledWith('/notes', {
-      params: query,
+      params: {
+        noteTypeIds: 'note-type-1,note-type-2',
+        sortBy: 'updatedAt',
+        sortDirection: 'asc',
+      },
       signal,
     })
   })

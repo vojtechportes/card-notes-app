@@ -12,8 +12,17 @@ export const getNotes = (
   query?: ListNotesQueryDto,
   signal?: AbortSignal
 ): Promise<AxiosResponse<NoteDto[]>> => {
+  const params = query
+    ? {
+        ...query,
+        noteTypeIds: Array.isArray(query.noteTypeIds)
+          ? query.noteTypeIds.join(',')
+          : query.noteTypeIds,
+      }
+    : undefined
+
   return apiClient.get<NoteDto[]>('/notes', {
-    params: query,
+    params,
     signal,
   })
 }

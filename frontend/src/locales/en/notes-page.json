@@ -1,7 +1,7 @@
 {
   "notes": {
     "title": "Notes",
-    "description": "Search, sort, and add notes from the workspace toolbar.",
+    "description": "Search, sort, filter, and add notes from the workspace toolbar.",
     "toolbar": {
       "search": {
         "label": "Search notes",
@@ -25,6 +25,20 @@
           "desc": "DESC"
         }
       },
+      "filters": {
+        "button": "Filters",
+        "buttonWithCount": "Filters ({{count}})",
+        "title": "Advanced filters",
+        "description": "Filter the notes list by note type.",
+        "actions": {
+          "clear": "Clear",
+          "close": "Close"
+        },
+        "status": {
+          "loading": "Loading note types...",
+          "empty": "No note types are available."
+        }
+      },
       "actions": {
         "add": "Add note"
       }
@@ -38,7 +52,7 @@
     },
     "empty": {
       "title": "No notes to show",
-      "description": "Add a note or adjust your search to populate the masonry list."
+      "description": "Add a note or adjust your filters to populate the masonry list."
     },
     "fields": {
       "lastUpdatedAt": "Last updated at"
@@ -49,11 +63,14 @@
       "actions": {
         "edit": "Edit",
         "delete": "Delete",
-        "openDetail": "Open detail"
+        "more": "More actions",
+        "openDetail": "Open detail",
+        "openDetailNamed": "Open detail for {{label}}"
       }
     },
     "detail": {
       "title": "Note detail",
+      "noteType": "Note type",
       "emptyValue": "-",
       "actions": {
         "edit": "Edit note",
@@ -79,8 +96,15 @@
         "update": "Save changes"
       },
       "status": {
+        "loadingNoteTypes": "Loading note types...",
+        "noteTypesError": "Note types could not be loaded.",
+        "selectNoteType": "Select a note type to load its fields.",
         "loadingColumns": "Loading note fields...",
         "columnsError": "Note fields could not be loaded."
+      },
+      "noteType": {
+        "label": "Note type",
+        "placeholder": "Select a note type"
       },
       "emptyEditableColumns": "No editable columns are currently available. You can still save this note without any custom fields.",
       "errors": {

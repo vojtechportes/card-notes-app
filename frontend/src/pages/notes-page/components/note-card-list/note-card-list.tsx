@@ -16,6 +16,7 @@ interface NoteCardListProps {
   onDeleteNote?: (note: NoteDto) => void
   onEditNote?: (note: NoteDto) => void
   onOpenNoteDetail?: (note: NoteDto) => void
+  selectedNoteId?: string
 }
 
 export const NoteCardList = ({
@@ -26,6 +27,7 @@ export const NoteCardList = ({
   onDeleteNote,
   onEditNote,
   onOpenNoteDetail,
+  selectedNoteId,
 }: NoteCardListProps) => {
   const { t } = useTranslation()
 
@@ -53,6 +55,7 @@ export const NoteCardList = ({
           key={note.id}
           columns={noteTypeColumnsById?.[note.noteTypeId] ?? columns}
           generalSettings={generalSettings}
+          isSelected={note.id === selectedNoteId}
           note={note}
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}

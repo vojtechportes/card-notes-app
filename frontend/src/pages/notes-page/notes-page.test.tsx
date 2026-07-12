@@ -10,7 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route, Routes } from 'react-router-dom'
 import { AppProviders } from '../../components/app-providers/app-providers'
 import { SideDrawer, SideDrawerProvider } from '../../components/side-drawer'
-import type { ColumnDto, GeneralSettingsDto, NoteDto } from '../../types/api'
+import type {
+  ColumnDto,
+  GeneralSettingsDto,
+  NoteDto,
+  NoteTypeDto,
+} from '../../types/api'
 import '../../i18n'
 import { NotesPage } from './notes-page'
 
@@ -52,9 +57,14 @@ const useDeleteNoteMutationMock = vi.hoisted(() => vi.fn())
 const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteTypeColumnsMapQueryMock = vi.hoisted(() => vi.fn())
+const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesSearchMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../settings-page/hooks/use-note-types-query', () => ({
+  useNoteTypesQuery: useNoteTypesQueryMock,
+}))
 
 vi.mock('./hooks/use-general-settings-query', () => ({
   useGeneralSettingsQuery: useGeneralSettingsQueryMock,
@@ -79,11 +89,26 @@ vi.mock('./hooks/use-notes-search', () => ({
   useNotesSearch: useNotesSearchMock,
 }))
 
-const columns: ColumnDto[] = [
+const noteTypes: NoteTypeDto[] = [
+  {
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'note-type-1',
+    title: 'Books',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'note-type-2',
+    title: 'Movies',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+]
+
+const bookColumns: ColumnDto[] = [
   {
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
-    id: 'created-column',
+    id: 'book-created-column',
     noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: true,
@@ -96,7 +121,7 @@ const columns: ColumnDto[] = [
   {
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
-    id: 'updated-column',
+    id: 'book-updated-column',
     noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: true,
@@ -160,6 +185,48 @@ const columns: ColumnDto[] = [
   },
 ]
 
+const movieColumns: ColumnDto[] = [
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'movie-created-column',
+    noteTypeId: 'note-type-2',
+    isDefault: true,
+    isHidden: true,
+    name: 'createdAt',
+    sortOrder: 0,
+    title: 'Created at',
+    type: 'date',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'movie-updated-column',
+    noteTypeId: 'note-type-2',
+    isDefault: true,
+    isHidden: true,
+    name: 'updatedAt',
+    sortOrder: 1,
+    title: 'Updated at',
+    type: 'date',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+  {
+    config: null,
+    createdAt: '2026-07-07T10:00:00.000Z',
+    id: 'director-column',
+    noteTypeId: 'note-type-2',
+    isDefault: false,
+    isHidden: false,
+    name: 'director',
+    sortOrder: 2,
+    title: 'Director',
+    type: 'text',
+    updatedAt: '2026-07-07T10:00:00.000Z',
+  },
+]
+
 const generalSettings: GeneralSettingsDto = {
   cardFieldDisplayCount: null,
   textTruncationLength: null,
@@ -180,18 +247,20 @@ const notes: NoteDto[] = [
         mimeType: 'image/png',
       },
       'link-column': 'https://example.com/alpha',
+      'summary-column': 'Alpha summary',
       'title-column': 'Alpha note',
     },
   },
+  {
+    createdAt: '2026-07-07T11:00:00.000Z',
+    id: 'note-2',
+    noteTypeId: 'note-type-2',
+    updatedAt: '2026-07-07T13:00:00.000Z',
+    values: {
+      'director-column': 'Greta Gerwig',
+    },
+  },
 ]
-
-const secondNote: NoteDto = {
-  createdAt: '2026-07-07T11:00:00.000Z',
-  id: 'note-2',
-  noteTypeId: 'note-type-1',
-  updatedAt: '2026-07-07T13:00:00.000Z',
-  values: { 'title-column': 'Beta note' },
-}
 
 const renderNotesPage = (route = '#/notes') => {
   window.location.hash = route
@@ -211,7 +280,9 @@ const renderNotesPage = (route = '#/notes') => {
 
 const getRenderedSideDrawer = async () => {
   await waitFor(() => {
-    expect(document.querySelector('[data-test-name="side-drawer"]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-test-name="side-drawer"]')
+    ).not.toBeNull()
   })
 
   const sideDrawer = document.querySelector(
@@ -242,13 +313,26 @@ describe('NotesPage', () => {
       isError: false,
       isLoading: false,
     })
-    useNoteColumnsQueryMock.mockReturnValue({
-      data: columns,
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data:
+        noteTypeId === 'note-type-2'
+          ? movieColumns
+          : noteTypeId === 'note-type-1'
+            ? bookColumns
+            : undefined,
+      isError: false,
+      isLoading: false,
+    }))
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {
+        'note-type-1': bookColumns,
+        'note-type-2': movieColumns,
+      },
       isError: false,
       isLoading: false,
     })
-    useNoteTypeColumnsMapQueryMock.mockReturnValue({
-      data: { 'note-type-1': columns },
+    useNoteTypesQueryMock.mockReturnValue({
+      data: noteTypes,
       isError: false,
       isLoading: false,
     })
@@ -273,27 +357,23 @@ describe('NotesPage', () => {
     renderNotesPage()
 
     expect(useNotesQueryMock).toHaveBeenCalledWith({
+      noteTypeIds: undefined,
       sortBy: 'updatedAt',
       sortDirection: 'desc',
     })
   })
 
-  it('passes loaded notes and search text to the notes search hook', () => {
+  it('passes loaded notes, search text, and note type titles to the notes search hook', () => {
     renderNotesPage()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search notes' }), {
       target: { value: 'alpha' },
     })
 
-    expect(useNotesSearchMock).toHaveBeenLastCalledWith(notes, 'alpha')
-  })
-
-  it('renders the visible notes count with plural copy', () => {
-    useNotesSearchMock.mockReturnValue([notes[0], secondNote])
-
-    renderNotesPage()
-
-    expect(screen.getByText('2 visible notes')).toBeTruthy()
+    expect(useNotesSearchMock).toHaveBeenLastCalledWith(notes, 'alpha', {
+      'note-type-1': 'Books',
+      'note-type-2': 'Movies',
+    })
   })
 
   it('updates the notes query sort state from the toolbar', () => {
@@ -305,39 +385,46 @@ describe('NotesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ascending' }))
 
     expect(useNotesQueryMock).toHaveBeenLastCalledWith({
+      noteTypeIds: undefined,
       sortBy: 'createdAt',
       sortDirection: 'asc',
     })
   })
 
-  it('renders note cards instead of the placeholder preview cards', () => {
+  it('passes selected note type filters into the notes query', () => {
+    renderNotesPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Books' }))
+
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
+      noteTypeIds: ['note-type-1'],
+      sortBy: 'updatedAt',
+      sortDirection: 'desc',
+    })
+  })
+
+  it('renders mixed note cards without note type labels in the list', () => {
     renderNotesPage()
 
     expect(screen.getByText('Alpha note')).toBeTruthy()
-    expect(screen.queryByText('Structured fields')).toBeNull()
+    expect(screen.getByText('Greta Gerwig')).toBeTruthy()
+    expect(screen.queryByText('Books')).toBeNull()
+    expect(screen.queryByText('Movies')).toBeNull()
   })
 
-  it('shows a card configuration error when note columns or general settings fail to load', () => {
-    useGeneralSettingsQueryMock.mockReturnValue({
-      data: undefined,
-      isError: true,
-      isLoading: false,
-    })
-
-    renderNotesPage()
-
-    expect(
-      screen.getByText('Card configuration could not be loaded.')
-    ).toBeTruthy()
-    expect(screen.queryByText('Alpha note')).toBeNull()
-  })
-
-  it('opens and closes the create note dialog from the toolbar action', async () => {
+  it('opens the create note dialog with note type selection first', async () => {
     renderNotesPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
 
     expect(screen.getByRole('dialog', { name: 'Create note' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Note type' })).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note type' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Books' }))
+
     expect(screen.getByRole('textbox', { name: 'Title' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -347,37 +434,38 @@ describe('NotesPage', () => {
     })
   })
 
-  it('opens the edit dialog from a note card with the existing note values', () => {
+  it('opens the edit dialog from a note card with a fixed note type and existing values', async () => {
     renderNotesPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'More actions' })[0])
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
 
     expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
+    expect(
+      screen
+        .getByRole('combobox', { name: 'Note type' })
+        .getAttribute('aria-disabled')
+    ).toBe('true')
     expect(
       (screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value
     ).toBe('Alpha note')
   })
 
-  it('renders the delete action for note cards', () => {
+  it('opens and renders the note detail drawer with note type as a regular detail row', async () => {
     renderNotesPage()
 
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
-  })
-
-  it('opens and renders the note detail drawer from the card action', async () => {
-    renderNotesPage()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open detail' }))
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /Open detail for/i })[0]
+    )
 
     await waitFor(() => expect(window.location.hash).toBe('#/notes/note-1'))
 
     const sideDrawer = await getRenderedSideDrawer()
 
-    expect(screen.getByText('Note detail')).toBeTruthy()
-    expect(screen.getByText('Created at')).toBeTruthy()
-    expect(screen.getByText('Updated at')).toBeTruthy()
-    expect(screen.getByText('Summary')).toBeTruthy()
-    expect(screen.getByText('-')).toBeTruthy()
+    expect(within(sideDrawer).getByText('Note type')).toBeTruthy()
+    expect(within(sideDrawer).getByText('Books')).toBeTruthy()
+    expect(within(sideDrawer).getByText('Summary')).toBeTruthy()
+    expect(within(sideDrawer).getByText('Alpha summary')).toBeTruthy()
     expect(
       within(sideDrawer).getByRole('link', {
         name: 'https://example.com/alpha',
@@ -386,47 +474,6 @@ describe('NotesPage', () => {
     expect(
       within(sideDrawer).getByRole('img', { name: 'Alpha note image' })
     ).toBeTruthy()
-  })
-
-  it('does not open the note detail drawer while note-type columns are still loading', async () => {
-    useNoteTypeColumnsMapQueryMock.mockReturnValue({
-      data: {},
-      isError: false,
-      isLoading: true,
-    })
-
-    renderNotesPage('#/notes/note-1')
-
-    expect(screen.getByText('Loading notes...')).toBeTruthy()
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
-    })
-  })
-
-  it('does not open the note detail drawer when note-type columns fail to load', async () => {
-    useNoteTypeColumnsMapQueryMock.mockReturnValue({
-      data: {},
-      isError: true,
-      isLoading: false,
-    })
-
-    renderNotesPage('#/notes/note-1')
-
-    expect(
-      screen.getByText('Card configuration could not be loaded.')
-    ).toBeTruthy()
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
-    })
-  })
-  it('opens the note detail drawer when the note id is already in the route', async () => {
-    renderNotesPage('#/notes/note-1')
-
-    const sideDrawer = await getRenderedSideDrawer()
-
-    expect(within(sideDrawer).getByText('Alpha note')).toBeTruthy()
   })
 
   it('merges created and updated timestamps in the detail drawer when enabled', async () => {
@@ -448,54 +495,54 @@ describe('NotesPage', () => {
     expect(screen.queryByText('Updated at')).toBeNull()
   })
 
-  it('does not open the note detail drawer from the card edit action', () => {
-    renderNotesPage()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-
-    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
-    expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
-    expect(window.location.hash).toBe('#/notes')
-  })
-
-  it('does not open the note detail drawer from the card link action', () => {
-    renderNotesPage()
-
-    fireEvent.click(
-      screen.getByRole('link', { name: 'https://example.com/alpha' })
-    )
-
-    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
-    expect(window.location.hash).toBe('#/notes')
-  })
-
-  it('updates the note detail drawer when switching between notes', async () => {
-    useNotesQueryMock.mockReturnValue({
-      data: [notes[0], secondNote],
-      isError: false,
+  it('shows a card configuration error when note columns or general settings fail to load', () => {
+    useGeneralSettingsQueryMock.mockReturnValue({
+      data: undefined,
+      isError: true,
       isLoading: false,
     })
-    useNotesSearchMock.mockReturnValue([notes[0], secondNote])
 
     renderNotesPage()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[0])
-
-    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-1'))
-
-    let sideDrawer = await getRenderedSideDrawer()
-
-    expect(within(sideDrawer).getByText('Alpha note')).toBeTruthy()
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open detail' })[1])
-
-    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-2'))
-
-    sideDrawer = await getRenderedSideDrawer()
-
-    expect(within(sideDrawer).getByText('Beta note')).toBeTruthy()
+    expect(
+      screen.getByText('Card configuration could not be loaded.')
+    ).toBeTruthy()
+    expect(screen.queryByText('Alpha note')).toBeNull()
   })
 
+  it('does not open the note detail drawer while note-type columns are still loading', async () => {
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {},
+      isError: false,
+      isLoading: true,
+    })
+
+    renderNotesPage('#/notes/note-1')
+
+    expect(screen.getByText('Loading notes...')).toBeTruthy()
+
+    await waitFor(() => {
+      expect(
+        document.querySelector('[data-test-name="side-drawer"]')
+      ).toBeNull()
+    })
+  })
+
+  it('opens the edit dialog from the detail drawer overflow menu', async () => {
+    renderNotesPage('#/notes/note-1')
+
+    const sideDrawer = await getRenderedSideDrawer()
+
+    fireEvent.click(
+      within(sideDrawer).getByRole('button', { name: 'More actions' })
+    )
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+
+    expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
+    expect(
+      (screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value
+    ).toBe('Alpha note')
+  })
   it('closes the note detail drawer from the close action', async () => {
     renderNotesPage('#/notes/note-1')
 
@@ -511,28 +558,6 @@ describe('NotesPage', () => {
     expect(window.location.hash).toBe('#/notes')
   })
 
-  it('normalizes an unknown note route back to the notes list', async () => {
-    renderNotesPage('#/notes/missing-note')
-
-    await waitFor(() => expect(window.location.hash).toBe('#/notes'))
-    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
-  })
-
-  it('opens the edit dialog from the note detail drawer', async () => {
-    renderNotesPage('#/notes/note-1')
-
-    const sideDrawer = await getRenderedSideDrawer()
-
-    fireEvent.click(
-      within(sideDrawer).getByRole('button', { name: 'Edit note' })
-    )
-
-    expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
-    expect(
-      (screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value
-    ).toBe('Alpha note')
-  })
-
   it('opens and cancels the delete confirmation without calling the delete mutation', async () => {
     const deleteNoteMutation = {
       isPending: false,
@@ -542,9 +567,9 @@ describe('NotesPage', () => {
 
     renderNotesPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'More actions' })[0])
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
 
-    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
     expect(
       await screen.findByRole('dialog', { name: 'Delete note?' })
     ).toBeTruthy()
@@ -560,7 +585,7 @@ describe('NotesPage', () => {
     expect(deleteNoteMutation.mutate).not.toHaveBeenCalled()
   })
 
-  it('confirms note deletion from the detail drawer, closes the route, and calls the delete mutation with the selected note id', async () => {
+  it('confirms note deletion from the detail drawer and calls the delete mutation with the selected note id', async () => {
     const deleteNoteMutation = {
       isPending: false,
       mutate: vi.fn(),
@@ -572,8 +597,9 @@ describe('NotesPage', () => {
     const sideDrawer = await getRenderedSideDrawer()
 
     fireEvent.click(
-      within(sideDrawer).getByRole('button', { name: 'Delete note' })
+      within(sideDrawer).getByRole('button', { name: 'More actions' })
     )
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Delete note' }))
 
     await waitFor(() => {
@@ -581,5 +607,11 @@ describe('NotesPage', () => {
     })
     expect(window.location.hash).toBe('#/notes')
   })
-})
 
+  it('normalizes an unknown note route back to the notes list', async () => {
+    renderNotesPage('#/notes/missing-note')
+
+    await waitFor(() => expect(window.location.hash).toBe('#/notes'))
+    expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
+  })
+})

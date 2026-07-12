@@ -5,7 +5,8 @@ import type { NoteSearchDocument } from '../types/note-search-document'
 import { createNoteSearchDocument } from './create-note-search-document.util'
 
 export const createNotesSearchIndex = (
-  notes: NoteDto[]
+  notes: NoteDto[],
+  noteTypeTitleById: Record<string, string>
 ): MiniSearch<NoteSearchDocument> => {
   const searchIndex = new MiniSearch<NoteSearchDocument>({
     fields: NOTE_SEARCH_FIELDS,
@@ -15,7 +16,9 @@ export const createNotesSearchIndex = (
     },
   })
 
-  searchIndex.addAll(notes.map((note) => createNoteSearchDocument(note)))
+  searchIndex.addAll(
+    notes.map((note) => createNoteSearchDocument(note, noteTypeTitleById))
+  )
 
   return searchIndex
 }

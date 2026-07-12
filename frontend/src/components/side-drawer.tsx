@@ -3,12 +3,14 @@ import {
   Divider,
   IconButton,
   LinearProgress,
+  Menu,
   Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import {
   createContext,
@@ -92,7 +94,11 @@ export const SideDrawerProvider: FC<PropsWithChildren> = ({ children }) => {
     ) {
       setSideDrawerInfo(drawerInitialState)
     }
-  }, [location.pathname, sideDrawerInfo.targetPathname, sideDrawerInfo.targetPathnameRoot])
+  }, [
+    location.pathname,
+    sideDrawerInfo.targetPathname,
+    sideDrawerInfo.targetPathnameRoot,
+  ])
 
   return (
     <SideDrawerContext.Provider value={value}>
@@ -107,11 +113,22 @@ export const SideDrawer: FC = () => {
   const theme = useTheme()
   const upLg = useMediaQuery(theme.breakpoints.up('lg'))
   const [expanded, setExpanded] = useState(false)
+  const [actionsAnchorElement, setActionsAnchorElement] =
+    useState<HTMLElement | null>(null)
   const drawerOnClose = sideDrawerInfo.onClose
+  const hasDrawerActions = Boolean(sideDrawerInfo.drawerActions)
 
   const handleExpandedButtonClick = useCallback(() => {
     setExpanded((value) => !value)
   }, [])
+
+  useEffect(() => {
+    if (sideDrawerInfo.open && hasDrawerActions) {
+      return
+    }
+
+    setActionsAnchorElement(null)
+  }, [hasDrawerActions, sideDrawerInfo.open])
 
   const handleCloseButtonClick = useCallback(() => {
     if (drawerOnClose) {
@@ -170,17 +187,33 @@ export const SideDrawer: FC = () => {
             py: 1,
           }}
         >
-          <Typography variant="h2" noWrap>
+          <Typography noWrap variant="h2">
             {sideDrawerInfo.title}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {sideDrawerInfo.drawerHeaderRightContent}
-            {sideDrawerInfo.drawerActions && (
+            {hasDrawerActions && (
               <>
                 {sideDrawerInfo.drawerHeaderRightContent && (
-                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                  <Divider flexItem orientation="vertical" sx={{ mx: 0.5 }} />
                 )}
-                {sideDrawerInfo.drawerActions}
+                <IconButton
+                  aria-label={t('detail.actions.more')}
+                  onClick={(event) => {
+                    setActionsAnchorElement(event.currentTarget)
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+                <Menu
+                  anchorEl={actionsAnchorElement}
+                  onClose={() => {
+                    setActionsAnchorElement(null)
+                  }}
+                  open={Boolean(actionsAnchorElement)}
+                >
+                  {sideDrawerInfo.drawerActions}
+                </Menu>
               </>
             )}
             {upLg && (
