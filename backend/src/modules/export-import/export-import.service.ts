@@ -485,6 +485,7 @@ export class ExportImportService {
     const existingByName = new Map(
       this.settingsService.listColumns().map((column) => [column.name, column])
     )
+    const defaultNoteTypeId = this.settingsService.getDefaultNoteType().id
     let nextSortOrder = this.getNextColumnSortOrder()
 
     for (const column of columns) {
@@ -498,6 +499,7 @@ export class ExportImportService {
         } else {
           this.updateImportedColumn(existingColumn, {
             ...column,
+            noteTypeId: defaultNoteTypeId,
             sortOrder: nextSortOrder,
           })
           nextSortOrder += 1
@@ -516,6 +518,7 @@ export class ExportImportService {
       const importedColumn = {
         ...column,
         id: uuidV4(),
+        noteTypeId: defaultNoteTypeId,
         sortOrder: nextSortOrder,
         isDefault: false,
       }
@@ -534,6 +537,7 @@ export class ExportImportService {
     columnMapping: ColumnImportMapping
   ): void {
     const orphanColumnIdMap = new Map<string, string>()
+    const defaultNoteTypeId = this.settingsService.getDefaultNoteType().id
 
     for (const note of notes) {
       const noteId = uuidV4()
@@ -543,7 +547,13 @@ export class ExportImportService {
         orphanColumnIdMap
       )
 
-      this.insertImportedNote(noteId, values, note.createdAt, note.updatedAt)
+      this.insertImportedNote(
+        noteId,
+        defaultNoteTypeId,
+        values,
+        note.createdAt,
+        note.updatedAt
+      )
     }
   }
 
@@ -680,6 +690,10 @@ export class ExportImportService {
 
     return {
       id: value.id,
+      noteTypeId:
+        typeof value.noteTypeId === 'string' && value.noteTypeId.trim()
+          ? value.noteTypeId
+          : this.settingsService.getDefaultNoteType().id,
       name: value.name.trim(),
       title: value.title.trim(),
       type: value.type,
@@ -715,6 +729,10 @@ export class ExportImportService {
 
     return {
       id: value.id,
+      noteTypeId:
+        typeof value.noteTypeId === 'string' && value.noteTypeId.trim()
+          ? value.noteTypeId
+          : this.settingsService.getDefaultNoteType().id,
       values,
       createdAt: value.createdAt,
       updatedAt: value.updatedAt,
@@ -814,6 +832,7 @@ export class ExportImportService {
         `
         INSERT INTO note_columns (
           id,
+          note_type_id,
           name,
           title,
           type,
@@ -825,6 +844,7 @@ export class ExportImportService {
           updated_at
         ) VALUES (
           @id,
+          @noteTypeId,
           @name,
           @title,
           @type,
@@ -839,6 +859,7 @@ export class ExportImportService {
       )
       .run({
         id: column.id,
+        noteTypeId: column.noteTypeId,
         name: column.name,
         title: column.title,
         type: column.type,
@@ -881,6 +902,7 @@ export class ExportImportService {
 
   private insertImportedNote(
     id: string,
+    noteTypeId: string,
     values: NoteValues,
     createdAt: string,
     updatedAt: string
@@ -889,9 +911,9 @@ export class ExportImportService {
 
     database
       .prepare(
-        'INSERT INTO notes (id, created_at, updated_at) VALUES (?, ?, ?)'
+        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run(id, createdAt, updatedAt)
+      .run(id, noteTypeId, createdAt, updatedAt)
 
     const insertValue = database.prepare(`
       INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
@@ -912,9 +934,11 @@ export class ExportImportService {
   private getNextColumnSortOrder(): number {
     const row = this.getDatabase()
       .prepare(
-        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns'
+        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ?'
       )
-      .get() as { sort_order: number } | undefined
+      .get(this.settingsService.getDefaultNoteType().id) as
+      | { sort_order: number }
+      | undefined
 
     return row?.sort_order ?? 0
   }

@@ -2,6 +2,7 @@ import type { ColumnTypeEnum } from './column-type-enum'
 
 export interface NoteColumn {
   id: string
+  noteTypeId: string
   name: string
   title: string
   type: ColumnTypeEnum

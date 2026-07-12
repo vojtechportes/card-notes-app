@@ -5,9 +5,12 @@ export class ColumnDto {
   @ApiProperty({ type: String, description: 'Stable column id.' })
   id: string
 
+  @ApiProperty({ type: String, description: 'Owning note type id.' })
+  noteTypeId: string
+
   @ApiProperty({
     type: String,
-    description: 'Unique machine-readable column name.',
+    description: 'Unique machine-readable column name within a note type.',
   })
   name: string
 
@@ -33,7 +36,7 @@ export class ColumnDto {
   })
   isDefault: boolean
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: 'object',
     additionalProperties: true,
     nullable: true,

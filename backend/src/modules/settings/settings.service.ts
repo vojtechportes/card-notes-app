@@ -10,6 +10,7 @@ import { v4 as uuidV4 } from 'uuid'
 import { ColumnsRepository } from './columns.repository'
 import { defaultNoteColumns } from './constants/default-note-columns'
 import { GeneralSettingsRepository } from './general-settings.repository'
+import { NoteTypesRepository } from './note-types.repository'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import type {
   GeneralSettings,
@@ -20,6 +21,7 @@ import type {
   NoteColumn,
   UpdateColumnInput,
 } from './types/note-column'
+import type { NoteType } from './types/note-type'
 
 interface DeleteColumnOptions {
   deleteNoteData?: boolean
@@ -35,31 +37,39 @@ export class SettingsService implements OnModuleInit {
     @Inject(ColumnsRepository)
     private readonly columnsRepository: ColumnsRepository,
     @Inject(GeneralSettingsRepository)
-    private readonly generalSettingsRepository: GeneralSettingsRepository
+    private readonly generalSettingsRepository: GeneralSettingsRepository,
+    @Inject(NoteTypesRepository)
+    private readonly noteTypesRepository?: NoteTypesRepository
   ) {}
 
   onModuleInit(): void {
-    this.columnsRepository.ensureDefaultColumns(defaultNoteColumns)
+    this.getNoteTypesRepository().ensureDefaultExists()
+
+    for (const noteType of this.getNoteTypesRepository().findAll()) {
+      this.columnsRepository.ensureDefaultColumns(noteType.id, defaultNoteColumns)
+    }
   }
 
   listColumns(): NoteColumn[] {
-    return this.columnsRepository.findAll()
+    return this.columnsRepository.findAll(this.getDefaultNoteTypeId())
   }
 
   createColumn(input: CreateColumnInput): NoteColumn {
+    const noteTypeId = this.getDefaultNoteTypeId()
     const name = this.normalizeName(input.name)
     const title = this.normalizeTitle(input.title)
 
     this.ensureValidColumnType(input.type)
     this.ensureValidSortOrder(input.sortOrder)
-    this.ensureColumnNameIsAvailable(name)
+    this.ensureColumnNameIsAvailable(name, noteTypeId)
 
     return this.columnsRepository.create({
       id: uuidV4(),
+      noteTypeId,
       name,
       title,
       type: input.type,
-      sortOrder: input.sortOrder ?? this.columnsRepository.getNextSortOrder(),
+      sortOrder: input.sortOrder ?? this.columnsRepository.getNextSortOrder(noteTypeId),
       isHidden: input.isHidden ?? false,
       isDefault: false,
       config: input.config ?? null,
@@ -82,7 +92,7 @@ export class SettingsService implements OnModuleInit {
     this.ensureDefaultColumnIdentityIsPreserved(existingColumn, name, type)
     this.ensureValidColumnType(type)
     this.ensureValidSortOrder(sortOrder)
-    this.ensureColumnNameIsAvailable(name, id)
+    this.ensureColumnNameIsAvailable(name, existingColumn.noteTypeId, id)
 
     return this.columnsRepository.update({
       ...existingColumn,
@@ -96,7 +106,7 @@ export class SettingsService implements OnModuleInit {
   }
 
   reorderColumns(columnIds: string[]): NoteColumn[] {
-    const columns = this.columnsRepository.findAll()
+    const columns = this.listColumns()
     const existingIds = new Set(columns.map((column) => column.id))
     const requestedIds = new Set(columnIds)
 
@@ -117,7 +127,7 @@ export class SettingsService implements OnModuleInit {
 
     this.columnsRepository.updateSortOrders(columnIds)
 
-    return this.columnsRepository.findAll()
+    return this.listColumns()
   }
 
   deleteColumn(id: string, options: DeleteColumnOptions = {}): void {
@@ -130,6 +140,16 @@ export class SettingsService implements OnModuleInit {
     this.columnsRepository.delete(id, {
       deleteNoteData: options.deleteNoteData ?? false,
     })
+  }
+
+  getDefaultNoteType(): NoteType {
+    const noteType = this.getNoteTypesRepository().findPreferred()
+
+    if (!noteType) {
+      throw new NotFoundException('Default note type was not found.')
+    }
+
+    return noteType
   }
 
   getGeneralSettings(): GeneralSettings {
@@ -189,18 +209,27 @@ export class SettingsService implements OnModuleInit {
   private getColumnOrThrow(id: string): NoteColumn {
     const column = this.columnsRepository.findById(id)
 
-    if (!column) {
+    if (!column || column.noteTypeId !== this.getDefaultNoteTypeId()) {
       throw new NotFoundException('Column was not found.')
     }
 
     return column
   }
 
+  private getDefaultNoteTypeId(): string {
+    return this.getDefaultNoteType().id
+  }
+
+  private getNoteTypesRepository(): NoteTypesRepository {
+    return this.noteTypesRepository ?? new NoteTypesRepository(this.columnsRepository.getDatabaseService())
+  }
+
   private ensureColumnNameIsAvailable(
     name: string,
+    noteTypeId: string,
     currentColumnId?: string
   ): void {
-    const column = this.columnsRepository.findByName(name)
+    const column = this.columnsRepository.findByName(name, noteTypeId)
 
     if (column && column.id !== currentColumnId) {
       throw new ConflictException('Column name must be unique.')
