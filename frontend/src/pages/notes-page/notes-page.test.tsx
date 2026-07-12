@@ -51,6 +51,7 @@ const useCreateNoteMutationMock = vi.hoisted(() => vi.fn())
 const useDeleteNoteMutationMock = vi.hoisted(() => vi.fn())
 const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
+const useNoteTypeColumnsMapQueryMock = vi.hoisted(() => vi.fn())
 const useNotesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesSearchMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
@@ -61,6 +62,10 @@ vi.mock('./hooks/use-general-settings-query', () => ({
 
 vi.mock('./hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
+}))
+
+vi.mock('./hooks/use-note-type-columns-map-query', () => ({
+  useNoteTypeColumnsMapQuery: useNoteTypeColumnsMapQueryMock,
 }))
 
 vi.mock('./hooks/use-notes-query', () => ({
@@ -79,6 +84,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'created-column',
+    noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: true,
     name: 'createdAt',
@@ -91,6 +97,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'updated-column',
+    noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: true,
     name: 'updatedAt',
@@ -103,6 +110,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'title-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'title',
@@ -115,6 +123,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'summary-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'summary',
@@ -127,6 +136,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'link-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'referenceLink',
@@ -139,6 +149,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'image-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'image',
@@ -159,6 +170,7 @@ const notes: NoteDto[] = [
   {
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'note-1',
+    noteTypeId: 'note-type-1',
     updatedAt: '2026-07-07T12:00:00.000Z',
     values: {
       'image-column': {
@@ -176,6 +188,7 @@ const notes: NoteDto[] = [
 const secondNote: NoteDto = {
   createdAt: '2026-07-07T11:00:00.000Z',
   id: 'note-2',
+  noteTypeId: 'note-type-1',
   updatedAt: '2026-07-07T13:00:00.000Z',
   values: { 'title-column': 'Beta note' },
 }
@@ -231,6 +244,11 @@ describe('NotesPage', () => {
     })
     useNoteColumnsQueryMock.mockReturnValue({
       data: columns,
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: { 'note-type-1': columns },
       isError: false,
       isLoading: false,
     })
@@ -370,6 +388,39 @@ describe('NotesPage', () => {
     ).toBeTruthy()
   })
 
+  it('does not open the note detail drawer while note-type columns are still loading', async () => {
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {},
+      isError: false,
+      isLoading: true,
+    })
+
+    renderNotesPage('#/notes/note-1')
+
+    expect(screen.getByText('Loading notes...')).toBeTruthy()
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
+    })
+  })
+
+  it('does not open the note detail drawer when note-type columns fail to load', async () => {
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {},
+      isError: true,
+      isLoading: false,
+    })
+
+    renderNotesPage('#/notes/note-1')
+
+    expect(
+      screen.getByText('Card configuration could not be loaded.')
+    ).toBeTruthy()
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
+    })
+  })
   it('opens the note detail drawer when the note id is already in the route', async () => {
     renderNotesPage('#/notes/note-1')
 
@@ -531,3 +582,4 @@ describe('NotesPage', () => {
     expect(window.location.hash).toBe('#/notes')
   })
 })
+

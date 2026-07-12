@@ -3,20 +3,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ColumnDto,
   CreateColumnDto,
+  CreateNoteTypeDto,
   DeleteColumnQueryDto,
+  DeleteNoteTypeDto,
+  DeleteNoteTypeResultDto,
   GeneralSettingsDto,
+  NoteTypeDetailDto,
+  NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
   UpdateGeneralSettingsDto,
+  UpdateNoteTypeDto,
 } from '../../types/api'
 import {
   createColumn,
+  createNoteType,
   deleteColumn,
+  deleteNoteType,
   getColumns,
   getGeneralSettings,
+  getNoteType,
+  getNoteTypes,
   reorderColumns,
   updateColumn,
   updateGeneralSettings,
+  updateNoteType,
 } from './requests'
 
 const apiClientMock = vi.hoisted(() => ({
@@ -40,9 +51,119 @@ const createResponse = <TData>(data: TData): AxiosResponse<TData> => {
   }
 }
 
+const noteTypeId = 'note-type-1'
+
+const createColumnDto = (): ColumnDto => ({
+  config: null,
+  createdAt: '2026-07-08T10:00:00.000Z',
+  id: 'column-1',
+  isDefault: false,
+  isHidden: false,
+  name: 'summary',
+  noteTypeId,
+  sortOrder: 2,
+  title: 'Summary',
+  type: 'text',
+  updatedAt: '2026-07-08T10:00:00.000Z',
+})
+
+const createNoteTypeDto = (): NoteTypeDto => ({
+  createdAt: '2026-07-08T10:00:00.000Z',
+  id: noteTypeId,
+  title: 'Default',
+  updatedAt: '2026-07-08T10:00:00.000Z',
+})
+
 describe('settings requests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('fetches configured note types', () => {
+    const signal = new AbortController().signal
+    const response = Promise.resolve(createResponse<NoteTypeDto[]>([]))
+    apiClientMock.get.mockReturnValue(response)
+
+    const result = getNoteTypes(signal)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.get).toHaveBeenCalledWith('/settings/note-types', {
+      signal,
+    })
+  })
+
+  it('fetches note type detail', () => {
+    const signal = new AbortController().signal
+    const response = Promise.resolve(
+      createResponse<NoteTypeDetailDto>({
+        ...createNoteTypeDto(),
+        columns: [createColumnDto()],
+      })
+    )
+    apiClientMock.get.mockReturnValue(response)
+
+    const result = getNoteType(noteTypeId, signal)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.get).toHaveBeenCalledWith(
+      `/settings/note-types/${noteTypeId}`,
+      {
+        signal,
+      }
+    )
+  })
+
+  it('creates a note type', () => {
+    const noteType: CreateNoteTypeDto = {
+      title: 'Projects',
+    }
+    const response = Promise.resolve(createResponse<NoteTypeDto>(createNoteTypeDto()))
+    apiClientMock.post.mockReturnValue(response)
+
+    const result = createNoteType(noteType)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.post).toHaveBeenCalledWith('/settings/note-types', noteType)
+  })
+
+  it('updates a note type', () => {
+    const noteType: UpdateNoteTypeDto = {
+      title: 'Projects',
+    }
+    const response = Promise.resolve(createResponse<NoteTypeDto>(createNoteTypeDto()))
+    apiClientMock.patch.mockReturnValue(response)
+
+    const result = updateNoteType(noteTypeId, noteType)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.patch).toHaveBeenCalledWith(
+      `/settings/note-types/${noteTypeId}`,
+      noteType
+    )
+  })
+
+  it('deletes a note type with body data', () => {
+    const noteType: DeleteNoteTypeDto = {
+      mode: 'delete-notes',
+    }
+    const response = Promise.resolve(
+      createResponse<DeleteNoteTypeResultDto>({
+        deletedNoteTypeId: noteTypeId,
+        deletedNotesCount: 4,
+        movedNotesCount: 0,
+      })
+    )
+    apiClientMock.delete.mockReturnValue(response)
+
+    const result = deleteNoteType(noteTypeId, noteType)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.delete).toHaveBeenCalledWith(
+      `/settings/note-types/${noteTypeId}`,
+      {
+        data: noteType,
+      }
+    )
   })
 
   it('fetches configured note columns', () => {
@@ -50,12 +171,15 @@ describe('settings requests', () => {
     const response = Promise.resolve(createResponse<ColumnDto[]>([]))
     apiClientMock.get.mockReturnValue(response)
 
-    const result = getColumns(signal)
+    const result = getColumns(noteTypeId, signal)
 
     expect(result).toBe(response)
-    expect(apiClientMock.get).toHaveBeenCalledWith('/settings/columns', {
-      signal,
-    })
+    expect(apiClientMock.get).toHaveBeenCalledWith(
+      `/settings/note-types/${noteTypeId}/columns`,
+      {
+        signal,
+      }
+    )
   })
 
   it('creates a note column', () => {
@@ -64,26 +188,16 @@ describe('settings requests', () => {
       title: 'Summary',
       type: 'text',
     }
-    const response = Promise.resolve(
-      createResponse<ColumnDto>({
-        config: null,
-        createdAt: '2026-07-08T10:00:00.000Z',
-        id: 'column-1',
-        isDefault: false,
-        isHidden: false,
-        name: 'summary',
-        sortOrder: 2,
-        title: 'Summary',
-        type: 'text',
-        updatedAt: '2026-07-08T10:00:00.000Z',
-      })
-    )
+    const response = Promise.resolve(createResponse<ColumnDto>(createColumnDto()))
     apiClientMock.post.mockReturnValue(response)
 
-    const result = createColumn(column)
+    const result = createColumn(noteTypeId, column)
 
     expect(result).toBe(response)
-    expect(apiClientMock.post).toHaveBeenCalledWith('/settings/columns', column)
+    expect(apiClientMock.post).toHaveBeenCalledWith(
+      `/settings/note-types/${noteTypeId}/columns`,
+      column
+    )
   })
 
   it('reorders note columns', () => {
@@ -93,11 +207,11 @@ describe('settings requests', () => {
     const response = Promise.resolve(createResponse<ColumnDto[]>([]))
     apiClientMock.patch.mockReturnValue(response)
 
-    const result = reorderColumns(columnOrder)
+    const result = reorderColumns(noteTypeId, columnOrder)
 
     expect(result).toBe(response)
     expect(apiClientMock.patch).toHaveBeenCalledWith(
-      '/settings/columns/order',
+      `/settings/note-types/${noteTypeId}/columns/order`,
       columnOrder
     )
   })
@@ -109,25 +223,19 @@ describe('settings requests', () => {
     }
     const response = Promise.resolve(
       createResponse<ColumnDto>({
-        config: null,
-        createdAt: '2026-07-08T10:00:00.000Z',
-        id: 'column-1',
-        isDefault: false,
+        ...createColumnDto(),
         isHidden: true,
-        name: 'summary',
-        sortOrder: 2,
         title: 'Updated summary',
-        type: 'text',
         updatedAt: '2026-07-08T10:15:00.000Z',
       })
     )
     apiClientMock.patch.mockReturnValue(response)
 
-    const result = updateColumn('column-1', column)
+    const result = updateColumn(noteTypeId, 'column-1', column)
 
     expect(result).toBe(response)
     expect(apiClientMock.patch).toHaveBeenCalledWith(
-      '/settings/columns/column-1',
+      `/settings/note-types/${noteTypeId}/columns/column-1`,
       column
     )
   })
@@ -139,11 +247,11 @@ describe('settings requests', () => {
     const response = Promise.resolve(createResponse<void>(undefined))
     apiClientMock.delete.mockReturnValue(response)
 
-    const result = deleteColumn('column-1', query)
+    const result = deleteColumn(noteTypeId, 'column-1', query)
 
     expect(result).toBe(response)
     expect(apiClientMock.delete).toHaveBeenCalledWith(
-      '/settings/columns/column-1',
+      `/settings/note-types/${noteTypeId}/columns/column-1`,
       {
         params: query,
       }

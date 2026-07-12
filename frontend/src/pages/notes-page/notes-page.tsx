@@ -17,9 +17,9 @@ import type {
   NoteSortDirection,
 } from './components/notes-toolbar/notes-toolbar'
 import { useGeneralSettingsQuery } from './hooks/use-general-settings-query'
-import { useNoteColumnsQuery } from './hooks/use-note-columns-query'
 import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query'
 import { useNotesSearch } from './hooks/use-notes-search'
+import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
 
 const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt'
 const DEFAULT_SORT_DIRECTION: NoteSortDirection = 'desc'
@@ -39,17 +39,29 @@ export const NotesPage = () => {
   )
   const notesQuery = useNotesQuery({ sortBy, sortDirection })
   const deleteNoteMutation = useDeleteNoteMutation()
-  const noteColumnsQuery = useNoteColumnsQuery()
   const generalSettingsQuery = useGeneralSettingsQuery()
   const filteredNotes = useNotesSearch(notesQuery.data, searchQuery)
+  const noteTypeIds = useMemo(() => {
+    return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
+  }, [notesQuery.data])
+  const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(noteTypeIds)
   const isCardConfigurationLoading =
-    noteColumnsQuery.isLoading || generalSettingsQuery.isLoading
+    noteTypeColumnsMapQuery.isLoading || generalSettingsQuery.isLoading
   const hasCardConfigurationError =
-    noteColumnsQuery.isError || generalSettingsQuery.isError
+    noteTypeColumnsMapQuery.isError || generalSettingsQuery.isError
   const selectedNote = useMemo(
     () => notesQuery.data?.find((note) => note.id === noteId),
     [noteId, notesQuery.data]
   )
+  const defaultColumns = useMemo(() => {
+    const firstNoteTypeId = noteTypeIds[0]
+
+    if (!firstNoteTypeId) {
+      return []
+    }
+
+    return noteTypeColumnsMapQuery.data[firstNoteTypeId] ?? []
+  }, [noteTypeColumnsMapQuery.data, noteTypeIds])
 
   const handleCloseNoteDialog = useCallback(() => {
     setActiveNote(undefined)
@@ -99,7 +111,14 @@ export const NotesPage = () => {
   }, [navigate, noteId, notesQuery.data, notesQuery.isLoading, selectedNote])
 
   useEffect(() => {
-    if (!noteId || !selectedNote || !noteColumnsQuery.data || !generalSettingsQuery.data) {
+    if (
+      !noteId ||
+      !selectedNote ||
+      !generalSettingsQuery.data ||
+      isCardConfigurationLoading ||
+      hasCardConfigurationError ||
+      !noteTypeColumnsMapQuery.data[selectedNote.noteTypeId]
+    ) {
       return
     }
 
@@ -131,9 +150,10 @@ export const NotesPage = () => {
       ),
       drawerContent: (
         <NoteDetailPanel
-          columns={noteColumnsQuery.data}
+          columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? defaultColumns}
           generalSettings={generalSettingsQuery.data}
           note={selectedNote}
+          noteTypeColumnsById={noteTypeColumnsMapQuery.data}
         />
       ),
       onClose: () => {
@@ -144,12 +164,15 @@ export const NotesPage = () => {
       },
     })
   }, [
+    defaultColumns,
     generalSettingsQuery.data,
     handleDeleteNote,
     handleOpenNoteDialog,
+    hasCardConfigurationError,
+    isCardConfigurationLoading,
     navigate,
-    noteColumnsQuery.data,
     noteId,
+    noteTypeColumnsMapQuery.data,
     selectedNote,
     t,
     toggleDrawer,
@@ -207,11 +230,11 @@ export const NotesPage = () => {
           !notesQuery.isError &&
           !isCardConfigurationLoading &&
           !hasCardConfigurationError &&
-          noteColumnsQuery.data &&
           generalSettingsQuery.data && (
             <NoteCardList
-              columns={noteColumnsQuery.data}
+              columns={defaultColumns}
               generalSettings={generalSettingsQuery.data}
+              noteTypeColumnsById={noteTypeColumnsMapQuery.data}
               notes={filteredNotes}
               onDeleteNote={handleDeleteNote}
               onEditNote={handleOpenNoteDialog}
@@ -229,3 +252,7 @@ export const NotesPage = () => {
     </>
   )
 }
+
+
+
+

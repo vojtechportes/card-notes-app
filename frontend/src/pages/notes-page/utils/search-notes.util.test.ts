@@ -11,6 +11,7 @@ const createNote = (
   return {
     createdAt: timestamps?.createdAt ?? '2026-07-07T10:00:00.000Z',
     id,
+    noteTypeId: 'note-type-1',
     updatedAt: timestamps?.updatedAt ?? '2026-07-07T10:00:00.000Z',
     values,
   }

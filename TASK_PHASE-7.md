@@ -400,8 +400,9 @@ The Columns section should reuse the current Settings Columns behavior as much a
 
 - Render all notes together by default.
 - Each note card/detail uses its own `noteTypeId` to resolve fields.
-- Add note type selector to the create note modal.
-- Edit note modal uses the note's existing type and does not change it in the first slice.
+- In the create note modal, the first control should be a note type select input.
+- In create mode, load the relevant note fields only after a note type is selected.
+- Edit note modal uses the note's existing type and does not allow changing it in the first slice.
 - Consider showing a compact note type label on cards and detail drawer.
 - Search indexes values from every note type field.
 - Advanced filter entry point initially supports note type selection.
@@ -463,8 +464,8 @@ Frontend:
 - Clicking a note type row opens the drawer with metadata and scoped columns.
 - Delete flow supports delete-notes and move-notes modes.
 - Move flow supports creating a target note type when no other type exists.
-- Create note modal asks for note type.
-- Edit note modal uses the note's existing type fields.
+- Create note modal asks for note type first and loads fields only after selection.
+- Edit note modal uses the note's existing type fields and does not allow changing note type.
 - Notes page renders mixed note types together.
 - Search finds notes across fields from different note types.
 - Advanced filter can filter by note type.
@@ -484,3 +485,4 @@ Build:
 - Old unscoped `/settings/columns` endpoints should be removed as part of Phase 7; only scoped column routes should remain.
 - Older export/import formats do not need compatibility support before public usage.
 - Mixed-type search can become more complex later, but MiniSearch over fetched local notes is still appropriate for this single-user Electron app.
+

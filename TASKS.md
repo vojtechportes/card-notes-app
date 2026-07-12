@@ -302,7 +302,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Validate that note values only reference fields belonging to the note's `noteTypeId`.
   - Ensure backend responses provide enough note type and field metadata for frontend search across all note type fields.
 
-- [ ] T73. Frontend API types and data layer for note types
+- [x] T73. Frontend API types and data layer for note types
   - Regenerate API types from Swagger after backend contracts change.
   - Add note type request functions and TanStack Query hooks.
   - Update existing notes/settings hooks to fetch fields by note type where needed.
@@ -325,8 +325,10 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
 - [ ] T75. Notes page support for mixed note types
   - Render all notes together on the Notes page.
-  - Add a note type selector when creating a note.
-  - Use the selected note type's fields in the create/edit modal.
+  - In the create note dialog, the first input must be a note type select.
+  - Load note fields only after the user selects a note type in create mode.
+  - Use the selected note type's fields in the create modal.
+  - In edit mode, keep the note type fixed and non-selectable while using the note's existing type fields.
   - Use each note's own note type fields when rendering cards and the right-side detail panel.
   - Consider showing a compact note type label on cards/details so mixed note lists remain understandable.
   - Keep existing search, sort, truncation, card field count, image, and link behavior working across note types.
@@ -372,5 +374,4 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-
 

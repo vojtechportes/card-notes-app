@@ -17,17 +17,20 @@ interface NoteDetailPanelProps {
   columns: ColumnDto[]
   generalSettings: GeneralSettingsDto
   note: NoteDto
+  noteTypeColumnsById?: Record<string, ColumnDto[]>
 }
 
 export const NoteDetailPanel = ({
   columns,
   generalSettings,
   note,
+  noteTypeColumnsById,
 }: NoteDetailPanelProps) => {
   const { t } = useTranslation()
+  const resolvedColumns = noteTypeColumnsById?.[note.noteTypeId] ?? columns
   const fields = getNoteDetailFields(
     note,
-    columns,
+    resolvedColumns,
     !!generalSettings.mergeDateTimeFields,
     t('notes.fields.lastUpdatedAt')
   )

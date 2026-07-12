@@ -6,18 +6,24 @@ import { settingsQueryKeys } from '../constants/settings-query-keys'
 interface UpdateColumnMutationVariables {
   id: string
   column: UpdateColumnDto
+  noteTypeId: string
 }
 
 export const useUpdateColumnMutation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, column }: UpdateColumnMutationVariables) =>
-      updateColumn(id, column).then((response) => response.data),
-    onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: settingsQueryKeys.columns(),
-      })
+    mutationFn: ({ id, column, noteTypeId }: UpdateColumnMutationVariables) =>
+      updateColumn(noteTypeId, id, column).then((response) => response.data),
+    onSuccess: (_data, variables) => {
+      return Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: settingsQueryKeys.columns(variables.noteTypeId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: settingsQueryKeys.noteTypeDetail(variables.noteTypeId),
+        }),
+      ])
     },
   })
 }

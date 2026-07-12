@@ -43,6 +43,7 @@ describe('notes requests', () => {
 
   it('fetches notes with query params and an abort signal', () => {
     const query: ListNotesQueryDto = {
+      noteTypeIds: ['note-type-1', 'note-type-2'],
       sortBy: 'updatedAt',
       sortDirection: 'asc',
     }
@@ -60,7 +61,10 @@ describe('notes requests', () => {
   })
 
   it('creates a note', () => {
-    const note: CreateNoteDto = { values: { title: 'First note' } }
+    const note: CreateNoteDto = {
+      noteTypeId: 'note-type-1',
+      values: { title: 'First note' },
+    }
     const response = Promise.resolve(createResponse({ id: 'note-1' }))
     apiClientMock.post.mockReturnValue(response)
 

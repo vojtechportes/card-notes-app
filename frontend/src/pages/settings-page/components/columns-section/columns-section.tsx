@@ -27,6 +27,7 @@ import { useConfirmation } from '../../../../components/confirmation'
 import { useCreateColumnMutation } from '../../hooks/use-create-column-mutation'
 import { useDeleteColumnMutation } from '../../hooks/use-delete-column-mutation'
 import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query'
+import { useNoteTypesQuery } from '../../hooks/use-note-types-query'
 import { useReorderColumnsMutation } from '../../hooks/use-reorder-columns-mutation'
 import { useUpdateColumnMutation } from '../../hooks/use-update-column-mutation'
 import { SettingsSection } from '../settings-section'
@@ -44,6 +45,7 @@ export const ColumnsSection = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [sectionError, setSectionError] = useState<string | null>(null)
   const noteColumnsQuery = useNoteColumnsQuery()
+  const noteTypesQuery = useNoteTypesQuery()
   const createColumnMutation = useCreateColumnMutation()
   const updateColumnMutation = useUpdateColumnMutation()
   const reorderColumnsMutation = useReorderColumnsMutation()
@@ -63,6 +65,9 @@ export const ColumnsSection = () => {
   const columns = useMemo(() => {
     return noteColumnsQuery.data ?? []
   }, [noteColumnsQuery.data])
+  const activeNoteTypeId = useMemo(() => {
+    return columns[0]?.noteTypeId ?? noteTypesQuery.data?.[0]?.id
+  }, [columns, noteTypesQuery.data])
 
   const closeDialog = useCallback(() => {
     setActiveColumn(null)
@@ -83,6 +88,10 @@ export const ColumnsSection = () => {
 
   const handleDialogSubmit = useCallback(
     async (values: ColumnFormValues) => {
+      if (!activeNoteTypeId) {
+        return
+      }
+
       setSectionError(null)
 
       const payload = {
@@ -96,13 +105,17 @@ export const ColumnsSection = () => {
         await updateColumnMutation.mutateAsync({
           column: payload,
           id: activeColumn.id,
+          noteTypeId: activeColumn.noteTypeId,
         })
         return
       }
 
-      await createColumnMutation.mutateAsync(payload)
+      await createColumnMutation.mutateAsync({
+        column: payload,
+        noteTypeId: activeNoteTypeId,
+      })
     },
-    [activeColumn, createColumnMutation, updateColumnMutation]
+    [activeColumn, activeNoteTypeId, createColumnMutation, updateColumnMutation]
   )
 
   const handleToggleHidden = useCallback(
@@ -113,6 +126,7 @@ export const ColumnsSection = () => {
         await updateColumnMutation.mutateAsync({
           column: { isHidden: !column.isHidden },
           id: column.id,
+          noteTypeId: column.noteTypeId,
         })
       } catch {
         setSectionError(t('settings.columns.errors.updateHidden'))
@@ -163,6 +177,7 @@ export const ColumnsSection = () => {
       try {
         await deleteColumnMutation.mutateAsync({
           id: column.id,
+          noteTypeId: column.noteTypeId,
           query: { deleteMode },
         })
       } catch {
@@ -174,7 +189,7 @@ export const ColumnsSection = () => {
 
   const handleDragEnd = useCallback(
     async ({ active, over }: DragEndEvent) => {
-      if (!over || active.id === over.id) {
+      if (!activeNoteTypeId || !over || active.id === over.id) {
         return
       }
 
@@ -191,12 +206,15 @@ export const ColumnsSection = () => {
       setSectionError(null)
 
       try {
-        await reorderColumnsMutation.mutateAsync({ columnIds })
+        await reorderColumnsMutation.mutateAsync({
+          columnOrder: { columnIds },
+          noteTypeId: activeNoteTypeId,
+        })
       } catch {
         setSectionError(t('settings.columns.errors.reorder'))
       }
     },
-    [columns, reorderColumnsMutation, t]
+    [activeNoteTypeId, columns, reorderColumnsMutation, t]
   )
 
   return (
