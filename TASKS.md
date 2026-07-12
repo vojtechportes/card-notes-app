@@ -267,6 +267,100 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Frontend build passes.
   - Electron build/package script runs or documents remaining blockers.
 
+## Phase 7: Note Types
+
+Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
+
+- [ ] T70. Add note type domain and migration plan
+  - Add a `note_types` persistence model with `id`, `title`, `createdAt`, and `updatedAt`.
+  - Use `uuid/v4` for generated note type IDs.
+  - Create an initial note type named `Default` during migration.
+  - Seed the `Default` note type and default fields on fresh installs when no note types exist.
+  - Migrate all existing fields/columns under the `Default` note type.
+  - Add `noteTypeId` to fields/columns and link it to the owning note type.
+  - Add `noteTypeId` to notes so every note can be edited/rendered with the correct field set.
+  - Preserve all existing note data during migration.
+  - Keep general settings shared across all note types.
+  - Ensure `createdAt` and `updatedAt` default fields exist separately for every note type and remain undeletable per type.
+
+- [ ] T71. Backend note type API and scoped fields API
+  - Add CRUD endpoints for note types, with destructive operations guarded by frontend confirmation.
+  - Support note type deletion with explicit modes: delete associated notes, or move associated notes to another note type.
+  - If no other note type exists during move, support creating a replacement note type as part of the migration flow.
+  - When moving notes to another type, show a mapping UI; preselect mappings where field `name` and compatible `type` match, and treat remaining values as orphaned/unmapped.
+  - Scope field listing, creation, update, reorder, hide, and deletion by `noteTypeId`.
+  - Remove the old unscoped `/settings/columns` endpoints instead of keeping compatibility aliases.
+  - Make field `name` uniqueness scoped to a note type instead of globally, unless implementation context shows global uniqueness is still required.
+  - Keep column/field configuration owned by the settings domain.
+  - Expose note type and scoped field contracts through Swagger.
+
+- [ ] T72. Backend notes behavior across note types
+  - Update note create/update APIs to accept `noteTypeId`.
+  - Keep the notes list endpoint returning all notes together by default.
+  - Include note type metadata or enough IDs for the frontend to render each note with the correct fields.
+  - Preserve search/sort behavior across all notes, including sorting by each note record's own `createdAt` and `updatedAt`.
+  - Validate that note values only reference fields belonging to the note's `noteTypeId`.
+  - Ensure backend responses provide enough note type and field metadata for frontend search across all note type fields.
+
+- [ ] T73. Frontend API types and data layer for note types
+  - Regenerate API types from Swagger after backend contracts change.
+  - Add note type request functions and TanStack Query hooks.
+  - Update existing notes/settings hooks to fetch fields by note type where needed.
+  - Keep `/api/*/requests.ts` functions returning Axios promises directly without `await`.
+
+- [ ] T74. Settings UI for note types and per-type fields
+  - Add a note type management area in Settings using a data grid.
+  - Show grid columns: `Name`, `Created at`, `Updated at`, and row actions for edit/delete.
+  - Let the user create a new note type from the grid area.
+  - Edit action edits only the note type title/name, not its columns.
+  - Clicking a row opens a right-side detail drawer for that note type.
+  - The drawer shows `Name`, `Created at`, and `Updated at`, followed by the existing Columns section scoped to that note type.
+  - Keep General settings shared and visually separate from note-type-specific field settings.
+  - Delete action opens a confirmation flow where the user chooses to delete associated notes or move them to another note type.
+  - If moving and no other note type exists, allow creating a new note type during the migration flow.
+  - If deleting the last remaining note type and its notes, recreate `Default` and inform the user in the delete dialog.
+  - Include a mapping UI in the move flow; values without compatible mapped columns remain orphaned.
+  - Keep Export / Import and Danger Zone behavior clear after note types are introduced.
+  - Localize all new copy.
+
+- [ ] T75. Notes page support for mixed note types
+  - Render all notes together on the Notes page.
+  - Add a note type selector when creating a note.
+  - Use the selected note type's fields in the create/edit modal.
+  - Use each note's own note type fields when rendering cards and the right-side detail panel.
+  - Consider showing a compact note type label on cards/details so mixed note lists remain understandable.
+  - Keep existing search, sort, truncation, card field count, image, and link behavior working across note types.
+  - Ensure MiniSearch indexes values from every note type's fields, while preserving each note's type context.
+  - Add an advanced filter entry point that can filter by note type in the first implementation.
+  - Keep advanced field-level filtering out of scope for the first note-types slice, but leave room to add it later.
+
+- [ ] T76. Import/export support for note types
+  - Export note types, fields with `noteTypeId`, notes with `noteTypeId`, general settings, and note data.
+  - Use the Phase 7 export/import format only; older pre-release export formats do not need compatibility support.
+  - Let the user choose which note type imported note data should target.
+  - Import into a target type should map fields by `name` and compatible `type`; unmatched fields should be reported clearly and handled without deleting existing data.
+  - Ensure import still appends data and does not delete existing notes.
+  - Update XLSX import so the chosen target note type controls field matching.
+
+- [ ] T77. Note type tests and verification
+  - Fresh install creates `Default` and its per-type default fields.
+  - Backend migration creates `Default` and preserves existing notes/fields.
+  - Backend prevents deleting per-type `createdAt` and `updatedAt` fields.
+  - Backend validates note values against the note's type fields.
+  - Backend note type deletion supports deleting associated notes and moving associated notes to a selected or newly created note type, including explicit field mapping and orphaned value handling.
+  - Frontend can create/edit notes for different note types.
+  - Notes page renders mixed note types together.
+  - Import can target a selected note type without deleting existing data.
+  - Export/import round trip preserves note type relationships.
+  - Existing build and package verification still passes.
+
+- [ ] T78. Future advanced filtering query builder
+  - Future/non-priority task: evaluate `@vojtechportes/react-query-builder` for advanced user-defined filters.
+  - First supported advanced filter should be note type selection.
+  - Future expansion should support filtering by fields across note types where the field type makes filtering meaningful.
+  - Keep the query builder integration separate from the initial note type migration unless the implementation naturally needs a reusable filter model.
+  - Ensure any future filter UI remains localized and works with mixed note type search results.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
