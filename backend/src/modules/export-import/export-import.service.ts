@@ -58,6 +58,14 @@ export class ExportImportService {
   ) {}
 
   exportData(): ExportImportDataDto {
+    const noteTypes = this.settingsService.listNoteTypes()
+
+    if (noteTypes.length > 1) {
+      throw new BadRequestException(
+        'Export supports only the default note type until Phase 7 export/import is implemented.'
+      )
+    }
+
     return {
       version: exportDataVersion,
       exportedAt: new Date().toISOString(),
@@ -103,7 +111,10 @@ export class ExportImportService {
             continue
           }
 
-          this.notesService.createNote({ values })
+          this.notesService.createNote({
+            noteTypeId: this.settingsService.getDefaultNoteType().id,
+            values,
+          })
           importedNotes += 1
         }
 
@@ -1143,3 +1154,6 @@ export class ExportImportService {
     return this.databaseService.getConnection()
   }
 }
+
+
+

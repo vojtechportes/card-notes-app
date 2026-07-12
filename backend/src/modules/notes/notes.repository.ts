@@ -71,12 +71,7 @@ export class NotesRepository {
     )
     const sortDirection =
       options.sortDirection === NoteSortDirectionEnum.Asc ? 'ASC' : 'DESC'
-    const notes = this.getDatabase()
-      .prepare(
-        `SELECT * FROM notes ORDER BY ${sortColumn} ${sortDirection}, id ASC`
-      )
-      .all()
-      .map((row) => this.mapNoteRow(row as NoteRow))
+    const notes = this.findNoteRows(options.noteTypeIds, sortColumn, sortDirection)
 
     if (notes.length === 0) {
       return []
@@ -235,6 +230,32 @@ export class NotesRepository {
       default:
         return 'created_at'
     }
+  }
+
+  private findNoteRows(
+    noteTypeIds: string[] | undefined,
+    sortColumn: string,
+    sortDirection: 'ASC' | 'DESC'
+  ): Note[] {
+    const database = this.getDatabase()
+
+    if (!noteTypeIds || noteTypeIds.length === 0) {
+      return database
+        .prepare(
+          `SELECT * FROM notes ORDER BY ${sortColumn} ${sortDirection}, id ASC`
+        )
+        .all()
+        .map((row) => this.mapNoteRow(row as NoteRow))
+    }
+
+    const placeholders = noteTypeIds.map(() => '?').join(', ')
+
+    return database
+      .prepare(
+        `SELECT * FROM notes WHERE note_type_id IN (${placeholders}) ORDER BY ${sortColumn} ${sortDirection}, id ASC`
+      )
+      .all(...noteTypeIds)
+      .map((row) => this.mapNoteRow(row as NoteRow))
   }
 
   private upsertValues(

@@ -16,6 +16,8 @@ let settingsService: SettingsService
 let notesService: NotesService
 let exportImportController: ExportImportController
 
+const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+
 const createImportFile = (
   content: string,
   mimeType = 'application/json',
@@ -75,6 +77,7 @@ describe(ExportImportController.name, () => {
       type: ColumnTypeEnum.Link,
     })
     notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
       values: { [sourceColumn.id]: 'https://example.com' },
     })
 
@@ -152,3 +155,4 @@ describe(ExportImportController.name, () => {
     ).rejects.toThrow(BadRequestException)
   })
 })
+

@@ -16,4 +16,12 @@ export class ListNotesQueryDto {
     description: 'Sort direction for notes.',
   })
   sortDirection?: NoteSortDirectionEnum
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description:
+      'Optional note type ids to filter by. Supports repeated query values or comma-separated ids.',
+  })
+  noteTypeIds?: string[] | string
 }

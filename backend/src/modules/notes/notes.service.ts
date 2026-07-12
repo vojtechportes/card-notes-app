@@ -27,11 +27,11 @@ export class NotesService {
     private readonly settingsService: SettingsService
   ) {}
 
-  createNote(input: CreateNoteInput = {}): Note {
+  createNote(input: CreateNoteInput): Note {
     const values = input.values ?? {}
-    const noteTypeId = this.settingsService.getDefaultNoteType().id
+    const noteTypeId = this.settingsService.getNoteType(input.noteTypeId).id
 
-    this.ensureValuesAreValid(values)
+    this.ensureValuesAreValid(noteTypeId, values)
 
     return this.notesRepository.create(
       uuidV4(),
@@ -56,21 +56,21 @@ export class NotesService {
   }
 
   updateNote(id: string, input: UpdateNoteInput): Note {
-    const values = input.values ?? {}
-
-    this.ensureValuePatchIsValid(values)
-
-    const note = this.notesRepository.updateValues(
-      id,
-      values,
-      this.createTimestamp()
-    )
+    const note = this.notesRepository.findById(id)
 
     if (!note) {
       throw new NotFoundException('Note was not found.')
     }
 
-    return note
+    const values = input.values ?? {}
+
+    this.ensureValuePatchIsValid(note.noteTypeId, values)
+
+    return this.notesRepository.updateValues(
+      id,
+      values,
+      this.createTimestamp()
+    ) as Note
   }
 
   deleteNote(id: string): void {
@@ -89,7 +89,7 @@ export class NotesService {
     return this.notesRepository.deleteValuesForColumn(columnId)
   }
 
-  private ensureValuesAreValid(values: NoteValues): void {
+  private ensureValuesAreValid(noteTypeId: string, values: NoteValues): void {
     for (const value of Object.values(values)) {
       if (value === null) {
         throw new BadRequestException(
@@ -98,19 +98,26 @@ export class NotesService {
       }
     }
 
-    this.ensureValuePatchIsValid(values)
+    this.ensureValuePatchIsValid(noteTypeId, values)
   }
 
-  private ensureValuePatchIsValid(values: NoteValuePatch): void {
+  private ensureValuePatchIsValid(
+    noteTypeId: string,
+    values: NoteValuePatch
+  ): void {
     const columnsById = new Map(
-      this.settingsService.listColumns().map((column) => [column.id, column])
+      this.settingsService
+        .listColumns(noteTypeId)
+        .map((column) => [column.id, column])
     )
 
     for (const [columnId, value] of Object.entries(values)) {
       const column = columnsById.get(columnId)
 
       if (!column) {
-        throw new BadRequestException('Note value column is not configured.')
+        throw new BadRequestException(
+          'Note value column is not configured for the note type.'
+        )
       }
 
       if (this.isSystemTimestampColumn(column)) {
