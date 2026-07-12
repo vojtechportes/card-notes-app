@@ -11,6 +11,7 @@ import { NoteCard } from '../note-card/note-card'
 interface NoteCardListProps {
   columns: ColumnDto[]
   generalSettings: GeneralSettingsDto
+  noteTypeColumnsById?: Record<string, ColumnDto[]>
   notes: NoteDto[]
   onDeleteNote?: (note: NoteDto) => void
   onEditNote?: (note: NoteDto) => void
@@ -20,6 +21,7 @@ interface NoteCardListProps {
 export const NoteCardList = ({
   columns,
   generalSettings,
+  noteTypeColumnsById,
   notes,
   onDeleteNote,
   onEditNote,
@@ -49,7 +51,7 @@ export const NoteCardList = ({
       {notes.map((note) => (
         <NoteCard
           key={note.id}
-          columns={columns}
+          columns={noteTypeColumnsById?.[note.noteTypeId] ?? columns}
           generalSettings={generalSettings}
           note={note}
           onDeleteNote={onDeleteNote}

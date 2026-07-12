@@ -11,10 +11,7 @@ export const useImportDataMutation = () => {
     onSuccess: () => {
       return Promise.all([
         queryClient.invalidateQueries({
-          queryKey: settingsQueryKeys.columns(),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: settingsQueryKeys.general(),
+          queryKey: settingsQueryKeys.all(),
         }),
         queryClient.invalidateQueries({ queryKey: notesQueryKeys.lists() }),
       ])

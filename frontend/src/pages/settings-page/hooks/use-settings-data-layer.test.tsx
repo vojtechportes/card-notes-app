@@ -6,46 +6,67 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ColumnDto,
   CreateColumnDto,
+  CreateNoteTypeDto,
   DeleteAllNotesResultDto,
+  DeleteNoteTypeDto,
+  DeleteNoteTypeResultDto,
   ExportImportDataDto,
   GeneralSettingsDto,
   ImportResultDto,
+  NoteTypeDetailDto,
+  NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
   UpdateGeneralSettingsDto,
+  UpdateNoteTypeDto,
 } from '../../../types/api'
 import { deleteAllNotes } from '../../../api/notes/requests'
 import { getExportData, importData } from '../../../api/export-import/requests'
 import {
   createColumn,
+  createNoteType,
   deleteColumn,
+  deleteNoteType,
   getColumns,
   getGeneralSettings,
+  getNoteType,
+  getNoteTypes,
   reorderColumns,
   updateColumn,
   updateGeneralSettings,
+  updateNoteType,
 } from '../../../api/settings/requests'
 import { notesQueryKeys } from '../../notes-page/constants/notes-query-keys'
 import { settingsQueryKeys } from '../constants/settings-query-keys'
 import { useCreateColumnMutation } from './use-create-column-mutation'
+import { useCreateNoteTypeMutation } from './use-create-note-type-mutation'
 import { useDeleteAllNotesMutation } from './use-delete-all-notes-mutation'
 import { useDeleteColumnMutation } from './use-delete-column-mutation'
+import { useDeleteNoteTypeMutation } from './use-delete-note-type-mutation'
 import { useExportDataMutation } from './use-export-data-mutation'
 import { useGeneralSettingsQuery } from './use-general-settings-query'
 import { useImportDataMutation } from './use-import-data-mutation'
 import { useNoteColumnsQuery } from './use-note-columns-query'
+import { useNoteTypeDetailQuery } from './use-note-type-detail-query'
+import { useNoteTypesQuery } from './use-note-types-query'
 import { useReorderColumnsMutation } from './use-reorder-columns-mutation'
 import { useUpdateColumnMutation } from './use-update-column-mutation'
 import { useUpdateGeneralSettingsMutation } from './use-update-general-settings-mutation'
+import { useUpdateNoteTypeMutation } from './use-update-note-type-mutation'
 
 vi.mock('../../../api/settings/requests', () => ({
   createColumn: vi.fn(),
+  createNoteType: vi.fn(),
   deleteColumn: vi.fn(),
+  deleteNoteType: vi.fn(),
   getColumns: vi.fn(),
   getGeneralSettings: vi.fn(),
+  getNoteType: vi.fn(),
+  getNoteTypes: vi.fn(),
   reorderColumns: vi.fn(),
   updateColumn: vi.fn(),
   updateGeneralSettings: vi.fn(),
+  updateNoteType: vi.fn(),
 }))
 
 vi.mock('../../../api/export-import/requests', () => ({
@@ -67,6 +88,8 @@ const createResponse = <TData,>(data: TData): AxiosResponse<TData> => {
   }
 }
 
+const noteTypeId = 'note-type-1'
+
 const createColumnDto = (id: string): ColumnDto => ({
   config: null,
   createdAt: '2026-07-08T10:00:00.000Z',
@@ -74,9 +97,17 @@ const createColumnDto = (id: string): ColumnDto => ({
   isDefault: false,
   isHidden: false,
   name: `column-${id}`,
+  noteTypeId,
   sortOrder: 2,
   title: `Column ${id}`,
   type: 'text',
+  updatedAt: '2026-07-08T10:00:00.000Z',
+})
+
+const createNoteTypeDto = (id = noteTypeId): NoteTypeDto => ({
+  createdAt: '2026-07-08T10:00:00.000Z',
+  id,
+  title: `Type ${id}`,
   updatedAt: '2026-07-08T10:00:00.000Z',
 })
 
@@ -104,6 +135,12 @@ const createDeleteAllNotesResultDto = (): DeleteAllNotesResultDto => ({
   deletedCount: 5,
 })
 
+const createDeleteNoteTypeResultDto = (): DeleteNoteTypeResultDto => ({
+  deletedNoteTypeId: noteTypeId,
+  deletedNotesCount: 4,
+  movedNotesCount: 0,
+})
+
 const createTestQueryClient = () => {
   return new QueryClient({
     defaultOptions: {
@@ -120,8 +157,16 @@ const createWrapper = (queryClient: QueryClient) => {
 }
 
 describe('settings query keys', () => {
-  it('keeps column and general settings keys distinct', () => {
-    expect(settingsQueryKeys.columns()).not.toEqual(settingsQueryKeys.general())
+  it('keeps note type, column, and general settings keys distinct', () => {
+    expect(settingsQueryKeys.columns('note-type-1')).not.toEqual(
+      settingsQueryKeys.general()
+    )
+    expect(settingsQueryKeys.noteTypes()).not.toEqual(
+      settingsQueryKeys.columns('note-type-1')
+    )
+    expect(settingsQueryKeys.columns('note-type-1')).not.toEqual(
+      settingsQueryKeys.columns('note-type-2')
+    )
   })
 })
 
@@ -130,17 +175,49 @@ describe('settings queries', () => {
     vi.clearAllMocks()
   })
 
+  it('fetches note types and maps Axios response data', async () => {
+    const noteTypes = [createNoteTypeDto()]
+    vi.mocked(getNoteTypes).mockResolvedValue(createResponse(noteTypes))
+    const queryClient = createTestQueryClient()
+
+    const { result } = renderHook(() => useNoteTypesQuery(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await waitFor(() => expect(result.current.data).toEqual(noteTypes))
+    expect(getNoteTypes).toHaveBeenCalledWith(expect.any(AbortSignal))
+  })
+
+  it('fetches note type detail and maps Axios response data', async () => {
+    const noteTypeDetail: NoteTypeDetailDto = {
+      ...createNoteTypeDto(),
+      columns: [createColumnDto('column-1')],
+    }
+    vi.mocked(getNoteType).mockResolvedValue(createResponse(noteTypeDetail))
+    const queryClient = createTestQueryClient()
+
+    const { result } = renderHook(
+      () => useNoteTypeDetailQuery(noteTypeId),
+      {
+        wrapper: createWrapper(queryClient),
+      }
+    )
+
+    await waitFor(() => expect(result.current.data).toEqual(noteTypeDetail))
+    expect(getNoteType).toHaveBeenCalledWith(noteTypeId, expect.any(AbortSignal))
+  })
+
   it('fetches note columns and maps Axios response data', async () => {
     const columns = [createColumnDto('column-1')]
     vi.mocked(getColumns).mockResolvedValue(createResponse(columns))
     const queryClient = createTestQueryClient()
 
-    const { result } = renderHook(() => useNoteColumnsQuery(), {
+    const { result } = renderHook(() => useNoteColumnsQuery(noteTypeId), {
       wrapper: createWrapper(queryClient),
     })
 
     await waitFor(() => expect(result.current.data).toEqual(columns))
-    expect(getColumns).toHaveBeenCalledWith(expect.any(AbortSignal))
+    expect(getColumns).toHaveBeenCalledWith(noteTypeId, expect.any(AbortSignal))
   })
 
   it('fetches general settings and maps Axios response data', async () => {
@@ -162,7 +239,94 @@ describe('settings mutations', () => {
     vi.clearAllMocks()
   })
 
-  it('creates columns and invalidates the columns query', async () => {
+  it('creates note types and invalidates the note types query', async () => {
+    const payload: CreateNoteTypeDto = {
+      title: 'Projects',
+    }
+    const createdNoteType = createNoteTypeDto()
+    vi.mocked(createNoteType).mockResolvedValue(createResponse(createdNoteType))
+    const queryClient = createTestQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useCreateNoteTypeMutation(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync(payload)).resolves.toEqual(
+        createdNoteType
+      )
+    })
+
+    expect(createNoteType).toHaveBeenCalledWith(payload)
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypes(),
+    })
+  })
+
+  it('updates note types and invalidates note type list and detail queries', async () => {
+    const payload: UpdateNoteTypeDto = {
+      title: 'Projects',
+    }
+    const updatedNoteType = createNoteTypeDto()
+    vi.mocked(updateNoteType).mockResolvedValue(createResponse(updatedNoteType))
+    const queryClient = createTestQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useUpdateNoteTypeMutation(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ id: noteTypeId, noteType: payload })
+      ).resolves.toEqual(updatedNoteType)
+    })
+
+    expect(updateNoteType).toHaveBeenCalledWith(noteTypeId, payload)
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypes(),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
+    })
+  })
+
+  it('deletes note types and invalidates note type and notes queries', async () => {
+    const payload: DeleteNoteTypeDto = {
+      mode: 'delete-notes',
+    }
+    const deleteResult = createDeleteNoteTypeResultDto()
+    vi.mocked(deleteNoteType).mockResolvedValue(createResponse(deleteResult))
+    const queryClient = createTestQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useDeleteNoteTypeMutation(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ id: noteTypeId, noteType: payload })
+      ).resolves.toEqual(deleteResult)
+    })
+
+    expect(deleteNoteType).toHaveBeenCalledWith(noteTypeId, payload)
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypes(),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notesQueryKeys.lists(),
+    })
+  })
+
+  it('creates columns and invalidates the scoped columns query', async () => {
     const payload: CreateColumnDto = {
       name: 'summary',
       title: 'Summary',
@@ -178,18 +342,21 @@ describe('settings mutations', () => {
     })
 
     await act(async () => {
-      await expect(result.current.mutateAsync(payload)).resolves.toEqual(
-        createdColumn
-      )
+      await expect(
+        result.current.mutateAsync({ column: payload, noteTypeId })
+      ).resolves.toEqual(createdColumn)
     })
 
-    expect(createColumn).toHaveBeenCalledWith(payload)
+    expect(createColumn).toHaveBeenCalledWith(noteTypeId, payload)
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
     })
   })
 
-  it('updates columns and invalidates the columns query', async () => {
+  it('updates columns and invalidates the scoped columns query', async () => {
     const payload: UpdateColumnDto = {
       title: 'Renamed summary',
     }
@@ -204,17 +371,24 @@ describe('settings mutations', () => {
 
     await act(async () => {
       await expect(
-        result.current.mutateAsync({ column: payload, id: 'column-1' })
+        result.current.mutateAsync({
+          column: payload,
+          id: 'column-1',
+          noteTypeId,
+        })
       ).resolves.toEqual(updatedColumn)
     })
 
-    expect(updateColumn).toHaveBeenCalledWith('column-1', payload)
+    expect(updateColumn).toHaveBeenCalledWith(noteTypeId, 'column-1', payload)
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
     })
   })
 
-  it('reorders columns and invalidates the columns query', async () => {
+  it('reorders columns and invalidates the scoped columns query', async () => {
     const payload: ReorderColumnsDto = {
       columnIds: ['column-1', 'column-2'],
     }
@@ -233,18 +407,21 @@ describe('settings mutations', () => {
     })
 
     await act(async () => {
-      await expect(result.current.mutateAsync(payload)).resolves.toEqual(
-        reorderedColumns
-      )
+      await expect(
+        result.current.mutateAsync({ columnOrder: payload, noteTypeId })
+      ).resolves.toEqual(reorderedColumns)
     })
 
-    expect(reorderColumns).toHaveBeenCalledWith(payload)
+    expect(reorderColumns).toHaveBeenCalledWith(noteTypeId, payload)
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
     })
   })
 
-  it('deletes columns and invalidates the columns query', async () => {
+  it('deletes columns and invalidates the scoped columns query', async () => {
     vi.mocked(deleteColumn).mockResolvedValue(createResponse<void>(undefined))
     const queryClient = createTestQueryClient()
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
@@ -257,16 +434,20 @@ describe('settings mutations', () => {
       await expect(
         result.current.mutateAsync({
           id: 'column-1',
+          noteTypeId,
           query: { deleteMode: 'definitionOnly' },
         })
       ).resolves.toBeUndefined()
     })
 
-    expect(deleteColumn).toHaveBeenCalledWith('column-1', {
+    expect(deleteColumn).toHaveBeenCalledWith(noteTypeId, 'column-1', {
       deleteMode: 'definitionOnly',
     })
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
     })
   })
 
@@ -283,16 +464,20 @@ describe('settings mutations', () => {
       await expect(
         result.current.mutateAsync({
           id: 'column-1',
+          noteTypeId,
           query: { deleteMode: 'definitionAndValues' },
         })
       ).resolves.toBeUndefined()
     })
 
-    expect(deleteColumn).toHaveBeenCalledWith('column-1', {
+    expect(deleteColumn).toHaveBeenCalledWith(noteTypeId, 'column-1', {
       deleteMode: 'definitionAndValues',
     })
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
+      queryKey: settingsQueryKeys.columns(noteTypeId),
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: settingsQueryKeys.noteTypeDetail(noteTypeId),
     })
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: notesQueryKeys.lists(),
@@ -366,10 +551,7 @@ describe('settings mutations', () => {
 
     expect(importData).toHaveBeenCalledWith(payload)
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.columns(),
-    })
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: settingsQueryKeys.general(),
+      queryKey: settingsQueryKeys.all(),
     })
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: notesQueryKeys.lists(),
@@ -396,4 +578,3 @@ describe('settings mutations', () => {
     })
   })
 })
-

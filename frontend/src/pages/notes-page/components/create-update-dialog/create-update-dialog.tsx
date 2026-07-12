@@ -44,13 +44,17 @@ export const CreateUpdateDialog = ({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const formId = useId().replace(/:/g, '-')
   const initializationKeyRef = useRef<string | null>(null)
-  const noteColumnsQuery = useNoteColumnsQuery()
+  const noteColumnsQuery = useNoteColumnsQuery(note?.noteTypeId)
   const createNoteMutation = useCreateNoteMutation()
   const updateNoteMutation = useUpdateNoteMutation()
 
   const editableColumns = useMemo(() => {
     return filterEditableNoteColumns(noteColumnsQuery.data ?? [])
   }, [noteColumnsQuery.data])
+
+  const activeNoteTypeId = useMemo(() => {
+    return note?.noteTypeId ?? noteColumnsQuery.data?.[0]?.noteTypeId
+  }, [note?.noteTypeId, noteColumnsQuery.data])
 
   const defaultValues = useMemo(() => {
     return getNoteFormDefaultValues(editableColumns, note)
@@ -79,6 +83,7 @@ export const CreateUpdateDialog = ({
     updateNoteMutation.isPending
   const hasColumnsError = noteColumnsQuery.isError
   const hasMissingNote = mode === 'update' && !note
+  const hasMissingNoteType = mode === 'create' && !activeNoteTypeId
   const initializationKey = `${mode}:${note?.id ?? 'create'}`
   const titleKey =
     mode === 'create' ? 'notes.createDialog.title' : 'notes.updateDialog.title'
@@ -120,12 +125,16 @@ export const CreateUpdateDialog = ({
         return
       }
 
+      if (mode === 'create' && !activeNoteTypeId) {
+        return
+      }
+
       setSubmitError(null)
 
       try {
-        if (mode === 'create') {
+        if (mode === 'create' && activeNoteTypeId) {
           await createNoteMutation.mutateAsync(
-            mapFormValuesToCreateNoteDto(editableColumns, values)
+            mapFormValuesToCreateNoteDto(editableColumns, values, activeNoteTypeId)
           )
         } else if (note) {
           await updateNoteMutation.mutateAsync({
@@ -147,6 +156,7 @@ export const CreateUpdateDialog = ({
       }
     },
     [
+      activeNoteTypeId,
       createNoteMutation,
       editableColumns,
       mode,
@@ -223,7 +233,8 @@ export const CreateUpdateDialog = ({
             isSubmitting ||
             noteColumnsQuery.isLoading ||
             hasColumnsError ||
-            hasMissingNote
+            hasMissingNote ||
+            hasMissingNoteType
           }
           form={formId}
           type="submit"

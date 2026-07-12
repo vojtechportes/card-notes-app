@@ -3,7 +3,8 @@ import type { FormValues } from '../types/form-values'
 
 export const mapFormValuesToCreateNoteDto = (
   columns: ColumnDto[],
-  formValues: FormValues
+  formValues: FormValues,
+  noteTypeId: string
 ): CreateNoteDto => {
   const values = columns.reduce<NonNullable<CreateNoteDto['values']>>(
     (accumulator, column) => {
@@ -27,5 +28,14 @@ export const mapFormValuesToCreateNoteDto = (
     {}
   )
 
-  return Object.keys(values).length > 0 ? { values } : {}
+  if (Object.keys(values).length > 0) {
+    return {
+      noteTypeId,
+      values,
+    }
+  }
+
+  return {
+    noteTypeId,
+  }
 }

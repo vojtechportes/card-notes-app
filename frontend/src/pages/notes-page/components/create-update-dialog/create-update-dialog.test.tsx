@@ -33,6 +33,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'created-column',
+    noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: true,
     name: 'createdAt',
@@ -45,6 +46,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'title-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'title',
@@ -57,6 +59,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'due-date-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'dueDate',
@@ -69,6 +72,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'amount-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'amount',
@@ -81,6 +85,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'link-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'referenceLink',
@@ -93,6 +98,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'receipt-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'receiptImage',
@@ -105,6 +111,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'hidden-column',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: true,
     name: 'internalNote',
@@ -166,6 +173,51 @@ describe('CreateUpdateDialog', () => {
     expect(screen.queryByRole('textbox', { name: 'Internal note' })).toBeNull()
   })
 
+  it('shows the loading state from the note columns query', () => {
+    useNoteColumnsQueryMock.mockReturnValue({
+      data: undefined,
+      isError: false,
+      isLoading: true,
+    })
+
+    render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
+
+    expect(screen.getByText('Loading note fields...')).toBeTruthy()
+  })
+
+  it('shows the error state from the note columns query', () => {
+    useNoteColumnsQueryMock.mockReturnValue({
+      data: undefined,
+      isError: true,
+      isLoading: false,
+    })
+
+    render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
+
+    expect(screen.getByText('Note fields could not be loaded.')).toBeTruthy()
+  })
+  it('creates an empty note when the active note type has no editable columns', async () => {
+    const onClose = vi.fn()
+
+    useNoteColumnsQueryMock.mockReturnValue({
+      data: [columns[0]],
+      isError: false,
+      isLoading: false,
+    })
+
+    render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        noteTypeId: 'note-type-1',
+      })
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves in-progress values when note columns refetch while the dialog stays open', () => {
     let currentColumns = columns
     const onClose = vi.fn()
@@ -197,6 +249,7 @@ describe('CreateUpdateDialog', () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-2',
+      noteTypeId: 'note-type-1',
       updatedAt: '2026-07-07T10:00:00.000Z',
       values: {
         'title-column': 'Original title',
@@ -238,6 +291,7 @@ describe('CreateUpdateDialog', () => {
 
     expect(createMutation.mutateAsync).not.toHaveBeenCalled()
   })
+
   it('submits create values keyed by column id and supports image drop', async () => {
     const onClose = vi.fn()
     render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
@@ -273,6 +327,7 @@ describe('CreateUpdateDialog', () => {
 
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        noteTypeId: 'note-type-1',
         values: {
           'amount-column': 42.5,
           'due-date-column': '2026-07-08',
@@ -298,6 +353,7 @@ describe('CreateUpdateDialog', () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
+      noteTypeId: 'note-type-1',
       updatedAt: '2026-07-07T10:00:00.000Z',
       values: {
         'amount-column': 12.5,
@@ -355,3 +411,7 @@ describe('CreateUpdateDialog', () => {
     })
   })
 })
+
+
+
+

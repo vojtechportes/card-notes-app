@@ -14,6 +14,7 @@ import { AppProviders } from '../../../../components/app-providers/app-providers
 import { ColumnsSection } from './columns-section'
 
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
+const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useCreateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useReorderColumnsMutationMock = vi.hoisted(() => vi.fn())
@@ -21,6 +22,10 @@ const useDeleteColumnMutationMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
+}))
+
+vi.mock('../../hooks/use-note-types-query', () => ({
+  useNoteTypesQuery: useNoteTypesQueryMock,
 }))
 
 vi.mock('../../hooks/use-create-column-mutation', () => ({
@@ -103,6 +108,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-08T10:00:00.000Z',
     id: 'created-at',
+    noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: false,
     name: 'createdAt',
@@ -115,6 +121,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-08T10:00:00.000Z',
     id: 'summary',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'summary',
@@ -127,6 +134,7 @@ const columns: ColumnDto[] = [
     config: null,
     createdAt: '2026-07-08T10:00:00.000Z',
     id: 'reference-link',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: true,
     name: 'referenceLink',
@@ -172,6 +180,11 @@ beforeEach(() => {
     isError: false,
     isLoading: false,
   })
+  useNoteTypesQueryMock.mockReturnValue({
+    data: [{ id: 'note-type-1', title: 'Default note type', name: 'default' }],
+    isError: false,
+    isLoading: false,
+  })
   createMutation.mutateAsync.mockResolvedValue({})
   updateMutation.mutateAsync.mockResolvedValue({})
   reorderMutation.mutateAsync.mockResolvedValue({})
@@ -207,6 +220,37 @@ describe('ColumnsSection', () => {
     ).toBeTruthy()
   })
 
+  it('creates the first column when the active note type currently has no columns', async () => {
+    useNoteColumnsQueryMock.mockReturnValueOnce({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
+
+    renderColumnsSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add column' }))
+    fireEvent.change(screen.getByLabelText('Column title'), {
+      target: { value: 'First column' },
+    })
+    fireEvent.change(screen.getByLabelText('Column name'), {
+      target: { value: 'firstColumn' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create column' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        column: {
+          isHidden: false,
+          name: 'firstColumn',
+          title: 'First column',
+          type: 'text',
+        },
+        noteTypeId: 'note-type-1',
+      })
+    })
+  })
+
   it('creates a custom column and validates duplicate names', async () => {
     renderColumnsSection()
 
@@ -232,10 +276,13 @@ describe('ColumnsSection', () => {
 
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
-        isHidden: false,
-        name: 'projectStatus',
-        title: 'Duplicate summary',
-        type: 'number',
+        column: {
+          isHidden: false,
+          name: 'projectStatus',
+          title: 'Duplicate summary',
+          type: 'number',
+        },
+        noteTypeId: 'note-type-1',
       })
     })
   })
@@ -272,6 +319,7 @@ describe('ColumnsSection', () => {
           type: 'date',
         },
         id: 'created-at',
+        noteTypeId: 'note-type-1',
       })
     })
   })
@@ -290,6 +338,7 @@ describe('ColumnsSection', () => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
         column: { isHidden: false },
         id: 'reference-link',
+        noteTypeId: 'note-type-1',
       })
     })
 
@@ -297,7 +346,8 @@ describe('ColumnsSection', () => {
 
     await waitFor(() => {
       expect(reorderMutation.mutateAsync).toHaveBeenCalledWith({
-        columnIds: ['created-at', 'reference-link', 'summary'],
+        columnOrder: { columnIds: ['created-at', 'reference-link', 'summary'] },
+        noteTypeId: 'note-type-1',
       })
     })
   })
@@ -328,6 +378,7 @@ describe('ColumnsSection', () => {
     await waitFor(() => {
       expect(deleteMutation.mutateAsync).toHaveBeenCalledWith({
         id: 'reference-link',
+        noteTypeId: 'note-type-1',
         query: { deleteMode: 'definitionOnly' },
       })
     })
@@ -353,6 +404,7 @@ describe('ColumnsSection', () => {
     await waitFor(() => {
       expect(deleteMutation.mutateAsync).toHaveBeenCalledWith({
         id: 'reference-link',
+        noteTypeId: 'note-type-1',
         query: { deleteMode: 'definitionAndValues' },
       })
     })
@@ -425,3 +477,4 @@ describe('ColumnsSection', () => {
     ).toBeTruthy()
   })
 })
+

@@ -38,6 +38,7 @@ const createResponse = <TData,>(data: TData): AxiosResponse<TData> => {
 const createNoteDto = (id: string): NoteDto => ({
   createdAt: '2026-07-07T10:00:00.000Z',
   id,
+  noteTypeId: 'note-type-1',
   updatedAt: '2026-07-07T10:00:00.000Z',
   values: { title: `Note ${id}` },
 })
@@ -90,7 +91,10 @@ describe('notes mutation hooks', () => {
   })
 
   it('creates notes and invalidates notes lists', async () => {
-    const payload: CreateNoteDto = { values: { title: 'Created note' } }
+    const payload: CreateNoteDto = {
+      noteTypeId: 'note-type-1',
+      values: { title: 'Created note' },
+    }
     const createdNote = createNoteDto('note-1')
     vi.mocked(createNote).mockResolvedValue(createResponse(createdNote))
     const queryClient = createTestQueryClient()
@@ -145,9 +149,7 @@ describe('notes mutation hooks', () => {
     })
 
     await act(async () => {
-      await expect(
-        result.current.mutateAsync('note-1')
-      ).resolves.toBeUndefined()
+      await expect(result.current.mutateAsync('note-1')).resolves.toBeUndefined()
     })
 
     expect(deleteNote).toHaveBeenCalledWith('note-1')

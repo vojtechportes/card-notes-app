@@ -15,6 +15,7 @@ const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
     config: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'column-id',
+    noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
     name: 'column-name',
@@ -41,6 +42,7 @@ describe('NoteCardList', () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
+      noteTypeId: 'note-type-1',
       updatedAt: '2026-07-07T12:00:00.000Z',
       values: {
         'image-column': {
@@ -126,6 +128,7 @@ describe('NoteCardList', () => {
           {
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
+            noteTypeId: 'note-type-1',
             updatedAt: '2026-07-07T12:00:00.000Z',
             values: {
               'image-column': {
@@ -171,6 +174,7 @@ describe('NoteCardList', () => {
           {
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
+            noteTypeId: 'note-type-1',
             updatedAt: '2026-07-07T12:00:00.000Z',
             values: {
               'owner-column': 'Morgan',
@@ -219,6 +223,7 @@ describe('NoteCardList', () => {
           {
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
+            noteTypeId: 'note-type-1',
             updatedAt: '2026-07-07T12:00:00.000Z',
             values: {},
           },
@@ -237,6 +242,7 @@ describe('NoteCardList', () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
+      noteTypeId: 'note-type-1',
       updatedAt: '2026-07-07T12:00:00.000Z',
       values: {
         'summary-column': 'Alpha note',
@@ -269,6 +275,7 @@ describe('NoteCardList', () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
+      noteTypeId: 'note-type-1',
       updatedAt: '2026-07-07T12:00:00.000Z',
       values: {
         'summary-column': 'Alpha note',
@@ -319,6 +326,7 @@ describe('NoteCardList', () => {
           {
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
+            noteTypeId: 'note-type-1',
             updatedAt: '2026-07-07T12:00:00.000Z',
             values: {},
           },

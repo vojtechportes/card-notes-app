@@ -7,6 +7,7 @@ const createNote = (id: string, title: string): NoteDto => {
   return {
     createdAt: '2026-07-07T10:00:00.000Z',
     id,
+    noteTypeId: 'note-type-1',
     updatedAt: '2026-07-07T10:00:00.000Z',
     values: { title },
   }

@@ -6,6 +6,7 @@ import { settingsQueryKeys } from '../constants/settings-query-keys'
 
 interface DeleteColumnMutationVariables {
   id: string
+  noteTypeId: string
   query?: DeleteColumnQueryDto
 }
 
@@ -13,12 +14,15 @@ export const useDeleteColumnMutation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, query }: DeleteColumnMutationVariables) =>
-      deleteColumn(id, query).then((response) => response.data),
+    mutationFn: ({ id, noteTypeId, query }: DeleteColumnMutationVariables) =>
+      deleteColumn(noteTypeId, id, query).then((response) => response.data),
     onSuccess: (_data, variables) => {
       const invalidations = [
         queryClient.invalidateQueries({
-          queryKey: settingsQueryKeys.columns(),
+          queryKey: settingsQueryKeys.columns(variables.noteTypeId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: settingsQueryKeys.noteTypeDetail(variables.noteTypeId),
         }),
       ]
 
