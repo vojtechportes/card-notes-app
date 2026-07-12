@@ -1,33 +1,30 @@
-import { Alert, Button, Stack, Typography } from '@mui/material'
-import { useCallback, useRef, useState } from 'react'
+import {
+  Alert,
+  Button,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Typography,
+} from '@mui/material'
+import type { SelectChangeEvent } from '@mui/material/Select'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ImportResultDto } from '../../../../types/api'
+import type { ImportUnmatchedFieldDto } from '../../../../types/api'
 import { useExportDataMutation } from '../../hooks/use-export-data-mutation'
 import { useImportDataMutation } from '../../hooks/use-import-data-mutation'
+import { useNoteTypesQuery } from '../../hooks/use-note-types-query'
 import { SettingsSection } from '../settings-section'
+import { createExportFileName } from './utils/create-export-file-name.util'
+import { createImportSuccessMessage } from './utils/create-import-success-message.util'
+import { formatUnmatchedFieldLabel } from './utils/format-unmatched-field-label.util'
+import { getImportFileKind } from './utils/get-import-file-kind.util'
 
 interface FeedbackState {
   message: string
   severity: 'error' | 'success'
-}
-
-const createExportFileName = (exportedAt: string) => {
-  return `card-notes-export-${exportedAt.replace(/[.:]/g, '-')}.json`
-}
-
-const createImportSuccessMessage = (
-  t: ReturnType<typeof useTranslation>['t'],
-  result: ImportResultDto
-) => {
-  const generalSettingsStatus = result.updatedGeneralSettings
-    ? t('settings.exportImport.status.generalSettingsUpdated')
-    : t('settings.exportImport.status.generalSettingsUnchanged')
-
-  return t('settings.exportImport.status.imported', {
-    generalSettingsStatus,
-    importedColumns: result.importedColumns,
-    importedNotes: result.importedNotes,
-  })
 }
 
 export const ExportImportSection = () => {
@@ -35,11 +32,40 @@ export const ExportImportSection = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedTargetNoteTypeId, setSelectedTargetNoteTypeId] = useState('')
+  const [unmatchedFields, setUnmatchedFields] = useState<
+    ImportUnmatchedFieldDto[]
+  >([])
+  const noteTypesQuery = useNoteTypesQuery()
   const exportDataMutation = useExportDataMutation()
   const importDataMutation = useImportDataMutation()
 
+  const selectedFileKind = useMemo(
+    () => getImportFileKind(selectedFile),
+    [selectedFile]
+  )
+  const requiresTargetNoteType = useMemo(
+    () => selectedFileKind === 'xlsx',
+    [selectedFileKind]
+  )
+  const isImportDisabled = useMemo(() => {
+    return (
+      !selectedFile ||
+      exportDataMutation.isPending ||
+      importDataMutation.isPending ||
+      (requiresTargetNoteType && !selectedTargetNoteTypeId)
+    )
+  }, [
+    exportDataMutation.isPending,
+    importDataMutation.isPending,
+    requiresTargetNoteType,
+    selectedFile,
+    selectedTargetNoteTypeId,
+  ])
+
   const resetFileSelection = useCallback(() => {
     setSelectedFile(null)
+    setSelectedTargetNoteTypeId('')
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -48,6 +74,7 @@ export const ExportImportSection = () => {
 
   const handleExport = useCallback(async () => {
     setFeedback(null)
+    setUnmatchedFields([])
 
     try {
       const exportData = await exportDataMutation.mutateAsync()
@@ -82,6 +109,15 @@ export const ExportImportSection = () => {
 
       setFeedback(null)
       setSelectedFile(nextFile)
+      setSelectedTargetNoteTypeId('')
+      setUnmatchedFields([])
+    },
+    []
+  )
+
+  const handleTargetNoteTypeChange = useCallback(
+    (event: SelectChangeEvent<string>) => {
+      setSelectedTargetNoteTypeId(event.target.value)
     },
     []
   )
@@ -95,15 +131,28 @@ export const ExportImportSection = () => {
       return
     }
 
+    if (requiresTargetNoteType && !selectedTargetNoteTypeId) {
+      setFeedback({
+        message: t('settings.exportImport.errors.targetRequired'),
+        severity: 'error',
+      })
+      return
+    }
+
     setFeedback(null)
+    setUnmatchedFields([])
 
     try {
-      const importResult = await importDataMutation.mutateAsync(selectedFile)
+      const importResult = await importDataMutation.mutateAsync({
+        file: selectedFile,
+        targetNoteTypeId: selectedTargetNoteTypeId || undefined,
+      })
 
       setFeedback({
         message: createImportSuccessMessage(t, importResult),
         severity: 'success',
       })
+      setUnmatchedFields(importResult.unmatchedFields)
       resetFileSelection()
     } catch {
       setFeedback({
@@ -111,7 +160,14 @@ export const ExportImportSection = () => {
         severity: 'error',
       })
     }
-  }, [importDataMutation, resetFileSelection, selectedFile, t])
+  }, [
+    importDataMutation,
+    requiresTargetNoteType,
+    resetFileSelection,
+    selectedFile,
+    selectedTargetNoteTypeId,
+    t,
+  ])
 
   return (
     <SettingsSection
@@ -125,6 +181,24 @@ export const ExportImportSection = () => {
 
         {feedback ? (
           <Alert severity={feedback.severity}>{feedback.message}</Alert>
+        ) : null}
+
+        {unmatchedFields.length > 0 ? (
+          <Alert severity="warning">
+            <Stack spacing={1}>
+              <Typography variant="body2">
+                {t('settings.exportImport.unmatchedFields.summary')}
+              </Typography>
+              {unmatchedFields.map((field) => (
+                <Typography
+                  key={`${field.noteTypeTitle ?? 'none'}-${field.name}`}
+                  variant="body2"
+                >
+                  {formatUnmatchedFieldLabel(t, field)}
+                </Typography>
+              ))}
+            </Stack>
+          </Alert>
         ) : null}
 
         <Stack direction={{ sm: 'row', xs: 'column' }} spacing={1.5}>
@@ -159,11 +233,7 @@ export const ExportImportSection = () => {
           </Button>
 
           <Button
-            disabled={
-              !selectedFile ||
-              exportDataMutation.isPending ||
-              importDataMutation.isPending
-            }
+            disabled={isImportDisabled}
             onClick={handleImport}
             variant="contained"
           >
@@ -172,6 +242,45 @@ export const ExportImportSection = () => {
               : t('settings.exportImport.actions.import')}
           </Button>
         </Stack>
+
+        <FormControl
+          disabled={
+            !selectedFile ||
+            importDataMutation.isPending ||
+            noteTypesQuery.isLoading ||
+            Boolean(noteTypesQuery.isError)
+          }
+          fullWidth
+          size="small"
+        >
+          <InputLabel id="import-target-note-type-label">
+            {t('settings.exportImport.fields.targetNoteType')}
+          </InputLabel>
+          <Select
+            label={t('settings.exportImport.fields.targetNoteType')}
+            labelId="import-target-note-type-label"
+            onChange={handleTargetNoteTypeChange}
+            value={selectedTargetNoteTypeId}
+          >
+            <MenuItem value="">
+              {t('settings.exportImport.fields.targetNoteTypePlaceholder')}
+            </MenuItem>
+            {(noteTypesQuery.data ?? []).map((noteType) => (
+              <MenuItem key={noteType.id} value={noteType.id}>
+                {noteType.title}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {noteTypesQuery.isLoading
+              ? t('settings.exportImport.status.loadingNoteTypes')
+              : noteTypesQuery.isError
+                ? t('settings.exportImport.errors.noteTypes')
+                : requiresTargetNoteType
+                  ? t('settings.exportImport.hints.targetRequired')
+                  : t('settings.exportImport.hints.targetOptional')}
+          </FormHelperText>
+        </FormControl>
 
         <Typography color="text.secondary" variant="body2">
           {selectedFile

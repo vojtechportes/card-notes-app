@@ -24,6 +24,7 @@ import type {
   UpdateColumnInput,
 } from './types/note-column'
 import type { NoteType } from './types/note-type'
+import { areColumnTypesCompatible } from './utils/are-column-types-compatible.util'
 
 interface DeleteColumnOptions {
   deleteNoteData?: boolean
@@ -126,7 +127,10 @@ export class SettingsService implements OnModuleInit {
       .getDatabaseService()
       .getConnection()
       .transaction(() => {
-        const targetNoteType = this.resolveMoveTargetNoteType(noteType.id, input)
+        const targetNoteType = this.resolveMoveTargetNoteType(
+          noteType.id,
+          input
+        )
         const sourceColumns = this.listColumns(noteType.id)
         const targetColumns = this.listColumns(targetNoteType.id)
         const fieldMappings = this.resolveFieldMappings(
@@ -187,7 +191,8 @@ export class SettingsService implements OnModuleInit {
       name,
       title,
       type: input.type,
-      sortOrder: input.sortOrder ?? this.columnsRepository.getNextSortOrder(noteTypeId),
+      sortOrder:
+        input.sortOrder ?? this.columnsRepository.getNextSortOrder(noteTypeId),
       isHidden: input.isHidden ?? false,
       isDefault: false,
       config: input.config ?? null,
@@ -281,9 +286,7 @@ export class SettingsService implements OnModuleInit {
         : this.getDefaultNoteTypeId()
     const id = typeof idOrOptions === 'string' ? idOrOptions : noteTypeIdOrId
     const options =
-      typeof idOrOptions === 'string'
-        ? maybeOptions
-        : (idOrOptions ?? {})
+      typeof idOrOptions === 'string' ? maybeOptions : (idOrOptions ?? {})
     const column = this.getColumnOrThrow(noteTypeId, id)
 
     if (column.isDefault) {
@@ -462,8 +465,10 @@ export class SettingsService implements OnModuleInit {
         )
       }
 
-      if (!this.areColumnTypesCompatible(sourceColumn.type, targetColumn.type)) {
-        throw new BadRequestException('Field mapping column types are not compatible.')
+      if (!areColumnTypesCompatible(sourceColumn.type, targetColumn.type)) {
+        throw new BadRequestException(
+          'Field mapping column types are not compatible.'
+        )
       }
 
       sourceColumnIds.add(sourceColumn.id)
@@ -478,21 +483,6 @@ export class SettingsService implements OnModuleInit {
       column.isDefault &&
       (column.name === 'createdAt' || column.name === 'updatedAt')
     )
-  }
-
-  private areColumnTypesCompatible(
-    sourceType: ColumnTypeEnum,
-    targetType: ColumnTypeEnum
-  ): boolean {
-    if (sourceType === targetType) {
-      return true
-    }
-
-    const isTextLike = (type: ColumnTypeEnum): boolean => {
-      return type === ColumnTypeEnum.Text || type === ColumnTypeEnum.Link
-    }
-
-    return isTextLike(sourceType) && isTextLike(targetType)
   }
 
   private getColumnOrThrow(noteTypeId: string, id: string): NoteColumn {
@@ -654,8 +644,3 @@ export class SettingsService implements OnModuleInit {
     return new Date().toISOString()
   }
 }
-
-
-
-
-

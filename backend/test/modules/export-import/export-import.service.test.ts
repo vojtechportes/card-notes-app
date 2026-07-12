@@ -15,12 +15,8 @@ let settingsService: SettingsService
 let notesService: NotesService
 let exportImportService: ExportImportService
 
-const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
-
-const singlePixelPngBuffer = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8nQAAAABJRU5ErkJggg==',
-  'base64'
-)
+const getDefaultNoteTypeId = (): string =>
+  settingsService.getDefaultNoteType().id
 
 const createSpreadsheetBuffer = async (
   configure: (workbook: Workbook) => void
@@ -32,6 +28,37 @@ const createSpreadsheetBuffer = async (
   const buffer = await workbook.xlsx.writeBuffer()
 
   return Buffer.from(buffer)
+}
+
+const createServices = () => {
+  const sourceDatabaseService = new DatabaseService({ filePath: ':memory:' })
+
+  sourceDatabaseService.initialize()
+
+  const sourceSettingsService = new SettingsService(
+    new ColumnsRepository(sourceDatabaseService),
+    new GeneralSettingsRepository(sourceDatabaseService)
+  )
+
+  sourceSettingsService.onModuleInit()
+
+  const sourceNotesService = new NotesService(
+    new NotesRepository(sourceDatabaseService),
+    sourceSettingsService
+  )
+
+  const sourceExportImportService = new ExportImportService(
+    sourceDatabaseService,
+    sourceSettingsService,
+    sourceNotesService
+  )
+
+  return {
+    sourceDatabaseService,
+    sourceExportImportService,
+    sourceNotesService,
+    sourceSettingsService,
+  }
 }
 
 beforeEach(() => {
@@ -59,498 +86,310 @@ afterEach(() => {
 })
 
 describe(ExportImportService.name, () => {
-  it('rejects export when additional note types are configured', () => {
+  it('exports a Phase 7 payload with note types, scoped columns, settings, and notes', () => {
     const books = settingsService.createNoteType({ title: 'Books' })
-    const booksColumn = settingsService.createColumn(books.id, {
+    const defaultSummaryColumn = settingsService.createColumn({
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+    const booksAuthorColumn = settingsService.createColumn(books.id, {
       name: 'author',
       title: 'Author',
       type: ColumnTypeEnum.Text,
     })
 
+    settingsService.updateGeneralSettings({
+      textTruncationLength: 80,
+      cardFieldDisplayCount: 2,
+      mergeDateTimeFields: true,
+    })
+
+    notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+      values: { [defaultSummaryColumn.id]: 'Default note' },
+    })
     notesService.createNote({
       noteTypeId: books.id,
-      values: { [booksColumn.id]: 'Octavia Butler' },
-    })
-
-    expect(() => exportImportService.exportData()).toThrow(
-      BadRequestException
-    )
-  })
-  it('exports default columns, general settings, and notes in a versioned payload', () => {
-    const summaryColumn = settingsService.createColumn({
-      name: 'summary',
-      title: 'Summary',
-      type: ColumnTypeEnum.Text,
-    })
-    settingsService.updateGeneralSettings({
-      textTruncationLength: 120,
-      cardFieldDisplayCount: 3,
-      mergeDateTimeFields: true,
-    })
-    const note = notesService.createNote({
-      noteTypeId: getDefaultNoteTypeId(),
-      values: { [summaryColumn.id]: 'Export me' },
+      values: { [booksAuthorColumn.id]: 'Octavia Butler' },
     })
 
     const exportedData = exportImportService.exportData()
 
-    expect(exportedData.version).toBe(1)
-    expect(Date.parse(exportedData.exportedAt)).not.toBeNaN()
-    expect(exportedData.columns.map((column) => column.name)).toEqual([
-      'createdAt',
-      'updatedAt',
-      'summary',
-    ])
-    expect(exportedData.generalSettings).toEqual({
-      textTruncationLength: 120,
-      cardFieldDisplayCount: 3,
-      mergeDateTimeFields: true,
-    })
-    expect(exportedData.notes).toEqual([note])
-  })
-
-  it('imports by matching columns by name, applying settings, and appending notes with fresh ids', () => {
-    const summaryColumn = settingsService.createColumn({
-      name: 'summary',
-      title: 'Summary',
-      type: ColumnTypeEnum.Text,
-    })
-    settingsService.updateGeneralSettings({
-      textTruncationLength: 80,
-      cardFieldDisplayCount: 2,
-      mergeDateTimeFields: true,
-    })
-    const originalNote = notesService.createNote({
-      noteTypeId: getDefaultNoteTypeId(),
-      values: { [summaryColumn.id]: 'Original note' },
-    })
-    const exportedData = exportImportService.exportData()
-
-    settingsService.updateGeneralSettings({
-      textTruncationLength: null,
-      cardFieldDisplayCount: null,
-      mergeDateTimeFields: null,
-    })
-    const existingNote = notesService.createNote({
-      noteTypeId: getDefaultNoteTypeId(),
-      values: { [summaryColumn.id]: 'Existing note' },
-    })
-
-    const result = exportImportService.importData(exportedData)
-    const notes = notesService.listNotes()
-
-    expect(result).toEqual({
-      importedColumns: 3,
-      importedNotes: 1,
-      updatedGeneralSettings: true,
-    })
-    expect(settingsService.getGeneralSettings()).toEqual({
-      textTruncationLength: 80,
-      cardFieldDisplayCount: 2,
-      mergeDateTimeFields: true,
-    })
-    expect(settingsService.listColumns().map((column) => column.name)).toEqual([
-      'createdAt',
-      'updatedAt',
-      'summary',
-    ])
-    expect(notes).toHaveLength(3)
-    expect(notes.filter((note) => note.id === originalNote.id)).toHaveLength(1)
-    expect(notes.map((note) => note.id)).toContain(existingNote.id)
+    expect(exportedData.version).toBe(2)
     expect(
-      notes.filter((note) => note.values[summaryColumn.id] === 'Original note')
-    ).toHaveLength(2)
+      exportedData.noteTypes.map((noteType) => noteType.title).sort()
+    ).toEqual(['Books', 'Default'])
+    expect(
+      exportedData.columns.every((column) => Boolean(column.noteTypeId))
+    ).toBe(true)
+    expect(exportedData.notes).toHaveLength(2)
+    expect(exportedData.notes.map((note) => note.noteTypeId)).toContain(
+      books.id
+    )
+    expect(exportedData.generalSettings).toEqual({
+      textTruncationLength: 80,
+      cardFieldDisplayCount: 2,
+      mergeDateTimeFields: true,
+    })
   })
 
-  it('creates fresh column and note ids for imported data whose column names do not already exist', () => {
-    const summaryColumn = settingsService.createColumn({
-      name: 'summary',
-      title: 'Summary',
-      type: ColumnTypeEnum.Text,
-    })
-    const sourceNote = notesService.createNote({
-      noteTypeId: getDefaultNoteTypeId(),
-      values: { [summaryColumn.id]: 'Fresh import value' },
-    })
-    const exportedData = exportImportService.exportData()
-
-    const secondDatabaseService = new DatabaseService({ filePath: ':memory:' })
-    secondDatabaseService.initialize()
-    const secondSettingsService = new SettingsService(
-      new ColumnsRepository(secondDatabaseService),
-      new GeneralSettingsRepository(secondDatabaseService)
-    )
-    secondSettingsService.onModuleInit()
-    const secondNotesService = new NotesService(
-      new NotesRepository(secondDatabaseService),
-      secondSettingsService
-    )
-    const secondExportImportService = new ExportImportService(
-      secondDatabaseService,
-      secondSettingsService,
-      secondNotesService
-    )
+  it('imports JSON while preserving note type relationships when no target type is selected', () => {
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
 
     try {
-      secondExportImportService.importData(exportedData)
-
-      const importedSummaryColumn = secondSettingsService
-        .listColumns()
-        .find((column) => column.name === 'summary')
-      const importedNote = secondNotesService.listNotes()[0]
-
-      expect(importedSummaryColumn).toBeDefined()
-      expect(importedSummaryColumn?.id).not.toBe(summaryColumn.id)
-      expect(importedNote.id).not.toBe(sourceNote.id)
-      expect(importedNote.values).toEqual({
-        [importedSummaryColumn?.id as string]: 'Fresh import value',
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const defaultSummaryColumn = sourceSettingsService.createColumn({
+        name: 'summary',
+        title: 'Summary',
+        type: ColumnTypeEnum.Text,
       })
-    } finally {
-      secondDatabaseService.close()
-    }
-  })
-
-  it('remaps imported note values to an existing compatible column with the same name', () => {
-    const summaryColumn = settingsService.createColumn({
-      name: 'summary',
-      title: 'Summary',
-      type: ColumnTypeEnum.Text,
-    })
-    const exportedData = exportImportService.exportData()
-    const importedSummaryColumn = exportedData.columns.find(
-      (column) => column.name === 'summary'
-    )
-
-    if (!importedSummaryColumn) {
-      throw new Error('Expected exported summary column.')
-    }
-
-    const secondDatabaseService = new DatabaseService({ filePath: ':memory:' })
-    secondDatabaseService.initialize()
-    const secondSettingsService = new SettingsService(
-      new ColumnsRepository(secondDatabaseService),
-      new GeneralSettingsRepository(secondDatabaseService)
-    )
-    secondSettingsService.onModuleInit()
-    const secondNotesService = new NotesService(
-      new NotesRepository(secondDatabaseService),
-      secondSettingsService
-    )
-    const secondExportImportService = new ExportImportService(
-      secondDatabaseService,
-      secondSettingsService,
-      secondNotesService
-    )
-    const existingSummaryColumn = secondSettingsService.createColumn({
-      name: 'summary',
-      title: 'Existing Summary',
-      type: ColumnTypeEnum.Text,
-    })
-
-    try {
-      secondExportImportService.importData({
-        ...exportedData,
-        notes: [
-          {
-            id: 'imported-note',
-            createdAt: '2026-07-07T10:00:00.000Z',
-            updatedAt: '2026-07-07T10:00:00.000Z',
-            values: { [summaryColumn.id]: 'Remapped value' },
-          },
-        ],
+      const booksAuthorColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'author',
+        title: 'Author',
+        type: ColumnTypeEnum.Text,
       })
 
-      expect(secondNotesService.listNotes()[0].values).toEqual({
-        [existingSummaryColumn.id]: 'Remapped value',
+      sourceNotesService.createNote({
+        noteTypeId: sourceSettingsService.getDefaultNoteType().id,
+        values: { [defaultSummaryColumn.id]: 'Default export note' },
       })
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: { [booksAuthorColumn.id]: 'N. K. Jemisin' },
+      })
+
+      const exportData = sourceExportImportService.exportData()
+      const result = exportImportService.importData(exportData)
+      const importedBooksType = settingsService
+        .listNoteTypes()
+        .find((noteType) => noteType.title === 'Books')
+      const importedBooksAuthorColumn = importedBooksType
+        ? settingsService
+            .listColumns(importedBooksType.id)
+            .find((column) => column.name === 'author')
+        : undefined
+
+      expect(result).toEqual({
+        importedColumns: exportData.columns.length,
+        importedNotes: 2,
+        unmatchedFields: [],
+        updatedGeneralSettings: true,
+      })
+      expect(importedBooksType).toBeDefined()
+      expect(importedBooksAuthorColumn).toBeDefined()
       expect(
-        secondSettingsService
-          .listColumns()
-          .filter((column) => column.name === 'summary')
-      ).toHaveLength(1)
+        notesService
+          .listNotes()
+          .some((note) => note.noteTypeId === importedBooksType?.id)
+      ).toBe(true)
       expect(
-        secondSettingsService
-          .listColumns()
-          .find((column) => column.id === importedSummaryColumn.id)
-      ).toBeUndefined()
+        notesService
+          .listNotes()
+          .some(
+            (note) =>
+              importedBooksAuthorColumn &&
+              note.values[importedBooksAuthorColumn.id] === 'N. K. Jemisin'
+          )
+      ).toBe(true)
     } finally {
-      secondDatabaseService.close()
+      sourceDatabaseService.close()
     }
   })
 
-  it('appends imported custom columns in payload order when some names already exist', () => {
-    const summaryColumn = settingsService.createColumn({
+  it('imports JSON into a selected target note type and reports unmatched fields', () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const recipeSummaryColumn = settingsService.createColumn(recipes.id, {
       name: 'summary',
-      title: 'Summary',
-      type: ColumnTypeEnum.Text,
-    })
-    const ratingColumn = settingsService.createColumn({
-      name: 'rating',
-      title: 'Rating',
-      type: ColumnTypeEnum.Number,
-    })
-    const exportedData = exportImportService.exportData()
-
-    const secondDatabaseService = new DatabaseService({ filePath: ':memory:' })
-    secondDatabaseService.initialize()
-    const secondSettingsService = new SettingsService(
-      new ColumnsRepository(secondDatabaseService),
-      new GeneralSettingsRepository(secondDatabaseService)
-    )
-    secondSettingsService.onModuleInit()
-    const secondNotesService = new NotesService(
-      new NotesRepository(secondDatabaseService),
-      secondSettingsService
-    )
-    const secondExportImportService = new ExportImportService(
-      secondDatabaseService,
-      secondSettingsService,
-      secondNotesService
-    )
-    const existingSummaryColumn = secondSettingsService.createColumn({
-      name: 'summary',
-      title: 'Existing Summary',
-      type: ColumnTypeEnum.Text,
-    })
-
-    try {
-      secondExportImportService.importData(exportedData)
-
-      const importedColumns = secondSettingsService.listColumns()
-      const importedSummaryColumn = importedColumns.find(
-        (column) => column.name === 'summary'
-      )
-      const importedRatingColumn = importedColumns.find(
-        (column) => column.name === 'rating'
-      )
-
-      expect(importedSummaryColumn?.id).toBe(existingSummaryColumn.id)
-      expect(importedRatingColumn?.id).not.toBe(ratingColumn.id)
-      expect(importedSummaryColumn?.sortOrder).toBe(3)
-      expect(importedRatingColumn?.sortOrder).toBe(4)
-      expect(
-        new Set(importedColumns.map((column) => column.sortOrder)).size
-      ).toBe(importedColumns.length)
-    } finally {
-      secondDatabaseService.close()
-    }
-  })
-
-  it('preserves note values for columns that do not exist in the imported column config', () => {
-    const exportedData = exportImportService.exportData()
-
-    exportImportService.importData({
-      ...exportedData,
-      notes: [
-        {
-          id: 'first-orphan-note',
-          createdAt: '2026-07-07T10:00:00.000Z',
-          updatedAt: '2026-07-07T10:00:00.000Z',
-          values: { deletedColumnId: 'First orphan value' },
-        },
-        {
-          id: 'second-orphan-note',
-          createdAt: '2026-07-07T11:00:00.000Z',
-          updatedAt: '2026-07-07T11:00:00.000Z',
-          values: { deletedColumnId: 'Second orphan value' },
-        },
-      ],
-    })
-
-    const notes = notesService.listNotes()
-    const orphanColumnIds = notes.map((note) => Object.keys(note.values)[0])
-
-    expect(notes.map((note) => Object.values(note.values)[0])).toEqual([
-      'Second orphan value',
-      'First orphan value',
-    ])
-    expect(orphanColumnIds[0]).toBe(orphanColumnIds[1])
-    expect(orphanColumnIds[0]).not.toBe('deletedColumnId')
-  })
-
-  it('imports xlsx rows by matching existing columns, dropping unknown headers, and using system timestamps', async () => {
-    const harmonyLinkColumn = settingsService.createColumn({
-      name: 'harmonyLink',
-      title: 'Harmony Link',
+      title: 'Recipe summary',
       type: ColumnTypeEnum.Link,
     })
-    const titleColumn = settingsService.createColumn({
+
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const booksSummaryColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'summary',
+        title: 'Summary',
+        type: ColumnTypeEnum.Text,
+      })
+      const booksRatingColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'rating',
+        title: 'Rating',
+        type: ColumnTypeEnum.Number,
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: {
+          [booksSummaryColumn.id]: 'https://example.com/book',
+          [booksRatingColumn.id]: 5,
+        },
+      })
+
+      const exportData = sourceExportImportService.exportData()
+      const result = exportImportService.importData(exportData, {
+        targetNoteTypeId: recipes.id,
+      })
+      const importedRecipeNotes = notesService
+        .listNotes()
+        .filter((note) => note.noteTypeId === recipes.id)
+
+      expect(result.importedNotes).toBe(1)
+      expect(result.importedColumns).toBeGreaterThanOrEqual(1)
+      expect(result.unmatchedFields).toEqual([
+        {
+          name: 'rating',
+          noteTypeTitle: 'Books',
+          title: 'Rating',
+          type: ColumnTypeEnum.Number,
+        },
+      ])
+      expect(importedRecipeNotes).toHaveLength(1)
+      expect(importedRecipeNotes[0].values).toEqual({
+        [recipeSummaryColumn.id]: 'https://example.com/book',
+      })
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
+
+  it('imports xlsx rows into the selected target note type and reports unmatched headers', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const recipeTitleColumn = settingsService.createColumn(recipes.id, {
       name: 'title',
       title: 'Title',
       type: ColumnTypeEnum.Text,
     })
-    const importStartedAt = Date.now()
     const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
       const worksheet = workbook.addWorksheet('Import')
 
-      worksheet.addRow(['harmonyLink', 'title', 'missingColumn'])
-      worksheet.addRow(['https://example.com', 'Imported title', 'Ignored'])
-      worksheet.addRow(['', '', ''])
+      worksheet.addRow(['title', 'missingHeader'])
+      worksheet.addRow(['Imported title', 'Ignored'])
     })
 
     const result = await exportImportService.importSpreadsheetData(
-      spreadsheetBuffer
+      spreadsheetBuffer,
+      recipes.id
     )
-    const notes = notesService.listNotes()
-
-    expect(result).toEqual({
-      importedColumns: 2,
-      importedNotes: 1,
-      updatedGeneralSettings: false,
-    })
-    expect(notes).toHaveLength(1)
-    expect(notes[0].values).toEqual({
-      [harmonyLinkColumn.id]: 'https://example.com',
-      [titleColumn.id]: 'Imported title',
-    })
-    expect(Date.parse(notes[0].createdAt)).not.toBeNaN()
-    expect(Date.parse(notes[0].updatedAt)).not.toBeNaN()
-    expect(notes[0].createdAt).toBe(notes[0].updatedAt)
-    expect(new Date(notes[0].createdAt).getTime()).toBeGreaterThanOrEqual(
-      importStartedAt
-    )
-  })
-
-  it('imports embedded worksheet images into image note values', async () => {
-    const printscreenColumn = settingsService.createColumn({
-      name: 'printscreen',
-      title: 'Printscreen',
-      type: ColumnTypeEnum.Image,
-    })
-    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
-      const worksheet = workbook.addWorksheet('Import')
-      const imageId = workbook.addImage({
-        buffer: singlePixelPngBuffer,
-        extension: 'png',
-      })
-
-      worksheet.addRow(['printscreen'])
-      worksheet.addRow([''])
-      worksheet.addImage(imageId, 'A2:A2')
-    })
-
-    const result = await exportImportService.importSpreadsheetData(
-      spreadsheetBuffer
-    )
-    const importedNote = notesService.listNotes()[0]
-    const importedImage = importedNote.values[printscreenColumn.id]
+    const importedRecipeNotes = notesService
+      .listNotes()
+      .filter((note) => note.noteTypeId === recipes.id)
 
     expect(result).toEqual({
       importedColumns: 1,
       importedNotes: 1,
+      unmatchedFields: [
+        {
+          name: 'missingHeader',
+          noteTypeTitle: null,
+          title: null,
+          type: null,
+        },
+      ],
       updatedGeneralSettings: false,
     })
-    expect(importedImage).toMatchObject({
-      dataUrl: expect.stringMatching(/^data:image\/png;base64,/),
-      fileName: 'image1.png',
-      mimeType: 'image/png',
-      size: singlePixelPngBuffer.length,
+    expect(importedRecipeNotes).toHaveLength(1)
+    expect(importedRecipeNotes[0].values).toEqual({
+      [recipeTitleColumn.id]: 'Imported title',
     })
   })
 
-  it('rejects malformed payloads before importing data', () => {
+  it('skips targeted JSON notes when none of their fields match the selected target note type', () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const booksRatingColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'rating',
+        title: 'Rating',
+        type: ColumnTypeEnum.Number,
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: {
+          [booksRatingColumn.id]: 5,
+        },
+      })
+
+      const exportData = sourceExportImportService.exportData()
+      const result = exportImportService.importData(exportData, {
+        targetNoteTypeId: recipes.id,
+      })
+
+      expect(result).toEqual({
+        importedColumns: 4,
+        importedNotes: 0,
+        unmatchedFields: [
+          {
+            name: 'rating',
+            noteTypeTitle: 'Books',
+            title: 'Rating',
+            type: ColumnTypeEnum.Number,
+          },
+        ],
+        updatedGeneralSettings: true,
+      })
+      expect(notesService.listNotes()).toEqual([])
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
+  it('rejects malformed or legacy import payloads', () => {
+    const summaryColumn = settingsService.createColumn({
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+
+    notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+      values: { [summaryColumn.id]: 'Existing note' },
+    })
+
     const exportedData = exportImportService.exportData()
 
     expect(() => exportImportService.importData(null)).toThrow(
       BadRequestException
     )
     expect(() =>
-      exportImportService.importData({ ...exportedData, version: 2 })
+      exportImportService.importData({ ...exportedData, version: 1 })
     ).toThrow(BadRequestException)
-    expect(() =>
-      exportImportService.importData({ ...exportedData, columns: [] })
-    ).not.toThrow()
     expect(() =>
       exportImportService.importData({
         ...exportedData,
-        generalSettings: {
-          textTruncationLength: 0,
-          cardFieldDisplayCount: null,
-          mergeDateTimeFields: null,
-        },
+        noteTypes: {},
       })
     ).toThrow(BadRequestException)
     expect(() =>
       exportImportService.importData({
         ...exportedData,
-        columns: [
-          ...exportedData.columns,
-          {
-            ...exportedData.columns[0],
-          },
-        ],
-      })
-    ).toThrow(BadRequestException)
-  })
-
-  it('preserves mergeDateTimeFields during import', () => {
-    settingsService.updateGeneralSettings({
-      mergeDateTimeFields: true,
-    })
-    const exportedData = exportImportService.exportData()
-
-    settingsService.updateGeneralSettings({
-      mergeDateTimeFields: null,
-    })
-
-    exportImportService.importData(exportedData)
-
-    expect(settingsService.getGeneralSettings()).toEqual({
-      textTruncationLength: null,
-      cardFieldDisplayCount: null,
-      mergeDateTimeFields: true,
-    })
-  })
-
-  it('rolls back column and settings changes when import fails inside the transaction', () => {
-    const [createdAtColumn] = settingsService.listColumns()
-    const exportedData = exportImportService.exportData()
-    const importOnlyColumn = {
-      id: '11111111-1111-4111-8111-111111111111',
-      name: 'importOnly',
-      title: 'Import only',
-      type: ColumnTypeEnum.Text,
-      sortOrder: 4,
-      isHidden: false,
-      isDefault: false,
-      config: null,
-      createdAt: '2026-07-07T10:00:00.000Z',
-      updatedAt: '2026-07-07T10:00:00.000Z',
-    }
-
-    expect(() =>
-      exportImportService.importData({
-        ...exportedData,
-        columns: [importOnlyColumn],
-        generalSettings: {
-          textTruncationLength: 50,
-          cardFieldDisplayCount: 2,
-          mergeDateTimeFields: false,
-        },
         notes: [
           {
-            id: 'imported-note',
-            createdAt: '2026-07-07T10:00:00.000Z',
-            updatedAt: '2026-07-07T10:00:00.000Z',
-            values: { [createdAtColumn.id]: '2026-07-07T10:00:00.000Z' },
+            ...exportedData.notes[0],
+            noteTypeId: '',
           },
         ],
       })
     ).toThrow(BadRequestException)
-
-    expect(
-      settingsService
-        .listColumns()
-        .some((column) => column.name === 'importOnly')
-    ).toBe(false)
-    expect(settingsService.getGeneralSettings()).toEqual({
-      textTruncationLength: null,
-      cardFieldDisplayCount: null,
-      mergeDateTimeFields: null,
-    })
-    expect(notesService.listNotes()).toEqual([])
   })
 })
-
-
-

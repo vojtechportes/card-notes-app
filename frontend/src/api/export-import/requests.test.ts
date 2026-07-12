@@ -39,7 +39,8 @@ describe('export-import requests', () => {
           mergeDateTimeFields: null,
         },
         notes: [],
-        version: 1,
+        noteTypes: [],
+        version: 2,
       })
     )
     apiClientMock.get.mockReturnValue(response)
@@ -52,8 +53,8 @@ describe('export-import requests', () => {
     })
   })
 
-  it('imports app data as multipart form data', () => {
-    const file = new File(['{"version":1}'], 'backup.json', {
+  it('imports app data as multipart form data with an optional target note type id', () => {
+    const file = new File(['{"version":2}'], 'backup.json', {
       type: 'application/json',
     })
     const response = Promise.resolve(
@@ -61,16 +62,17 @@ describe('export-import requests', () => {
         importedColumns: 0,
         updatedGeneralSettings: true,
         importedNotes: 0,
+        unmatchedFields: [],
       })
     )
     apiClientMock.postForm.mockReturnValue(response)
 
-    const result = importData(file)
+    const result = importData(file, 'note-type-1')
 
     expect(result).toBe(response)
     expect(apiClientMock.postForm).toHaveBeenCalledWith(
       '/export-import/import',
-      { file }
+      { file, targetNoteTypeId: 'note-type-1' }
     )
   })
 })

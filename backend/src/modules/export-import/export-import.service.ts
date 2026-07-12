@@ -13,30 +13,46 @@ import type {
   NoteValues,
 } from '../notes/types/note-value'
 import { SettingsService } from '../settings/settings.service'
+import { defaultNoteColumns } from '../settings/constants/default-note-columns'
+import { areColumnTypesCompatible } from '../settings/utils/are-column-types-compatible.util'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
 import type { GeneralSettings } from '../settings/types/general-settings'
 import type { NoteColumn } from '../settings/types/note-column'
+import type { NoteType } from '../settings/types/note-type'
 import { ExportImportDataDto } from './types/export-import-data.dto'
+import type { ImportUnmatchedFieldDto } from './types/import-unmatched-field.dto'
 import { ImportResultDto } from './types/import-result.dto'
 
-const exportDataVersion = 1
+const exportDataVersion = 2
 
 interface ValidExportImportData {
   version: number
   exportedAt: string
+  noteTypes: NoteType[]
   columns: NoteColumn[]
   generalSettings: GeneralSettings
   notes: Note[]
 }
 
-interface ColumnImportMapping {
-  sourceColumnNamesById: Map<string, string>
-  targetColumnIdsByName: Map<string, string>
+interface ImportOptions {
+  targetNoteTypeId?: string
+}
+
+interface ColumnImportResult {
+  importedColumns: number
+  targetColumnIdsBySourceId: Map<string, string>
+  unmatchedFields: ImportUnmatchedFieldDto[]
+}
+
+interface ImportedNoteTypeResolution {
+  noteTypeIdBySourceId: Map<string, string>
+  noteTypeTitleBySourceId: Map<string, string>
 }
 
 interface ResolvedSpreadsheetImport {
   mappedColumnCount: number
   rows: NoteValues[]
+  unmatchedFields: ImportUnmatchedFieldDto[]
 }
 
 interface SpreadsheetWorkbookMedia {
@@ -60,16 +76,13 @@ export class ExportImportService {
   exportData(): ExportImportDataDto {
     const noteTypes = this.settingsService.listNoteTypes()
 
-    if (noteTypes.length > 1) {
-      throw new BadRequestException(
-        'Export supports only the default note type until Phase 7 export/import is implemented.'
-      )
-    }
-
     return {
       version: exportDataVersion,
       exportedAt: new Date().toISOString(),
-      columns: this.settingsService.listColumns(),
+      noteTypes,
+      columns: noteTypes.flatMap((noteType) =>
+        this.settingsService.listColumns(noteType.id)
+      ),
       generalSettings: this.settingsService.getGeneralSettings(),
       notes: this.notesService.listNotes({
         sortBy: NoteSortFieldEnum.CreatedAt,
@@ -78,29 +91,35 @@ export class ExportImportService {
     }
   }
 
-  importData(payload: unknown): ImportResultDto {
+  importData(payload: unknown, options: ImportOptions = {}): ImportResultDto {
     const data = this.resolveImportPayload(payload)
     const database = this.getDatabase()
     const importPayload = database.transaction(
       (importData: ValidExportImportData): ImportResultDto => {
-        const columnMapping = this.importColumnsWithFreshIds(importData.columns)
-
-        this.settingsService.updateGeneralSettings(importData.generalSettings)
-        this.appendNotesWithFreshIds(importData.notes, columnMapping)
-
-        return {
-          importedColumns: importData.columns.length,
-          importedNotes: importData.notes.length,
-          updatedGeneralSettings: true,
+        if (options.targetNoteTypeId) {
+          return this.importJsonIntoTargetNoteType(
+            importData,
+            options.targetNoteTypeId
+          )
         }
+
+        return this.importJsonPreservingNoteTypes(importData)
       }
     )
 
     return importPayload(data)
   }
 
-  async importSpreadsheetData(buffer: Buffer): Promise<ImportResultDto> {
-    const spreadsheetImport = await this.resolveSpreadsheetImport(buffer)
+  async importSpreadsheetData(
+    buffer: Buffer,
+    targetNoteTypeId: string
+  ): Promise<ImportResultDto> {
+    this.settingsService.getNoteType(targetNoteTypeId)
+
+    const spreadsheetImport = await this.resolveSpreadsheetImport(
+      buffer,
+      targetNoteTypeId
+    )
     const database = this.getDatabase()
     const importRows = database.transaction(
       (rows: NoteValues[], mappedColumnCount: number): ImportResultDto => {
@@ -112,7 +131,7 @@ export class ExportImportService {
           }
 
           this.notesService.createNote({
-            noteTypeId: this.settingsService.getDefaultNoteType().id,
+            noteTypeId: targetNoteTypeId,
             values,
           })
           importedNotes += 1
@@ -121,6 +140,7 @@ export class ExportImportService {
         return {
           importedColumns: mappedColumnCount,
           importedNotes,
+          unmatchedFields: spreadsheetImport.unmatchedFields,
           updatedGeneralSettings: false,
         }
       }
@@ -132,39 +152,370 @@ export class ExportImportService {
     )
   }
 
+  private importJsonPreservingNoteTypes(
+    data: ValidExportImportData
+  ): ImportResultDto {
+    const importedNoteTypes = this.importNoteTypes(data.noteTypes)
+    const columnImport = this.importColumnsPreservingNoteTypes(
+      data.columns,
+      importedNoteTypes
+    )
+
+    this.settingsService.updateGeneralSettings(data.generalSettings)
+
+    return {
+      importedColumns: columnImport.importedColumns,
+      importedNotes: this.appendImportedNotes(
+        data.notes,
+        columnImport.targetColumnIdsBySourceId,
+        (sourceNoteTypeId) => {
+          const targetNoteTypeId =
+            importedNoteTypes.noteTypeIdBySourceId.get(sourceNoteTypeId)
+
+          if (!targetNoteTypeId) {
+            throw new BadRequestException(
+              'Imported notes must reference a known note type.'
+            )
+          }
+
+          return targetNoteTypeId
+        }
+      ),
+      unmatchedFields: columnImport.unmatchedFields,
+      updatedGeneralSettings: true,
+    }
+  }
+
+  private importJsonIntoTargetNoteType(
+    data: ValidExportImportData,
+    targetNoteTypeId: string
+  ): ImportResultDto {
+    const targetNoteType = this.settingsService.getNoteType(targetNoteTypeId)
+    const noteTypeTitleBySourceId = new Map(
+      data.noteTypes.map((noteType) => [noteType.id, noteType.title])
+    )
+    const columnImport = this.createTargetedColumnMappings(
+      data.columns,
+      noteTypeTitleBySourceId,
+      targetNoteType
+    )
+
+    this.settingsService.updateGeneralSettings(data.generalSettings)
+
+    return {
+      importedColumns: columnImport.importedColumns,
+      importedNotes: this.appendImportedNotes(
+        data.notes,
+        columnImport.targetColumnIdsBySourceId,
+        () => targetNoteType.id,
+        true
+      ),
+      unmatchedFields: columnImport.unmatchedFields,
+      updatedGeneralSettings: true,
+    }
+  }
+
+  private importNoteTypes(noteTypes: NoteType[]): ImportedNoteTypeResolution {
+    const existingNoteTypesByTitle = new Map(
+      this.settingsService
+        .listNoteTypes()
+        .map((noteType) => [noteType.title, noteType])
+    )
+    const noteTypeIdBySourceId = new Map<string, string>()
+    const noteTypeTitleBySourceId = new Map<string, string>()
+
+    for (const noteType of noteTypes) {
+      const existingNoteType = existingNoteTypesByTitle.get(noteType.title)
+
+      if (existingNoteType) {
+        noteTypeIdBySourceId.set(noteType.id, existingNoteType.id)
+        noteTypeTitleBySourceId.set(noteType.id, existingNoteType.title)
+        continue
+      }
+
+      const importedNoteTypeId = uuidV4()
+
+      this.insertImportedNoteType(importedNoteTypeId, noteType)
+      this.insertDefaultColumnsForImportedNoteType(
+        importedNoteTypeId,
+        noteType.createdAt,
+        noteType.updatedAt
+      )
+      existingNoteTypesByTitle.set(noteType.title, {
+        ...noteType,
+        id: importedNoteTypeId,
+      })
+      noteTypeIdBySourceId.set(noteType.id, importedNoteTypeId)
+      noteTypeTitleBySourceId.set(noteType.id, noteType.title)
+    }
+
+    return {
+      noteTypeIdBySourceId,
+      noteTypeTitleBySourceId,
+    }
+  }
+
+  private importColumnsPreservingNoteTypes(
+    columns: NoteColumn[],
+    importedNoteTypes: ImportedNoteTypeResolution
+  ): ColumnImportResult {
+    const columnsBySourceNoteType = new Map<string, NoteColumn[]>()
+
+    for (const column of columns) {
+      const noteTypeColumns =
+        columnsBySourceNoteType.get(column.noteTypeId) ?? []
+
+      noteTypeColumns.push(column)
+      columnsBySourceNoteType.set(column.noteTypeId, noteTypeColumns)
+    }
+
+    const targetColumnIdsBySourceId = new Map<string, string>()
+    const unmatchedFields: ImportUnmatchedFieldDto[] = []
+    let importedColumns = 0
+
+    for (const [
+      sourceNoteTypeId,
+      sourceColumns,
+    ] of columnsBySourceNoteType.entries()) {
+      const targetNoteTypeId =
+        importedNoteTypes.noteTypeIdBySourceId.get(sourceNoteTypeId)
+
+      if (!targetNoteTypeId) {
+        throw new BadRequestException(
+          'Imported column note type was not found.'
+        )
+      }
+
+      const targetColumnsByName = new Map(
+        this.settingsService
+          .listColumns(targetNoteTypeId)
+          .map((column) => [column.name, column])
+      )
+      let nextSortOrder = this.getNextColumnSortOrder(targetNoteTypeId)
+      const orderedColumnIds: string[] = []
+
+      for (const column of this.sortColumnsForImport(sourceColumns)) {
+        const existingColumn = targetColumnsByName.get(column.name)
+
+        if (existingColumn) {
+          if (!this.canMapImportedColumn(existingColumn, column)) {
+            unmatchedFields.push(
+              this.createUnmatchedField(
+                column,
+                importedNoteTypes.noteTypeTitleBySourceId
+              )
+            )
+            continue
+          }
+
+          if (!this.isSystemTimestampColumn(existingColumn)) {
+            this.syncImportedColumn(existingColumn, column)
+          }
+
+          targetColumnIdsBySourceId.set(column.id, existingColumn.id)
+          orderedColumnIds.push(existingColumn.id)
+          importedColumns += 1
+          continue
+        }
+
+        if (column.isDefault) {
+          unmatchedFields.push(
+            this.createUnmatchedField(
+              column,
+              importedNoteTypes.noteTypeTitleBySourceId
+            )
+          )
+          continue
+        }
+
+        const importedColumnId = uuidV4()
+        const importedColumn: NoteColumn = {
+          ...column,
+          id: importedColumnId,
+          noteTypeId: targetNoteTypeId,
+          sortOrder: nextSortOrder,
+        }
+
+        this.insertImportedColumn(importedColumn)
+        nextSortOrder += 1
+
+        targetColumnsByName.set(importedColumn.name, importedColumn)
+        targetColumnIdsBySourceId.set(column.id, importedColumnId)
+        orderedColumnIds.push(importedColumnId)
+        importedColumns += 1
+      }
+
+      const remainingColumnIds = this.settingsService
+        .listColumns(targetNoteTypeId)
+        .map((column) => column.id)
+        .filter((columnId) => !orderedColumnIds.includes(columnId))
+
+      this.applyImportedColumnOrder([
+        ...orderedColumnIds,
+        ...remainingColumnIds,
+      ])
+    }
+
+    return {
+      importedColumns,
+      targetColumnIdsBySourceId,
+      unmatchedFields,
+    }
+  }
+
+  private createTargetedColumnMappings(
+    columns: NoteColumn[],
+    noteTypeTitleBySourceId: Map<string, string>,
+    targetNoteType: NoteType
+  ): ColumnImportResult {
+    const targetColumnsByName = new Map(
+      this.settingsService
+        .listColumns(targetNoteType.id)
+        .map((column) => [column.name, column])
+    )
+    const targetColumnIdsBySourceId = new Map<string, string>()
+    const unmatchedFields: ImportUnmatchedFieldDto[] = []
+    let importedColumns = 0
+
+    for (const column of this.sortColumnsForImport(columns)) {
+      const targetColumn = targetColumnsByName.get(column.name)
+
+      if (!targetColumn || !this.canMapImportedColumn(targetColumn, column)) {
+        unmatchedFields.push(
+          this.createUnmatchedField(column, noteTypeTitleBySourceId)
+        )
+        continue
+      }
+
+      targetColumnIdsBySourceId.set(column.id, targetColumn.id)
+      importedColumns += 1
+    }
+
+    return {
+      importedColumns,
+      targetColumnIdsBySourceId,
+      unmatchedFields,
+    }
+  }
+
+  private appendImportedNotes(
+    notes: Note[],
+    targetColumnIdsBySourceId: Map<string, string>,
+    resolveTargetNoteTypeId: (sourceNoteTypeId: string) => string,
+    skipEmptyNotes = false
+  ): number {
+    const targetColumnsById = new Map(
+      this.settingsService
+        .listNoteTypes()
+        .flatMap((noteType) => this.settingsService.listColumns(noteType.id))
+        .map((column) => [column.id, column])
+    )
+    let importedNotes = 0
+
+    for (const note of notes) {
+      const targetNoteTypeId = resolveTargetNoteTypeId(note.noteTypeId)
+      const values = this.resolveImportedNoteValues(
+        note.values,
+        targetColumnIdsBySourceId,
+        targetColumnsById
+      )
+
+      if (skipEmptyNotes && Object.keys(values).length === 0) {
+        continue
+      }
+
+      this.insertImportedNote(
+        uuidV4(),
+        targetNoteTypeId,
+        values,
+        note.createdAt,
+        note.updatedAt
+      )
+      importedNotes += 1
+    }
+
+    return importedNotes
+  }
+
+  private resolveImportedNoteValues(
+    values: NoteValues,
+    targetColumnIdsBySourceId: Map<string, string>,
+    targetColumnsById: Map<string, NoteColumn>
+  ): NoteValues {
+    const resolvedValues: NoteValues = {}
+
+    for (const [sourceColumnId, value] of Object.entries(values)) {
+      const targetColumnId = targetColumnIdsBySourceId.get(sourceColumnId)
+
+      if (!targetColumnId) {
+        continue
+      }
+
+      const targetColumn = targetColumnsById.get(targetColumnId)
+
+      if (!targetColumn) {
+        throw new BadRequestException('Imported target column was not found.')
+      }
+
+      if (this.isSystemTimestampColumn(targetColumn)) {
+        throw new BadRequestException(
+          'Imported note values cannot target system timestamp columns.'
+        )
+      }
+
+      this.ensureValueMatchesColumnType(value, targetColumn)
+      resolvedValues[targetColumnId] = value
+    }
+
+    return resolvedValues
+  }
+
   private async resolveSpreadsheetImport(
-    buffer: Buffer
+    buffer: Buffer,
+    targetNoteTypeId: string
   ): Promise<ResolvedSpreadsheetImport> {
     const workbook = new Workbook()
 
     try {
-      const workbookBuffer = buffer as unknown as Parameters<(typeof workbook.xlsx)['load']>[0]
+      const workbookBuffer = buffer as unknown as Parameters<
+        (typeof workbook.xlsx)['load']
+      >[0]
       await workbook.xlsx.load(workbookBuffer)
     } catch {
-      throw new BadRequestException('Import file must contain a valid XLSX workbook.')
+      throw new BadRequestException(
+        'Import file must contain a valid XLSX workbook.'
+      )
     }
 
     const worksheet = workbook.worksheets[0]
 
     if (!worksheet) {
-      throw new BadRequestException('XLSX import file must contain at least one worksheet.')
+      throw new BadRequestException(
+        'XLSX import file must contain at least one worksheet.'
+      )
     }
 
     const headerRow = worksheet.getRow(1)
-    const columnIndexes = Array.from({ length: worksheet.columnCount }, (_, index) => index + 1)
+    const columnIndexes = Array.from(
+      { length: worksheet.columnCount },
+      (_, index) => index + 1
+    )
 
     if (columnIndexes.length === 0) {
-      throw new BadRequestException('XLSX import file must contain a header row.')
+      throw new BadRequestException(
+        'XLSX import file must contain a header row.'
+      )
     }
 
     const existingColumnsByName = new Map(
       this.settingsService
-        .listColumns()
+        .listColumns(targetNoteTypeId)
         .filter((column) => !this.isSystemTimestampColumn(column))
         .map((column) => [column.name, column])
     )
     const mappedColumnsByIndex = new Map<number, NoteColumn>()
     const headerNames: string[] = []
+    const unmatchedFields: ImportUnmatchedFieldDto[] = []
 
     for (const columnIndex of columnIndexes) {
       const headerName = headerRow.getCell(columnIndex).text.trim()
@@ -179,7 +530,15 @@ export class ExportImportService {
 
       if (existingColumn) {
         mappedColumnsByIndex.set(columnIndex, existingColumn)
+        continue
       }
+
+      unmatchedFields.push({
+        name: headerName,
+        noteTypeTitle: null,
+        title: null,
+        type: null,
+      })
     }
 
     this.ensureUniqueValues(
@@ -216,6 +575,7 @@ export class ExportImportService {
     return {
       mappedColumnCount: mappedColumnsByIndex.size,
       rows,
+      unmatchedFields,
     }
   }
 
@@ -226,12 +586,13 @@ export class ExportImportService {
     const imagesByCellAddress = new Map<string, NoteImageValue>()
 
     const workbookMedia = workbook.model.media as unknown as
-      | SpreadsheetWorkbookMedia[]
-      | undefined
+      SpreadsheetWorkbookMedia[] | undefined
 
     for (const image of worksheet.getImages()) {
       const mediaIndex = Number(image.imageId)
-      const media = Number.isInteger(mediaIndex) ? workbookMedia?.[mediaIndex] : undefined
+      const media = Number.isInteger(mediaIndex)
+        ? workbookMedia?.[mediaIndex]
+        : undefined
       const imageValue = this.resolveWorksheetImageValue(media)
 
       if (!imageValue) {
@@ -348,7 +709,10 @@ export class ExportImportService {
     return cellText.trim()
   }
 
-  private resolveSpreadsheetTextValue(value: unknown, cellText: string): string {
+  private resolveSpreadsheetTextValue(
+    value: unknown,
+    cellText: string
+  ): string {
     if (typeof value === 'string') {
       return value.trim()
     }
@@ -364,7 +728,10 @@ export class ExportImportService {
     return cellText.trim()
   }
 
-  private resolveSpreadsheetLinkValue(value: unknown, cellText: string): string {
+  private resolveSpreadsheetLinkValue(
+    value: unknown,
+    cellText: string
+  ): string {
     if (
       value &&
       typeof value === 'object' &&
@@ -394,7 +761,9 @@ export class ExportImportService {
     const numericValue = Number(normalizedValue)
 
     if (!Number.isFinite(numericValue)) {
-      throw new BadRequestException('Number note values must be finite numbers.')
+      throw new BadRequestException(
+        'Number note values must be finite numbers.'
+      )
     }
 
     return numericValue
@@ -436,7 +805,9 @@ export class ExportImportService {
     const parsedDate = new Date(normalizedValue)
 
     if (Number.isNaN(parsedDate.getTime())) {
-      throw new BadRequestException('Date note values must be valid date strings.')
+      throw new BadRequestException(
+        'Date note values must be valid date strings.'
+      )
     }
 
     return parsedDate
@@ -454,7 +825,9 @@ export class ExportImportService {
       ? Date.UTC(1904, 0, 1)
       : Date.UTC(1899, 11, 30)
 
-    return new Date(baseDate + wholeDays * 24 * 60 * 60 * 1000 + millisecondsFromTime)
+    return new Date(
+      baseDate + wholeDays * 24 * 60 * 60 * 1000 + millisecondsFromTime
+    )
   }
 
   private resolveSpreadsheetImageCellValue(
@@ -486,152 +859,41 @@ export class ExportImportService {
     return { path: normalizedValue }
   }
 
-  private importColumnsWithFreshIds(
-    columns: NoteColumn[]
-  ): ColumnImportMapping {
-    const sourceColumnNamesById = new Map(
-      columns.map((column) => [column.id, column.name])
-    )
-    const targetColumnIdsByName = new Map<string, string>()
-    const existingByName = new Map(
-      this.settingsService.listColumns().map((column) => [column.name, column])
-    )
-    const defaultNoteTypeId = this.settingsService.getDefaultNoteType().id
-    let nextSortOrder = this.getNextColumnSortOrder()
-
-    for (const column of columns) {
-      const existingColumn = existingByName.get(column.name)
-
-      if (existingColumn) {
-        this.ensureExistingColumnCanAcceptImport(existingColumn, column)
-
-        if (this.isSystemTimestampColumn(existingColumn)) {
-          this.updateImportedColumn(existingColumn, column)
-        } else {
-          this.updateImportedColumn(existingColumn, {
-            ...column,
-            noteTypeId: defaultNoteTypeId,
-            sortOrder: nextSortOrder,
-          })
-          nextSortOrder += 1
-        }
-
-        targetColumnIdsByName.set(column.name, existingColumn.id)
-        continue
+  private sortColumnsForImport(columns: NoteColumn[]): NoteColumn[] {
+    return [...columns].sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder
       }
 
-      if (column.isDefault) {
-        throw new BadRequestException(
-          'Imported default columns must match existing default columns.'
-        )
-      }
-
-      const importedColumn = {
-        ...column,
-        id: uuidV4(),
-        noteTypeId: defaultNoteTypeId,
-        sortOrder: nextSortOrder,
-        isDefault: false,
-      }
-
-      nextSortOrder += 1
-      this.insertImportedColumn(importedColumn)
-      targetColumnIdsByName.set(column.name, importedColumn.id)
-      existingByName.set(column.name, importedColumn)
-    }
-
-    return { sourceColumnNamesById, targetColumnIdsByName }
+      return left.name.localeCompare(right.name)
+    })
   }
 
-  private appendNotesWithFreshIds(
-    notes: Note[],
-    columnMapping: ColumnImportMapping
-  ): void {
-    const orphanColumnIdMap = new Map<string, string>()
-    const defaultNoteTypeId = this.settingsService.getDefaultNoteType().id
-
-    for (const note of notes) {
-      const noteId = uuidV4()
-      const values = this.resolveImportedNoteValues(
-        note.values,
-        columnMapping,
-        orphanColumnIdMap
-      )
-
-      this.insertImportedNote(
-        noteId,
-        defaultNoteTypeId,
-        values,
-        note.createdAt,
-        note.updatedAt
-      )
+  private canMapImportedColumn(
+    targetColumn: NoteColumn,
+    importedColumn: NoteColumn
+  ): boolean {
+    if (this.isSystemTimestampColumn(targetColumn)) {
+      return this.isImportedSystemDefaultColumn(importedColumn)
     }
+
+    if (importedColumn.isDefault) {
+      return false
+    }
+
+    return areColumnTypesCompatible(importedColumn.type, targetColumn.type)
   }
 
-  private resolveImportedNoteValues(
-    values: NoteValues,
-    columnMapping: ColumnImportMapping,
-    orphanColumnIdMap: Map<string, string>
-  ): NoteValues {
-    const resolvedValues: NoteValues = {}
-    const columnsById = new Map(
-      this.settingsService.listColumns().map((column) => [column.id, column])
-    )
-
-    for (const [sourceColumnId, value] of Object.entries(values)) {
-      const sourceColumnName =
-        columnMapping.sourceColumnNamesById.get(sourceColumnId)
-      const mappedColumnId = sourceColumnName
-        ? columnMapping.targetColumnIdsByName.get(sourceColumnName)
-        : undefined
-      const targetColumnId =
-        mappedColumnId ??
-        this.resolveOrphanColumnId(
-          sourceColumnId,
-          columnsById,
-          orphanColumnIdMap
-        )
-      const targetColumn = columnsById.get(targetColumnId)
-
-      if (targetColumn) {
-        if (this.isSystemTimestampColumn(targetColumn)) {
-          throw new BadRequestException(
-            'Imported note values cannot target system timestamp columns.'
-          )
-        }
-
-        this.ensureValueMatchesColumnType(value, targetColumn)
-      } else {
-        this.ensureOrphanValueIsImportable(value)
-      }
-
-      resolvedValues[targetColumnId] = value
+  private createUnmatchedField(
+    column: NoteColumn,
+    noteTypeTitleBySourceId: Map<string, string>
+  ): ImportUnmatchedFieldDto {
+    return {
+      name: column.name,
+      noteTypeTitle: noteTypeTitleBySourceId.get(column.noteTypeId) ?? null,
+      title: column.title,
+      type: column.type,
     }
-
-    return resolvedValues
-  }
-
-  private resolveOrphanColumnId(
-    sourceColumnId: string,
-    columnsById: Map<string, NoteColumn>,
-    orphanColumnIdMap: Map<string, string>
-  ): string {
-    const existingColumn = columnsById.get(sourceColumnId)
-
-    if (existingColumn && this.isSystemTimestampColumn(existingColumn)) {
-      return existingColumn.id
-    }
-
-    const existingOrphanColumnId = orphanColumnIdMap.get(sourceColumnId)
-
-    if (existingOrphanColumnId) {
-      return existingOrphanColumnId
-    }
-
-    const orphanColumnId = uuidV4()
-    orphanColumnIdMap.set(sourceColumnId, orphanColumnId)
-
-    return orphanColumnId
   }
 
   private resolveImportPayload(payload: unknown): ValidExportImportData {
@@ -643,6 +905,12 @@ export class ExportImportService {
 
     this.ensureIsoDateString(payload.exportedAt, 'Export timestamp')
 
+    if (!Array.isArray(payload.noteTypes)) {
+      throw new BadRequestException(
+        'Import payload note types must be an array.'
+      )
+    }
+
     if (!Array.isArray(payload.columns)) {
       throw new BadRequestException('Import payload columns must be an array.')
     }
@@ -651,6 +919,9 @@ export class ExportImportService {
       throw new BadRequestException('Import payload notes must be an array.')
     }
 
+    const noteTypes = payload.noteTypes.map((noteType) =>
+      this.resolveImportedNoteType(noteType)
+    )
     const columns = payload.columns.map((column) =>
       this.resolveImportedColumn(column)
     )
@@ -658,31 +929,64 @@ export class ExportImportService {
     const generalSettings = this.resolveGeneralSettings(payload.generalSettings)
 
     this.ensureUniqueValues(
+      noteTypes.map((noteType) => noteType.id),
+      'Imported note type ids must be unique.'
+    )
+    this.ensureUniqueValues(
+      noteTypes.map((noteType) => noteType.title),
+      'Imported note type titles must be unique.'
+    )
+    this.ensureUniqueValues(
       columns.map((column) => column.id),
       'Imported column ids must be unique.'
     )
     this.ensureUniqueValues(
-      columns.map((column) => column.name),
-      'Imported column names must be unique.'
+      columns.map((column) => `${column.noteTypeId}:${column.name}`),
+      'Imported column names must be unique within each note type.'
     )
     this.ensureUniqueValues(
       notes.map((note) => note.id),
       'Imported note ids must be unique.'
     )
+    this.ensureColumnsBelongToKnownNoteTypes(noteTypes, columns)
+    this.ensureNotesBelongToKnownNoteTypes(noteTypes, notes)
     this.ensureNoteValuesMatchImport(columns, notes)
 
     return {
       version: payload.version,
       exportedAt: payload.exportedAt,
+      noteTypes,
       columns,
       generalSettings,
       notes,
     }
   }
 
+  private resolveImportedNoteType(value: unknown): NoteType {
+    this.ensureRecord(value, 'Imported note type must be an object.')
+    this.ensureRequiredString(value.id, 'Imported note type id')
+    this.ensureRequiredString(value.title, 'Imported note type title')
+    this.ensureIsoDateString(
+      value.createdAt,
+      'Imported note type created timestamp'
+    )
+    this.ensureIsoDateString(
+      value.updatedAt,
+      'Imported note type updated timestamp'
+    )
+
+    return {
+      id: value.id,
+      title: value.title.trim(),
+      createdAt: value.createdAt,
+      updatedAt: value.updatedAt,
+    }
+  }
+
   private resolveImportedColumn(value: unknown): NoteColumn {
     this.ensureRecord(value, 'Imported column must be an object.')
     this.ensureRequiredString(value.id, 'Imported column id')
+    this.ensureRequiredString(value.noteTypeId, 'Imported column note type id')
     this.ensureRequiredString(value.name, 'Imported column name')
     this.ensureRequiredString(value.title, 'Imported column title')
     this.ensureValidColumnType(value.type)
@@ -701,10 +1005,7 @@ export class ExportImportService {
 
     return {
       id: value.id,
-      noteTypeId:
-        typeof value.noteTypeId === 'string' && value.noteTypeId.trim()
-          ? value.noteTypeId
-          : this.settingsService.getDefaultNoteType().id,
+      noteTypeId: value.noteTypeId.trim(),
       name: value.name.trim(),
       title: value.title.trim(),
       type: value.type,
@@ -720,6 +1021,7 @@ export class ExportImportService {
   private resolveImportedNote(value: unknown): Note {
     this.ensureRecord(value, 'Imported note must be an object.')
     this.ensureRequiredString(value.id, 'Imported note id')
+    this.ensureRequiredString(value.noteTypeId, 'Imported note note type id')
     this.ensureIsoDateString(value.createdAt, 'Imported note created timestamp')
     this.ensureIsoDateString(value.updatedAt, 'Imported note updated timestamp')
     this.ensureRecord(
@@ -740,10 +1042,7 @@ export class ExportImportService {
 
     return {
       id: value.id,
-      noteTypeId:
-        typeof value.noteTypeId === 'string' && value.noteTypeId.trim()
-          ? value.noteTypeId
-          : this.settingsService.getDefaultNoteType().id,
+      noteTypeId: value.noteTypeId.trim(),
       values,
       createdAt: value.createdAt,
       updatedAt: value.updatedAt,
@@ -782,6 +1081,36 @@ export class ExportImportService {
     }
   }
 
+  private ensureColumnsBelongToKnownNoteTypes(
+    noteTypes: NoteType[],
+    columns: NoteColumn[]
+  ): void {
+    const noteTypeIds = new Set(noteTypes.map((noteType) => noteType.id))
+
+    for (const column of columns) {
+      if (!noteTypeIds.has(column.noteTypeId)) {
+        throw new BadRequestException(
+          'Imported columns must reference known imported note types.'
+        )
+      }
+    }
+  }
+
+  private ensureNotesBelongToKnownNoteTypes(
+    noteTypes: NoteType[],
+    notes: Note[]
+  ): void {
+    const noteTypeIds = new Set(noteTypes.map((noteType) => noteType.id))
+
+    for (const note of notes) {
+      if (!noteTypeIds.has(note.noteTypeId)) {
+        throw new BadRequestException(
+          'Imported notes must reference known imported note types.'
+        )
+      }
+    }
+  }
+
   private ensureNoteValuesMatchImport(
     columns: NoteColumn[],
     notes: Note[]
@@ -793,8 +1122,15 @@ export class ExportImportService {
         const column = columnsById.get(columnId)
 
         if (!column) {
-          this.ensureOrphanValueIsImportable(value)
-          continue
+          throw new BadRequestException(
+            'Imported note values must reference imported columns.'
+          )
+        }
+
+        if (column.noteTypeId !== note.noteTypeId) {
+          throw new BadRequestException(
+            'Imported note values must belong to fields owned by the note type.'
+          )
         }
 
         if (this.isSystemTimestampColumn(column)) {
@@ -808,32 +1144,41 @@ export class ExportImportService {
     }
   }
 
-  private ensureExistingColumnCanAcceptImport(
-    existingColumn: NoteColumn,
-    importedColumn: NoteColumn
+  private insertImportedNoteType(id: string, noteType: NoteType): void {
+    this.getDatabase()
+      .prepare(
+        `
+        INSERT INTO note_types (id, title, created_at, updated_at)
+        VALUES (@id, @title, @createdAt, @updatedAt)
+      `
+      )
+      .run({
+        id,
+        title: noteType.title,
+        createdAt: noteType.createdAt,
+        updatedAt: noteType.updatedAt,
+      })
+  }
+
+  private insertDefaultColumnsForImportedNoteType(
+    noteTypeId: string,
+    createdAt: string,
+    updatedAt: string
   ): void {
-    if (existingColumn.type !== importedColumn.type) {
-      throw new BadRequestException(
-        'Imported column type conflicts with an existing column.'
-      )
-    }
-
-    if (
-      this.isSystemTimestampColumn(existingColumn) &&
-      !this.isImportedSystemDefaultColumn(importedColumn)
-    ) {
-      throw new BadRequestException(
-        'Imported default column identity does not match the existing default column.'
-      )
-    }
-
-    if (
-      !this.isSystemTimestampColumn(existingColumn) &&
-      importedColumn.isDefault
-    ) {
-      throw new BadRequestException(
-        'Imported default columns must match existing default columns.'
-      )
+    for (const column of defaultNoteColumns) {
+      this.insertImportedColumn({
+        id: uuidV4(),
+        noteTypeId,
+        name: column.name,
+        title: column.title,
+        type: column.type,
+        sortOrder: column.sortOrder,
+        isHidden: false,
+        isDefault: true,
+        config: null,
+        createdAt,
+        updatedAt,
+      })
     }
   }
 
@@ -883,7 +1228,7 @@ export class ExportImportService {
       })
   }
 
-  private updateImportedColumn(
+  private syncImportedColumn(
     existingColumn: NoteColumn,
     importedColumn: NoteColumn
   ): void {
@@ -892,7 +1237,6 @@ export class ExportImportService {
         `
         UPDATE note_columns
         SET title = @title,
-            sort_order = @sortOrder,
             is_hidden = @isHidden,
             config_json = @configJson,
             updated_at = @updatedAt
@@ -902,7 +1246,6 @@ export class ExportImportService {
       .run({
         id: existingColumn.id,
         title: importedColumn.title,
-        sortOrder: importedColumn.sortOrder,
         isHidden: importedColumn.isHidden ? 1 : 0,
         configJson: importedColumn.config
           ? JSON.stringify(importedColumn.config)
@@ -942,14 +1285,22 @@ export class ExportImportService {
     }
   }
 
-  private getNextColumnSortOrder(): number {
+  private applyImportedColumnOrder(columnIds: string[]): void {
+    columnIds.forEach((columnId, index) => {
+      this.getDatabase()
+        .prepare(
+          'UPDATE note_columns SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        )
+        .run(index, columnId)
+    })
+  }
+
+  private getNextColumnSortOrder(noteTypeId: string): number {
     const row = this.getDatabase()
       .prepare(
         'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ?'
       )
-      .get(this.settingsService.getDefaultNoteType().id) as
-      | { sort_order: number }
-      | undefined
+      .get(noteTypeId) as { sort_order: number } | undefined
 
     return row?.sort_order ?? 0
   }
@@ -1011,10 +1362,6 @@ export class ExportImportService {
     throw new BadRequestException(
       'Imported note values must be strings, finite numbers, or image metadata objects.'
     )
-  }
-
-  private ensureOrphanValueIsImportable(value: NoteValue): void {
-    this.ensureImportableNoteValue(value)
   }
 
   private isValidImageValue(value: unknown): value is NoteImageValue {
@@ -1154,6 +1501,3 @@ export class ExportImportService {
     return this.databaseService.getConnection()
   }
 }
-
-
-

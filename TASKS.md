@@ -336,7 +336,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Add an advanced filter entry point that can filter by note type in the first implementation.
   - Keep advanced field-level filtering out of scope for the first note-types slice, but leave room to add it later.
 
-- [ ] T76. Import/export support for note types
+- [x] T76. Import/export support for note types
   - Export note types, fields with `noteTypeId`, notes with `noteTypeId`, general settings, and note data.
   - Use the Phase 7 export/import format only; older pre-release export formats do not need compatibility support.
   - Let the user choose which note type imported note data should target.
@@ -374,3 +374,4 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+
