@@ -20,6 +20,17 @@ interface NoteValueRow {
   value_json: string | null
 }
 
+interface MoveNotesToTypeOptions {
+  fieldMappings: Array<{
+    sourceColumnId: string
+    targetColumnId: string
+  }>
+  sourceColumnIds: string[]
+  sourceNoteTypeId: string
+  targetNoteTypeId: string
+  timestamp: string
+}
+
 @Injectable()
 export class NotesRepository {
   constructor(
@@ -131,6 +142,82 @@ export class NotesRepository {
 
   deleteAll(): number {
     return this.getDatabase().prepare('DELETE FROM notes').run().changes
+  }
+
+  deleteByNoteTypeId(noteTypeId: string): number {
+    return this.getDatabase()
+      .prepare('DELETE FROM notes WHERE note_type_id = ?')
+      .run(noteTypeId).changes
+  }
+
+  moveNotesToType(options: MoveNotesToTypeOptions): number {
+    const database = this.getDatabase()
+    const noteIds = (
+      database
+        .prepare('SELECT id FROM notes WHERE note_type_id = ? ORDER BY id ASC')
+        .all(options.sourceNoteTypeId) as Array<{ id: string }>
+    ).map((row) => row.id)
+
+    if (noteIds.length === 0) {
+      return 0
+    }
+
+    const noteIdPlaceholders = noteIds.map(() => '?').join(', ')
+    const copyMappedValues = database.transaction(() => {
+      for (const fieldMapping of options.fieldMappings) {
+        database
+          .prepare(
+            `
+            INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
+            SELECT note_id, ?, value_json, ?, ?
+            FROM note_values
+            WHERE note_id IN (${noteIdPlaceholders})
+              AND column_id = ?
+            ON CONFLICT(note_id, column_id) DO UPDATE SET
+              value_json = excluded.value_json,
+              updated_at = excluded.updated_at
+          `
+          )
+          .run(
+            fieldMapping.targetColumnId,
+            options.timestamp,
+            options.timestamp,
+            ...noteIds,
+            fieldMapping.sourceColumnId
+          )
+      }
+
+      database
+        .prepare(
+          `
+          UPDATE notes
+          SET note_type_id = ?,
+              updated_at = ?
+          WHERE id IN (${noteIdPlaceholders})
+        `
+        )
+        .run(options.targetNoteTypeId, options.timestamp, ...noteIds)
+
+      if (options.sourceColumnIds.length > 0) {
+        const sourceColumnPlaceholders = options.sourceColumnIds
+          .map(() => '?')
+          .join(', ')
+
+        database
+          .prepare(
+            `
+            DELETE FROM note_values
+            WHERE note_id IN (${noteIdPlaceholders})
+              AND column_id IN (${sourceColumnPlaceholders})
+          `
+          )
+          .run(...noteIds, ...options.sourceColumnIds)
+      }
+    })
+
+    copyMappedValues()
+
+    return noteIds.length
   }
 
   deleteValuesForColumn(columnId: string): number {

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { NotesRepository } from '../notes/notes.repository'
 import { DatabaseModule } from '../database/database.module'
 import { ColumnsRepository } from './columns.repository'
 import { GeneralSettingsRepository } from './general-settings.repository'
@@ -13,6 +14,7 @@ import { SettingsService } from './settings.service'
     ColumnsRepository,
     GeneralSettingsRepository,
     NoteTypesRepository,
+    NotesRepository,
     SettingsService,
   ],
   exports: [SettingsService],

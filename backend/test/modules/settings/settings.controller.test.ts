@@ -1,12 +1,16 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
-import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
+import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
+import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
+import { NoteTypesRepository } from '../../../src/modules/settings/note-types.repository'
 import { SettingsController } from '../../../src/modules/settings/settings.controller'
 import { SettingsService } from '../../../src/modules/settings/settings.service'
 import { ColumnDeleteModeEnum } from '../../../src/modules/settings/types/column-delete-mode-enum'
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum'
+import { DeleteNoteTypeModeEnum } from '../../../src/modules/settings/types/delete-note-type-mode-enum'
 
 let databaseService: DatabaseService
 let settingsController: SettingsController
@@ -26,7 +30,9 @@ beforeEach(() => {
 
   const settingsService = new SettingsService(
     new ColumnsRepository(databaseService),
-    new GeneralSettingsRepository(databaseService)
+    new GeneralSettingsRepository(databaseService),
+    new NoteTypesRepository(databaseService),
+    new NotesRepository(databaseService)
   )
   settingsService.onModuleInit()
   settingsController = new SettingsController(settingsService)
@@ -37,13 +43,52 @@ afterEach(() => {
 })
 
 describe(SettingsController.name, () => {
-  it('creates, lists, updates, hides, and reorders columns through the API surface', () => {
-    const summaryColumn = settingsController.createColumn({
+  it('lists, creates, updates, and deletes note types through the API surface', () => {
+    expect(settingsController.listNoteTypes()).toEqual([
+      expect.objectContaining({ title: 'Default' }),
+    ])
+
+    const books = settingsController.createNoteType({ title: 'Books' })
+
+    expect(settingsController.getNoteType(books.id)).toEqual(
+      expect.objectContaining({
+        id: books.id,
+        title: 'Books',
+        columns: [
+          expect.objectContaining({ name: 'createdAt' }),
+          expect.objectContaining({ name: 'updatedAt' }),
+        ],
+      })
+    )
+
+    expect(
+      settingsController.updateNoteType(books.id, { title: 'Reading' })
+    ).toEqual(
+      expect.objectContaining({
+        id: books.id,
+        title: 'Reading',
+      })
+    )
+
+    expect(
+      settingsController.deleteNoteType(books.id, {
+        mode: DeleteNoteTypeModeEnum.DeleteNotes,
+      })
+    ).toEqual({
+      deletedNoteTypeId: books.id,
+      deletedNotesCount: 0,
+      movedNotesCount: 0,
+    })
+  })
+
+  it('creates, lists, updates, hides, reorders, and deletes scoped columns', () => {
+    const noteTypeId = getDefaultNoteTypeId()
+    const summaryColumn = settingsController.createColumn(noteTypeId, {
       name: 'summary',
       title: 'Summary',
       type: ColumnTypeEnum.Text,
     })
-    const ratingColumn = settingsController.createColumn({
+    const ratingColumn = settingsController.createColumn(noteTypeId, {
       name: 'rating',
       title: 'Rating',
       type: ColumnTypeEnum.Number,
@@ -51,10 +96,10 @@ describe(SettingsController.name, () => {
     })
 
     expect(
-      settingsController.listColumns().map((column) => column.name)
+      settingsController.listColumns(noteTypeId).map((column) => column.name)
     ).toEqual(['createdAt', 'updatedAt', 'summary', 'rating'])
 
-    const updatedColumn = settingsController.updateColumn(summaryColumn.id, {
+    const updatedColumn = settingsController.updateColumn(noteTypeId, summaryColumn.id, {
       title: 'Summary text',
       isHidden: true,
       config: { multiline: true },
@@ -70,11 +115,11 @@ describe(SettingsController.name, () => {
     )
 
     const defaultColumns = settingsController
-      .listColumns()
+      .listColumns(noteTypeId)
       .filter((column) => column.isDefault)
     expect(
       settingsController
-        .reorderColumns({
+        .reorderColumns(noteTypeId, {
           columnIds: [
             ratingColumn.id,
             summaryColumn.id,
@@ -89,12 +134,27 @@ describe(SettingsController.name, () => {
       defaultColumns[1].id,
       defaultColumns[0].id,
     ])
+
+    settingsController.deleteColumn(noteTypeId, ratingColumn.id, {
+      deleteMode: ColumnDeleteModeEnum.DefinitionAndValues,
+    })
+
+    expect(
+      settingsController.listColumns(noteTypeId).map((column) => column.id)
+    ).not.toContain(ratingColumn.id)
   })
 
-  it('deletes columns with definition-only mode by default', () => {
-    const column = settingsController.createColumn({
-      name: 'sourceUrl',
-      title: 'Source URL',
+  it('supports move-notes deletion payloads with explicit mappings', () => {
+    const source = settingsController.createNoteType({ title: 'Books' })
+    const target = settingsController.createNoteType({ title: 'Movies' })
+    const sourceSummary = settingsController.createColumn(source.id, {
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+    const targetSummary = settingsController.createColumn(target.id, {
+      name: 'summary',
+      title: 'Summary',
       type: ColumnTypeEnum.Link,
     })
 
@@ -103,142 +163,120 @@ describe(SettingsController.name, () => {
       .prepare(
         'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run(
-        'note-1',
-        getDefaultNoteTypeId(),
-        '2026-07-07T10:00:00.000Z',
-        '2026-07-07T10:00:00.000Z'
-      )
+      .run('note-1', source.id, '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')
     databaseService
       .getConnection()
       .prepare(
-        'INSERT INTO note_values (note_id, column_id, value_json) VALUES (?, ?, ?)'
-      )
-      .run('note-1', column.id, JSON.stringify('https://example.com'))
-
-    settingsController.deleteColumn(column.id)
-
-    const remainingValues = databaseService
-      .getConnection()
-      .prepare('SELECT COUNT(*) as count FROM note_values WHERE column_id = ?')
-      .get(column.id) as {
-      count: number
-    }
-    expect(remainingValues.count).toBe(1)
-  })
-
-  it('deletes column note values when requested through delete mode', () => {
-    const column = settingsController.createColumn({
-      name: 'rating',
-      title: 'Rating',
-      type: ColumnTypeEnum.Number,
-    })
-
-    databaseService
-      .getConnection()
-      .prepare(
-        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
+        'INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
       )
       .run(
         'note-1',
-        getDefaultNoteTypeId(),
+        sourceSummary.id,
+        JSON.stringify('Mapped value'),
         '2026-07-07T10:00:00.000Z',
         '2026-07-07T10:00:00.000Z'
       )
-    databaseService
-      .getConnection()
-      .prepare(
-        'INSERT INTO note_values (note_id, column_id, value_json) VALUES (?, ?, ?)'
-      )
-      .run('note-1', column.id, JSON.stringify(7))
-
-    settingsController.deleteColumn(column.id, {
-      deleteMode: ColumnDeleteModeEnum.DefinitionAndValues,
-    })
-
-    const remainingValues = databaseService
-      .getConnection()
-      .prepare('SELECT COUNT(*) as count FROM note_values WHERE column_id = ?')
-      .get(column.id) as {
-      count: number
-    }
-    expect(remainingValues.count).toBe(0)
-  })
-
-  it('gets and updates general settings through the API surface', () => {
-    expect(settingsController.getGeneralSettings()).toEqual({
-      textTruncationLength: null,
-      cardFieldDisplayCount: null,
-      mergeDateTimeFields: null,
-    })
 
     expect(
-      settingsController.updateGeneralSettings({
-        textTruncationLength: 80,
-        cardFieldDisplayCount: 3,
-        mergeDateTimeFields: true,
+      settingsController.deleteNoteType(source.id, {
+        mode: DeleteNoteTypeModeEnum.MoveNotes,
+        targetNoteTypeId: target.id,
+        fieldMappings: [
+          {
+            sourceColumnId: sourceSummary.id,
+            targetColumnId: targetSummary.id,
+          },
+        ],
       })
     ).toEqual({
-      textTruncationLength: 80,
-      cardFieldDisplayCount: 3,
-      mergeDateTimeFields: true,
-    })
-    expect(
-      settingsController.updateGeneralSettings({ cardFieldDisplayCount: null })
-    ).toEqual({
-      textTruncationLength: 80,
-      cardFieldDisplayCount: null,
-      mergeDateTimeFields: true,
+      deletedNoteTypeId: source.id,
+      deletedNotesCount: 0,
+      movedNotesCount: 1,
+      targetNoteTypeId: target.id,
     })
   })
 
-  it('rejects malformed settings request payloads and query values', () => {
-    const [defaultColumn] = settingsController.listColumns()
+  it('validates malformed note type and scoped column payloads', () => {
+    const noteTypeId = getDefaultNoteTypeId()
+    const [defaultColumn] = settingsController.listColumns(noteTypeId)
 
-    expect(() => settingsController.createColumn(null as never)).toThrow(
+    expect(() => settingsController.createNoteType(null as never)).toThrow(
       BadRequestException
     )
     expect(() =>
-      settingsController.createColumn({
+      settingsController.createNoteType({ title: 1 as never })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.updateNoteType(noteTypeId, [] as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.deleteNoteType(noteTypeId, {
+        mode: 'archive' as DeleteNoteTypeModeEnum,
+      })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.deleteNoteType(noteTypeId, {
+        mode: DeleteNoteTypeModeEnum.MoveNotes,
+        fieldMappings: {} as never,
+      })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.createColumn(noteTypeId, {
         name: 'summary',
         title: 'Summary',
         type: 'unsupported' as ColumnTypeEnum,
       })
     ).toThrow(BadRequestException)
     expect(() =>
-      settingsController.createColumn({
-        name: 1 as never,
-        title: 'Summary',
-        type: ColumnTypeEnum.Text,
+      settingsController.updateColumn(noteTypeId, defaultColumn.id, [] as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.reorderColumns(noteTypeId, {
+        columnIds: ['one', 2 as never],
       })
     ).toThrow(BadRequestException)
     expect(() =>
-      settingsController.updateColumn(defaultColumn.id, [] as never)
-    ).toThrow(BadRequestException)
-    expect(() =>
-      settingsController.reorderColumns({ columnIds: ['one', 2 as never] })
-    ).toThrow(BadRequestException)
-    expect(() =>
-      settingsController.deleteColumn(defaultColumn.id, {
+      settingsController.deleteColumn(noteTypeId, defaultColumn.id, {
         deleteMode: 'everything' as ColumnDeleteModeEnum,
       })
     ).toThrow(BadRequestException)
-    expect(() =>
-      settingsController.updateGeneralSettings({
-        textTruncationLength: 'many' as never,
-      })
-    ).toThrow(BadRequestException)
-    expect(() =>
-      settingsController.updateGeneralSettings({ cardFieldDisplayCount: -1 })
-    ).toThrow(BadRequestException)
   })
 
-  it('throws when updating or deleting unknown columns', () => {
-    expect(() =>
-      settingsController.updateColumn('missing-column-id', { title: 'Missing' })
-    ).toThrow(NotFoundException)
-    expect(() => settingsController.deleteColumn('missing-column-id')).toThrow(
+  it('throws when updating or deleting unknown note types or columns', () => {
+    const noteTypeId = getDefaultNoteTypeId()
+
+    expect(() => settingsController.getNoteType('missing-note-type-id')).toThrow(
       NotFoundException
+    )
+    expect(() =>
+      settingsController.updateNoteType('missing-note-type-id', { title: 'Missing' })
+    ).toThrow(NotFoundException)
+    expect(() =>
+      settingsController.updateColumn(noteTypeId, 'missing-column-id', {
+        title: 'Missing',
+      })
+    ).toThrow(NotFoundException)
+    expect(() =>
+      settingsController.deleteColumn(noteTypeId, 'missing-column-id')
+    ).toThrow(NotFoundException)
+  })
+
+  it('does not expose the legacy unscoped /settings/columns route paths on the controller', () => {
+    const prototype = SettingsController.prototype as Record<string, unknown>
+    const routePaths = Object.getOwnPropertyNames(prototype)
+      .filter((name) => name !== 'constructor')
+      .map((name) => ({
+        method: Reflect.getMetadata(METHOD_METADATA, prototype[name]),
+        path: Reflect.getMetadata(PATH_METADATA, prototype[name]),
+      }))
+      .filter((route) => route.method && route.path)
+
+    expect(routePaths).not.toContainEqual(
+      expect.objectContaining({ path: 'columns' })
+    )
+    expect(routePaths).toContainEqual(
+      expect.objectContaining({ path: 'note-types/:noteTypeId/columns' })
     )
   })
 })
+

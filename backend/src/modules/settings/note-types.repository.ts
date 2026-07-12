@@ -33,8 +33,24 @@ export class NoteTypesRepository {
     return row ? this.mapNoteTypeRow(row) : undefined
   }
 
+  findByTitle(title: string): NoteType | undefined {
+    const row = this.getDatabase()
+      .prepare('SELECT * FROM note_types WHERE title = ?')
+      .get(title) as NoteTypeRow | undefined
+
+    return row ? this.mapNoteTypeRow(row) : undefined
+  }
+
   findPreferred(): NoteType | undefined {
     return this.findByTitle(defaultNoteTypeTitle) ?? this.findFirst()
+  }
+
+  count(): number {
+    const row = this.getDatabase()
+      .prepare('SELECT COUNT(*) as count FROM note_types')
+      .get() as { count: number }
+
+    return row.count
   }
 
   ensureDefaultExists(): NoteType {
@@ -50,7 +66,9 @@ export class NoteTypesRepository {
     })
   }
 
-  private create(input: Pick<NoteType, 'id' | 'title'>): NoteType {
+  create(input: { id?: string; title: string }): NoteType {
+    const id = input.id ?? uuidV4()
+
     this.getDatabase()
       .prepare(
         `
@@ -58,17 +76,31 @@ export class NoteTypesRepository {
         VALUES (@id, @title)
       `
       )
-      .run(input)
+      .run({
+        id,
+        title: input.title,
+      })
 
-    return this.findById(input.id) as NoteType
+    return this.findById(id) as NoteType
   }
 
-  private findByTitle(title: string): NoteType | undefined {
-    const row = this.getDatabase()
-      .prepare('SELECT * FROM note_types WHERE title = ?')
-      .get(title) as NoteTypeRow | undefined
+  updateTitle(id: string, title: string): NoteType {
+    this.getDatabase()
+      .prepare(
+        `
+        UPDATE note_types
+        SET title = @title,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = @id
+      `
+      )
+      .run({ id, title })
 
-    return row ? this.mapNoteTypeRow(row) : undefined
+    return this.findById(id) as NoteType
+  }
+
+  delete(id: string): void {
+    this.getDatabase().prepare('DELETE FROM note_types WHERE id = ?').run(id)
   }
 
   private findFirst(): NoteType | undefined {

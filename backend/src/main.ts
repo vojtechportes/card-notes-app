@@ -7,19 +7,31 @@ import { CreateNoteDto } from './modules/notes/types/create-note.dto'
 import { ListNotesQueryDto } from './modules/notes/types/list-notes-query.dto'
 import { UpdateNoteDto } from './modules/notes/types/update-note.dto'
 import { CreateColumnDto } from './modules/settings/types/create-column.dto'
+import { CreateNoteTypeDto } from './modules/settings/types/create-note-type.dto'
 import { DeleteColumnQueryDto } from './modules/settings/types/delete-column-query.dto'
+import { DeleteNoteTypeDto } from './modules/settings/types/delete-note-type.dto'
+import { DeleteNoteTypeResultDto } from './modules/settings/types/delete-note-type-result.dto'
+import { NoteTypeDetailDto } from './modules/settings/types/note-type-detail.dto'
+import { NoteTypeDto } from './modules/settings/types/note-type.dto'
 import { ReorderColumnsDto } from './modules/settings/types/reorder-columns.dto'
 import { UpdateColumnDto } from './modules/settings/types/update-column.dto'
 import { UpdateGeneralSettingsDto } from './modules/settings/types/update-general-settings.dto'
+import { UpdateNoteTypeDto } from './modules/settings/types/update-note-type.dto'
 
 const swaggerExtraModels = [
   CreateColumnDto,
   CreateNoteDto,
+  CreateNoteTypeDto,
   DeleteColumnQueryDto,
+  DeleteNoteTypeDto,
+  DeleteNoteTypeResultDto,
   ListNotesQueryDto,
+  NoteTypeDetailDto,
+  NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
   UpdateGeneralSettingsDto,
+  UpdateNoteTypeDto,
   UpdateNoteDto,
 ]
 
