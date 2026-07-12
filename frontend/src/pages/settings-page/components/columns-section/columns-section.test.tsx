@@ -14,7 +14,6 @@ import { AppProviders } from '../../../../components/app-providers/app-providers
 import { ColumnsSection } from './columns-section'
 
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
-const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useCreateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useReorderColumnsMutationMock = vi.hoisted(() => vi.fn())
@@ -22,10 +21,6 @@ const useDeleteColumnMutationMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
-}))
-
-vi.mock('../../hooks/use-note-types-query', () => ({
-  useNoteTypesQuery: useNoteTypesQueryMock,
 }))
 
 vi.mock('../../hooks/use-create-column-mutation', () => ({
@@ -168,7 +163,7 @@ const deleteMutation = {
 const renderColumnsSection = () => {
   return render(
     <AppProviders>
-      <ColumnsSection />
+      <ColumnsSection noteTypeId="note-type-1" />
     </AppProviders>
   )
 }
@@ -177,11 +172,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   useNoteColumnsQueryMock.mockReturnValue({
     data: columns,
-    isError: false,
-    isLoading: false,
-  })
-  useNoteTypesQueryMock.mockReturnValue({
-    data: [{ id: 'note-type-1', title: 'Default note type', name: 'default' }],
     isError: false,
     isLoading: false,
   })
@@ -200,7 +190,7 @@ afterEach(() => {
 })
 
 describe('ColumnsSection', () => {
-  it('renders loaded columns and does not expose delete for default columns', () => {
+  it('renders loaded fields and does not expose delete for default fields', () => {
     renderColumnsSection()
 
     const defaultRow = screen.getByText('Created at').closest('li')
@@ -210,17 +200,17 @@ describe('ColumnsSection', () => {
     expect(customRow).toBeTruthy()
     expect(
       within(defaultRow as HTMLElement).queryByRole('button', {
-        name: 'Delete column',
+        name: 'Delete field',
       })
     ).toBeNull()
     expect(
       within(customRow as HTMLElement).getByRole('button', {
-        name: 'Delete column',
+        name: 'Delete field',
       })
     ).toBeTruthy()
   })
 
-  it('creates the first column when the active note type currently has no columns', async () => {
+  it('creates the first field when the active note type currently has no fields', async () => {
     useNoteColumnsQueryMock.mockReturnValueOnce({
       data: [],
       isError: false,
@@ -229,21 +219,21 @@ describe('ColumnsSection', () => {
 
     renderColumnsSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add column' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
     fireEvent.change(screen.getByLabelText('Column title'), {
-      target: { value: 'First column' },
+      target: { value: 'First field' },
     })
     fireEvent.change(screen.getByLabelText('Column name'), {
-      target: { value: 'firstColumn' },
+      target: { value: 'firstField' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create column' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create field' }))
 
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
           isHidden: false,
-          name: 'firstColumn',
-          title: 'First column',
+          name: 'firstField',
+          title: 'First field',
           type: 'text',
         },
         noteTypeId: 'note-type-1',
@@ -251,10 +241,10 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('creates a custom column and validates duplicate names', async () => {
+  it('creates a custom field and validates duplicate names', async () => {
     renderColumnsSection()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add column' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
 
     fireEvent.change(screen.getByLabelText('Column title'), {
       target: { value: 'Duplicate summary' },
@@ -262,9 +252,9 @@ describe('ColumnsSection', () => {
     fireEvent.change(screen.getByLabelText('Column name'), {
       target: { value: 'summary' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create column' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create field' }))
 
-    expect(await screen.findByText('Column name must be unique.')).toBeTruthy()
+    expect(await screen.findByText('Field name must be unique.')).toBeTruthy()
     expect(createMutation.mutateAsync).not.toHaveBeenCalled()
 
     fireEvent.change(screen.getByLabelText('Column name'), {
@@ -272,7 +262,7 @@ describe('ColumnsSection', () => {
     })
     fireEvent.mouseDown(screen.getByLabelText('Column type'))
     fireEvent.click(await screen.findByRole('option', { name: 'Number' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Create column' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create field' }))
 
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
@@ -287,13 +277,13 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('edits a column and keeps default identity fields disabled', async () => {
+  it('edits a field and keeps default identity fields disabled', async () => {
     renderColumnsSection()
 
     fireEvent.click(
       within(
         screen.getByText('Created at').closest('li') as HTMLElement
-      ).getByRole('button', { name: 'Edit column' })
+      ).getByRole('button', { name: 'Edit field' })
     )
 
     expect(
@@ -324,14 +314,14 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('toggles visibility and reorders columns', async () => {
+  it('toggles visibility and reorders fields', async () => {
     renderColumnsSection()
 
     const hiddenRow = screen
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Show column' })
+      within(hiddenRow).getByRole('button', { name: 'Show field' })
     )
 
     await waitFor(() => {
@@ -352,14 +342,14 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('deletes a custom column definition only when that choice is selected', async () => {
+  it('deletes a custom field definition only when that choice is selected', async () => {
     renderColumnsSection()
 
     const hiddenRow = screen
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Delete column' })
+      within(hiddenRow).getByRole('button', { name: 'Delete field' })
     )
 
     const confirmationDialog = await screen.findByRole('dialog')
@@ -371,7 +361,7 @@ describe('ColumnsSection', () => {
 
     fireEvent.click(
       within(confirmationDialog).getByRole('button', {
-        name: /^Delete column definition only/,
+        name: /^Delete field definition only/,
       })
     )
 
@@ -384,20 +374,20 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('deletes a custom column and saved values when that choice is selected', async () => {
+  it('deletes a custom field and saved values when that choice is selected', async () => {
     renderColumnsSection()
 
     const hiddenRow = screen
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Delete column' })
+      within(hiddenRow).getByRole('button', { name: 'Delete field' })
     )
 
     const confirmationDialog = await screen.findByRole('dialog')
     fireEvent.click(
       within(confirmationDialog).getByRole('button', {
-        name: /^Delete column and saved values/,
+        name: /^Delete field and saved values/,
       })
     )
 
@@ -410,19 +400,19 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('does not delete a custom column when the delete choice dialog is cancelled', async () => {
+  it('does not delete a custom field when the delete choice dialog is cancelled', async () => {
     renderColumnsSection()
 
     const hiddenRow = screen
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Delete column' })
+      within(hiddenRow).getByRole('button', { name: 'Delete field' })
     )
 
     const confirmationDialog = await screen.findByRole('dialog')
     fireEvent.click(
-      within(confirmationDialog).getByRole('button', { name: 'Keep column' })
+      within(confirmationDialog).getByRole('button', { name: 'Keep field' })
     )
 
     await waitFor(() => {
@@ -438,22 +428,22 @@ describe('ColumnsSection', () => {
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Delete column' })
+      within(hiddenRow).getByRole('button', { name: 'Delete field' })
     )
 
     const confirmationDialog = await screen.findByRole('dialog')
     fireEvent.click(
       within(confirmationDialog).getByRole('button', {
-        name: /^Delete column and saved values/,
+        name: /^Delete field and saved values/,
       })
     )
 
     expect(
-      await screen.findByText('The column could not be deleted. Try again.')
+      await screen.findByText('The field could not be deleted. Try again.')
     ).toBeTruthy()
   })
 
-  it('shows loading and error states from the columns query', () => {
+  it('shows loading and error states from the fields query', () => {
     useNoteColumnsQueryMock.mockReturnValueOnce({
       data: undefined,
       isError: false,
@@ -461,7 +451,7 @@ describe('ColumnsSection', () => {
     })
 
     renderColumnsSection()
-    expect(screen.getByText('Loading columns...')).toBeTruthy()
+    expect(screen.getByText('Loading fields...')).toBeTruthy()
 
     cleanup()
 
@@ -472,9 +462,7 @@ describe('ColumnsSection', () => {
     })
 
     renderColumnsSection()
-    expect(
-      screen.getByText('Columns could not be loaded right now.')
-    ).toBeTruthy()
+    expect(screen.getByText('Fields could not be loaded right now.')).toBeTruthy()
   })
 })
 
