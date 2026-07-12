@@ -7,11 +7,13 @@ import {
   OnModuleInit,
 } from '@nestjs/common'
 import { v4 as uuidV4 } from 'uuid'
+import { NotesRepository } from '../notes/notes.repository'
 import { ColumnsRepository } from './columns.repository'
 import { defaultNoteColumns } from './constants/default-note-columns'
 import { GeneralSettingsRepository } from './general-settings.repository'
 import { NoteTypesRepository } from './note-types.repository'
 import { ColumnTypeEnum } from './types/column-type-enum'
+import { DeleteNoteTypeModeEnum } from './types/delete-note-type-mode-enum'
 import type {
   GeneralSettings,
   UpdateGeneralSettingsInput,
@@ -27,6 +29,25 @@ interface DeleteColumnOptions {
   deleteNoteData?: boolean
 }
 
+interface DeleteNoteTypeInput {
+  createTargetNoteType?: {
+    title: string
+  }
+  fieldMappings?: Array<{
+    sourceColumnId: string
+    targetColumnId: string
+  }>
+  mode: DeleteNoteTypeModeEnum
+  targetNoteTypeId?: string
+}
+
+interface DeleteNoteTypeResult {
+  deletedNoteTypeId: string
+  deletedNotesCount: number
+  movedNotesCount: number
+  targetNoteTypeId?: string
+}
+
 const textTruncationLengthSettingKey = 'textTruncationLength'
 const cardFieldDisplayCountSettingKey = 'cardFieldDisplayCount'
 const mergeDateTimeFieldsSettingKey = 'mergeDateTimeFields'
@@ -39,23 +60,120 @@ export class SettingsService implements OnModuleInit {
     @Inject(GeneralSettingsRepository)
     private readonly generalSettingsRepository: GeneralSettingsRepository,
     @Inject(NoteTypesRepository)
-    private readonly noteTypesRepository?: NoteTypesRepository
+    private readonly noteTypesRepository?: NoteTypesRepository,
+    @Inject(NotesRepository)
+    private readonly notesRepository?: NotesRepository
   ) {}
 
   onModuleInit(): void {
-    this.getNoteTypesRepository().ensureDefaultExists()
+    this.seedDefaultColumnsForAllNoteTypes()
+  }
 
-    for (const noteType of this.getNoteTypesRepository().findAll()) {
-      this.columnsRepository.ensureDefaultColumns(noteType.id, defaultNoteColumns)
+  listNoteTypes(): NoteType[] {
+    return this.getNoteTypesRepository().findAll()
+  }
+
+  getNoteType(id: string): NoteType {
+    return this.getNoteTypeOrThrow(id)
+  }
+
+  createNoteType(input: { title: string }): NoteType {
+    const title = this.normalizeNoteTypeTitle(input.title)
+
+    this.ensureNoteTypeTitleIsAvailable(title)
+
+    const noteType = this.getNoteTypesRepository().create({
+      id: uuidV4(),
+      title,
+    })
+
+    this.seedDefaultColumns(noteType.id)
+
+    return noteType
+  }
+
+  updateNoteType(id: string, input: { title: string }): NoteType {
+    this.getNoteTypeOrThrow(id)
+
+    const title = this.normalizeNoteTypeTitle(input.title)
+
+    this.ensureNoteTypeTitleIsAvailable(title, id)
+
+    return this.getNoteTypesRepository().updateTitle(id, title)
+  }
+
+  deleteNoteType(id: string, input: DeleteNoteTypeInput): DeleteNoteTypeResult {
+    const noteType = this.getNoteTypeOrThrow(id)
+    const noteTypeCountBeforeDelete = this.getNoteTypesRepository().count()
+
+    if (input.mode === DeleteNoteTypeModeEnum.DeleteNotes) {
+      const deletedNotesCount = this.getNotesRepository().deleteByNoteTypeId(id)
+
+      this.getNoteTypesRepository().delete(id)
+
+      if (noteTypeCountBeforeDelete === 1) {
+        this.seedDefaultColumnsForAllNoteTypes()
+      }
+
+      return {
+        deletedNoteTypeId: noteType.id,
+        deletedNotesCount,
+        movedNotesCount: 0,
+      }
     }
+
+    return this.columnsRepository
+      .getDatabaseService()
+      .getConnection()
+      .transaction(() => {
+        const targetNoteType = this.resolveMoveTargetNoteType(noteType.id, input)
+        const sourceColumns = this.listColumns(noteType.id)
+        const targetColumns = this.listColumns(targetNoteType.id)
+        const fieldMappings = this.resolveFieldMappings(
+          sourceColumns,
+          targetColumns,
+          input.fieldMappings ?? []
+        )
+        const movedNotesCount = this.getNotesRepository().moveNotesToType({
+          fieldMappings,
+          sourceColumnIds: sourceColumns.map((column) => column.id),
+          sourceNoteTypeId: noteType.id,
+          targetNoteTypeId: targetNoteType.id,
+          timestamp: this.createTimestamp(),
+        })
+
+        this.getNoteTypesRepository().delete(noteType.id)
+
+        return {
+          deletedNoteTypeId: noteType.id,
+          deletedNotesCount: 0,
+          movedNotesCount,
+          targetNoteTypeId: targetNoteType.id,
+        }
+      })()
   }
 
-  listColumns(): NoteColumn[] {
-    return this.columnsRepository.findAll(this.getDefaultNoteTypeId())
+  listColumns(noteTypeId = this.getDefaultNoteTypeId()): NoteColumn[] {
+    this.getNoteTypeOrThrow(noteTypeId)
+
+    return this.columnsRepository.findAll(noteTypeId)
   }
 
-  createColumn(input: CreateColumnInput): NoteColumn {
-    const noteTypeId = this.getDefaultNoteTypeId()
+  createColumn(
+    noteTypeIdOrInput: string | CreateColumnInput,
+    maybeInput?: CreateColumnInput
+  ): NoteColumn {
+    const noteTypeId =
+      typeof noteTypeIdOrInput === 'string'
+        ? noteTypeIdOrInput
+        : this.getDefaultNoteTypeId()
+    const input =
+      typeof noteTypeIdOrInput === 'string'
+        ? (maybeInput as CreateColumnInput)
+        : noteTypeIdOrInput
+
+    this.getNoteTypeOrThrow(noteTypeId)
+
     const name = this.normalizeName(input.name)
     const title = this.normalizeTitle(input.title)
 
@@ -76,8 +194,21 @@ export class SettingsService implements OnModuleInit {
     })
   }
 
-  updateColumn(id: string, input: UpdateColumnInput): NoteColumn {
-    const existingColumn = this.getColumnOrThrow(id)
+  updateColumn(
+    noteTypeIdOrId: string,
+    idOrInput: string | UpdateColumnInput,
+    maybeInput?: UpdateColumnInput
+  ): NoteColumn {
+    const noteTypeId =
+      typeof idOrInput === 'string'
+        ? noteTypeIdOrId
+        : this.getDefaultNoteTypeId()
+    const id = typeof idOrInput === 'string' ? idOrInput : noteTypeIdOrId
+    const input =
+      typeof idOrInput === 'string'
+        ? (maybeInput as UpdateColumnInput)
+        : idOrInput
+    const existingColumn = this.getColumnOrThrow(noteTypeId, id)
     const name =
       input.name === undefined
         ? existingColumn.name
@@ -105,8 +236,17 @@ export class SettingsService implements OnModuleInit {
     })
   }
 
-  reorderColumns(columnIds: string[]): NoteColumn[] {
-    const columns = this.listColumns()
+  reorderColumns(
+    noteTypeIdOrColumnIds: string | string[],
+    maybeColumnIds?: string[]
+  ): NoteColumn[] {
+    const noteTypeId = Array.isArray(noteTypeIdOrColumnIds)
+      ? this.getDefaultNoteTypeId()
+      : noteTypeIdOrColumnIds
+    const columnIds = Array.isArray(noteTypeIdOrColumnIds)
+      ? noteTypeIdOrColumnIds
+      : (maybeColumnIds as string[])
+    const columns = this.listColumns(noteTypeId)
     const existingIds = new Set(columns.map((column) => column.id))
     const requestedIds = new Set(columnIds)
 
@@ -127,11 +267,24 @@ export class SettingsService implements OnModuleInit {
 
     this.columnsRepository.updateSortOrders(columnIds)
 
-    return this.listColumns()
+    return this.listColumns(noteTypeId)
   }
 
-  deleteColumn(id: string, options: DeleteColumnOptions = {}): void {
-    const column = this.getColumnOrThrow(id)
+  deleteColumn(
+    noteTypeIdOrId: string,
+    idOrOptions?: string | DeleteColumnOptions,
+    maybeOptions: DeleteColumnOptions = {}
+  ): void {
+    const noteTypeId =
+      typeof idOrOptions === 'string'
+        ? noteTypeIdOrId
+        : this.getDefaultNoteTypeId()
+    const id = typeof idOrOptions === 'string' ? idOrOptions : noteTypeIdOrId
+    const options =
+      typeof idOrOptions === 'string'
+        ? maybeOptions
+        : (idOrOptions ?? {})
+    const column = this.getColumnOrThrow(noteTypeId, id)
 
     if (column.isDefault) {
       throw new BadRequestException('Default columns cannot be deleted.')
@@ -206,10 +359,148 @@ export class SettingsService implements OnModuleInit {
     return this.getGeneralSettings()
   }
 
-  private getColumnOrThrow(id: string): NoteColumn {
+  private seedDefaultColumnsForAllNoteTypes(): void {
+    this.getNoteTypesRepository().ensureDefaultExists()
+
+    for (const noteType of this.getNoteTypesRepository().findAll()) {
+      this.seedDefaultColumns(noteType.id)
+    }
+  }
+
+  private seedDefaultColumns(noteTypeId: string): void {
+    this.columnsRepository.ensureDefaultColumns(noteTypeId, defaultNoteColumns)
+  }
+
+  private resolveMoveTargetNoteType(
+    sourceNoteTypeId: string,
+    input: DeleteNoteTypeInput
+  ): NoteType {
+    if (
+      input.targetNoteTypeId !== undefined &&
+      input.createTargetNoteType !== undefined
+    ) {
+      throw new BadRequestException(
+        'Provide either targetNoteTypeId or createTargetNoteType, but not both.'
+      )
+    }
+
+    if (input.createTargetNoteType) {
+      return this.createNoteType({
+        title: input.createTargetNoteType.title,
+      })
+    }
+
+    if (!input.targetNoteTypeId) {
+      throw new BadRequestException(
+        'targetNoteTypeId or createTargetNoteType is required when moving notes.'
+      )
+    }
+
+    if (input.targetNoteTypeId === sourceNoteTypeId) {
+      throw new BadRequestException(
+        'Notes cannot be moved to the same note type being deleted.'
+      )
+    }
+
+    return this.getNoteTypeOrThrow(input.targetNoteTypeId)
+  }
+
+  private resolveFieldMappings(
+    sourceColumns: NoteColumn[],
+    targetColumns: NoteColumn[],
+    fieldMappings: Array<{
+      sourceColumnId: string
+      targetColumnId: string
+    }>
+  ): Array<{
+    sourceColumnId: string
+    targetColumnId: string
+  }> {
+    const sourceColumnsById = new Map(
+      sourceColumns.map((column) => [column.id, column])
+    )
+    const targetColumnsById = new Map(
+      targetColumns.map((column) => [column.id, column])
+    )
+    const sourceColumnIds = new Set<string>()
+    const targetColumnIds = new Set<string>()
+
+    for (const fieldMapping of fieldMappings) {
+      const sourceColumn = sourceColumnsById.get(fieldMapping.sourceColumnId)
+      const targetColumn = targetColumnsById.get(fieldMapping.targetColumnId)
+
+      if (!sourceColumn) {
+        throw new BadRequestException(
+          'Field mapping source column does not belong to the deleted note type.'
+        )
+      }
+
+      if (!targetColumn) {
+        throw new BadRequestException(
+          'Field mapping target column does not belong to the target note type.'
+        )
+      }
+
+      if (sourceColumnIds.has(sourceColumn.id)) {
+        throw new BadRequestException(
+          'Field mappings cannot repeat the same source column.'
+        )
+      }
+
+      if (targetColumnIds.has(targetColumn.id)) {
+        throw new BadRequestException(
+          'Field mappings cannot repeat the same target column.'
+        )
+      }
+
+      if (
+        this.isSystemTimestampColumn(sourceColumn) ||
+        this.isSystemTimestampColumn(targetColumn)
+      ) {
+        throw new BadRequestException(
+          'System timestamp columns cannot participate in field mappings.'
+        )
+      }
+
+      if (!this.areColumnTypesCompatible(sourceColumn.type, targetColumn.type)) {
+        throw new BadRequestException('Field mapping column types are not compatible.')
+      }
+
+      sourceColumnIds.add(sourceColumn.id)
+      targetColumnIds.add(targetColumn.id)
+    }
+
+    return fieldMappings
+  }
+
+  private isSystemTimestampColumn(column: NoteColumn): boolean {
+    return (
+      column.isDefault &&
+      (column.name === 'createdAt' || column.name === 'updatedAt')
+    )
+  }
+
+  private areColumnTypesCompatible(
+    sourceType: ColumnTypeEnum,
+    targetType: ColumnTypeEnum
+  ): boolean {
+    if (sourceType === targetType) {
+      return true
+    }
+
+    const isTextLike = (type: ColumnTypeEnum): boolean => {
+      return type === ColumnTypeEnum.Text || type === ColumnTypeEnum.Link
+    }
+
+    return isTextLike(sourceType) && isTextLike(targetType)
+  }
+
+  private getColumnOrThrow(noteTypeId: string, id: string): NoteColumn {
+    this.getNoteTypeOrThrow(noteTypeId)
+
     const column = this.columnsRepository.findById(id)
 
-    if (!column || column.noteTypeId !== this.getDefaultNoteTypeId()) {
+    if (!column || column.noteTypeId !== noteTypeId) {
       throw new NotFoundException('Column was not found.')
     }
 
@@ -220,8 +511,39 @@ export class SettingsService implements OnModuleInit {
     return this.getDefaultNoteType().id
   }
 
+  private getNoteTypeOrThrow(id: string): NoteType {
+    const noteType = this.getNoteTypesRepository().findById(id)
+
+    if (!noteType) {
+      throw new NotFoundException('Note type was not found.')
+    }
+
+    return noteType
+  }
+
   private getNoteTypesRepository(): NoteTypesRepository {
-    return this.noteTypesRepository ?? new NoteTypesRepository(this.columnsRepository.getDatabaseService())
+    return (
+      this.noteTypesRepository ??
+      new NoteTypesRepository(this.columnsRepository.getDatabaseService())
+    )
+  }
+
+  private getNotesRepository(): NotesRepository {
+    return (
+      this.notesRepository ??
+      new NotesRepository(this.columnsRepository.getDatabaseService())
+    )
+  }
+
+  private ensureNoteTypeTitleIsAvailable(
+    title: string,
+    currentNoteTypeId?: string
+  ): void {
+    const noteType = this.getNoteTypesRepository().findByTitle(title)
+
+    if (noteType && noteType.id !== currentNoteTypeId) {
+      throw new ConflictException('Note type title must be unique.')
+    }
   }
 
   private ensureColumnNameIsAvailable(
@@ -298,6 +620,16 @@ export class SettingsService implements OnModuleInit {
     }
   }
 
+  private normalizeNoteTypeTitle(title: string): string {
+    const normalizedTitle = title.trim()
+
+    if (!normalizedTitle) {
+      throw new BadRequestException('Note type title is required.')
+    }
+
+    return normalizedTitle
+  }
+
   private normalizeName(name: string): string {
     const normalizedName = name.trim()
 
@@ -317,4 +649,13 @@ export class SettingsService implements OnModuleInit {
 
     return normalizedTitle
   }
+
+  private createTimestamp(): string {
+    return new Date().toISOString()
+  }
 }
+
+
+
+
+

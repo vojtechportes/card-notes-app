@@ -24,12 +24,19 @@ import { ColumnDeleteModeEnum } from './types/column-delete-mode-enum'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import { ColumnDto } from './types/column.dto'
 import { CreateColumnDto } from './types/create-column.dto'
+import { CreateNoteTypeDto } from './types/create-note-type.dto'
 import { DeleteColumnQueryDto } from './types/delete-column-query.dto'
+import { DeleteNoteTypeDto } from './types/delete-note-type.dto'
+import { DeleteNoteTypeModeEnum } from './types/delete-note-type-mode-enum'
+import { DeleteNoteTypeResultDto } from './types/delete-note-type-result.dto'
 import { GeneralSettingsDto } from './types/general-settings.dto'
+import { NoteTypeDetailDto } from './types/note-type-detail.dto'
+import { NoteTypeDto } from './types/note-type.dto'
 import type { CreateColumnInput, UpdateColumnInput } from './types/note-column'
 import { ReorderColumnsDto } from './types/reorder-columns.dto'
 import { UpdateColumnDto } from './types/update-column.dto'
 import { UpdateGeneralSettingsDto } from './types/update-general-settings.dto'
+import { UpdateNoteTypeDto } from './types/update-note-type.dto'
 
 @ApiTags('settings')
 @Controller('settings')
@@ -38,61 +45,187 @@ export class SettingsController {
     @Inject(SettingsService) private readonly settingsService: SettingsService
   ) {}
 
-  @Get('columns')
-  @ApiOperation({ summary: 'List note columns' })
+  @Get('note-types')
+  @ApiOperation({ summary: 'List note types' })
   @ApiOkResponse({
-    description: 'Configured note columns.',
+    description: 'Configured note types.',
+    type: NoteTypeDto,
+    isArray: true,
+  })
+  listNoteTypes(): NoteTypeDto[] {
+    return this.settingsService.listNoteTypes()
+  }
+
+  @Get('note-types/:id')
+  @ApiOperation({ summary: 'Get one note type with its scoped columns' })
+  @ApiParam({ name: 'id', description: 'Note type id.' })
+  @ApiOkResponse({ description: 'Note type detail.', type: NoteTypeDetailDto })
+  getNoteType(@Param('id') id: string): NoteTypeDetailDto {
+    return {
+      ...this.settingsService.getNoteType(id),
+      columns: this.settingsService.listColumns(id),
+    }
+  }
+
+  @Post('note-types')
+  @ApiOperation({ summary: 'Create a note type' })
+  @ApiCreatedResponse({ description: 'Created note type.', type: NoteTypeDto })
+  createNoteType(@Body() body: CreateNoteTypeDto): NoteTypeDto {
+    this.ensureRequestBodyIsRecord(
+      body,
+      'Note type request body must be an object.'
+    )
+    this.ensureRequiredString(body.title, 'Note type title')
+
+    return this.settingsService.createNoteType({
+      title: body.title,
+    })
+  }
+
+  @Patch('note-types/:id')
+  @ApiOperation({ summary: 'Update a note type' })
+  @ApiParam({ name: 'id', description: 'Note type id.' })
+  @ApiOkResponse({ description: 'Updated note type.', type: NoteTypeDto })
+  updateNoteType(
+    @Param('id') id: string,
+    @Body() body: UpdateNoteTypeDto
+  ): NoteTypeDto {
+    this.ensureRequestBodyIsRecord(
+      body,
+      'Note type request body must be an object.'
+    )
+    this.ensureRequiredString(body.title, 'Note type title')
+
+    return this.settingsService.updateNoteType(id, {
+      title: body.title,
+    })
+  }
+
+  @Delete('note-types/:id')
+  @ApiOperation({ summary: 'Delete a note type' })
+  @ApiParam({ name: 'id', description: 'Note type id.' })
+  @ApiOkResponse({
+    description: 'Note type deletion result.',
+    type: DeleteNoteTypeResultDto,
+  })
+  deleteNoteType(
+    @Param('id') id: string,
+    @Body() body: DeleteNoteTypeDto
+  ): DeleteNoteTypeResultDto {
+    this.ensureRequestBodyIsRecord(
+      body,
+      'Note type delete body must be an object.'
+    )
+    this.ensureValidDeleteNoteTypeMode(body.mode)
+    this.ensureOptionalString(body.targetNoteTypeId, 'Target note type id')
+
+    if (body.createTargetNoteType !== undefined) {
+      this.ensureRequestBodyIsRecord(
+        body.createTargetNoteType,
+        'createTargetNoteType must be an object.'
+      )
+      this.ensureRequiredString(
+        body.createTargetNoteType.title,
+        'Replacement note type title'
+      )
+    }
+
+    if (body.fieldMappings !== undefined) {
+      if (!Array.isArray(body.fieldMappings)) {
+        throw new BadRequestException('fieldMappings must be an array.')
+      }
+
+      for (const fieldMapping of body.fieldMappings) {
+        this.ensureRequestBodyIsRecord(
+          fieldMapping,
+          'Each field mapping must be an object.'
+        )
+        this.ensureRequiredString(fieldMapping.sourceColumnId, 'Source column id')
+        this.ensureRequiredString(fieldMapping.targetColumnId, 'Target column id')
+      }
+    }
+
+    return this.settingsService.deleteNoteType(id, {
+      createTargetNoteType: body.createTargetNoteType,
+      fieldMappings: body.fieldMappings,
+      mode: body.mode,
+      targetNoteTypeId: body.targetNoteTypeId,
+    })
+  }
+
+  @Get('note-types/:noteTypeId/columns')
+  @ApiOperation({ summary: 'List note columns for one note type' })
+  @ApiParam({ name: 'noteTypeId', description: 'Owning note type id.' })
+  @ApiOkResponse({
+    description: 'Configured columns for one note type.',
     type: ColumnDto,
     isArray: true,
   })
-  listColumns(): ColumnDto[] {
-    return this.settingsService.listColumns()
+  listColumns(@Param('noteTypeId') noteTypeId: string): ColumnDto[] {
+    return this.settingsService.listColumns(noteTypeId)
   }
 
-  @Post('columns')
-  @ApiOperation({ summary: 'Create a note column' })
+  @Post('note-types/:noteTypeId/columns')
+  @ApiOperation({ summary: 'Create a note column under one note type' })
+  @ApiParam({ name: 'noteTypeId', description: 'Owning note type id.' })
   @ApiCreatedResponse({ description: 'Created column.', type: ColumnDto })
-  createColumn(@Body() body: CreateColumnDto): ColumnDto {
+  createColumn(
+    @Param('noteTypeId') noteTypeId: string,
+    @Body() body: CreateColumnDto
+  ): ColumnDto {
     return this.settingsService.createColumn(
+      noteTypeId,
       this.resolveCreateColumnInput(body)
     )
   }
 
-  @Patch('columns/order')
-  @ApiOperation({ summary: 'Reorder all note columns' })
+  @Patch('note-types/:noteTypeId/columns/order')
+  @ApiOperation({ summary: 'Reorder columns within one note type' })
+  @ApiParam({ name: 'noteTypeId', description: 'Owning note type id.' })
   @ApiOkResponse({
     description: 'Reordered note columns.',
     type: ColumnDto,
     isArray: true,
   })
-  reorderColumns(@Body() body: ReorderColumnsDto): ColumnDto[] {
-    return this.settingsService.reorderColumns(this.resolveColumnIds(body))
+  reorderColumns(
+    @Param('noteTypeId') noteTypeId: string,
+    @Body() body: ReorderColumnsDto
+  ): ColumnDto[] {
+    return this.settingsService.reorderColumns(
+      noteTypeId,
+      this.resolveColumnIds(body)
+    )
   }
 
-  @Patch('columns/:id')
-  @ApiOperation({ summary: 'Update a note column' })
+  @Patch('note-types/:noteTypeId/columns/:id')
+  @ApiOperation({ summary: 'Update a note column under one note type' })
+  @ApiParam({ name: 'noteTypeId', description: 'Owning note type id.' })
   @ApiParam({ name: 'id', description: 'Column id.' })
   @ApiOkResponse({ description: 'Updated column.', type: ColumnDto })
   updateColumn(
+    @Param('noteTypeId') noteTypeId: string,
     @Param('id') id: string,
     @Body() body: UpdateColumnDto
   ): ColumnDto {
     return this.settingsService.updateColumn(
+      noteTypeId,
       id,
       this.resolveUpdateColumnInput(body)
     )
   }
 
-  @Delete('columns/:id')
+  @Delete('note-types/:noteTypeId/columns/:id')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Delete a note column' })
+  @ApiOperation({ summary: 'Delete a note column under one note type' })
+  @ApiParam({ name: 'noteTypeId', description: 'Owning note type id.' })
   @ApiParam({ name: 'id', description: 'Column id.' })
   @ApiNoContentResponse({ description: 'Column was deleted.' })
   deleteColumn(
+    @Param('noteTypeId') noteTypeId: string,
     @Param('id') id: string,
     @Query() query: DeleteColumnQueryDto = {}
   ): void {
-    this.settingsService.deleteColumn(id, {
+    this.settingsService.deleteColumn(noteTypeId, id, {
       deleteNoteData: this.resolveDeleteNoteData(query),
     })
   }
@@ -228,6 +361,16 @@ export class SettingsController {
   private ensureOptionalString(value: unknown, label: string): void {
     if (value !== undefined && typeof value !== 'string') {
       throw new BadRequestException(`${label} must be a string.`)
+    }
+  }
+
+  private ensureValidDeleteNoteTypeMode(value: unknown): void {
+    if (
+      !Object.values(DeleteNoteTypeModeEnum).includes(
+        value as DeleteNoteTypeModeEnum
+      )
+    ) {
+      throw new BadRequestException('Note type delete mode is not supported.')
     }
   }
 
