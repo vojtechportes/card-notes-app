@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
+import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
-import type { DefaultNoteColumn } from './constants/default-note-columns'
+import type { DefaultNoteColumnDefinition } from './constants/default-note-columns'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import type { NoteColumn } from './types/note-column'
 
 interface NoteColumnRow {
   id: string
+  note_type_id: string
   name: string
   title: string
   type: string
@@ -32,11 +34,19 @@ export class ColumnsRepository {
     @Inject(DatabaseService) private readonly databaseService: DatabaseService
   ) {}
 
-  ensureDefaultColumns(defaultColumns: DefaultNoteColumn[]): void {
+  getDatabaseService(): DatabaseService {
+    return this.databaseService
+  }
+
+  ensureDefaultColumns(
+    noteTypeId: string,
+    defaultColumns: DefaultNoteColumnDefinition[]
+  ): void {
     const database = this.getDatabase()
     const insertDefaultColumn = database.prepare(`
-      INSERT OR IGNORE INTO note_columns (
+      INSERT INTO note_columns (
         id,
+        note_type_id,
         name,
         title,
         type,
@@ -46,6 +56,7 @@ export class ColumnsRepository {
         config_json
       ) VALUES (
         @id,
+        @noteTypeId,
         @name,
         @title,
         @type,
@@ -57,29 +68,75 @@ export class ColumnsRepository {
     `)
     const markAsDefault = database.prepare(`
       UPDATE note_columns
-      SET type = @type,
+      SET title = @title,
+          type = @type,
+          sort_order = @sortOrder,
           is_default = 1,
           updated_at = CURRENT_TIMESTAMP
-      WHERE name = @name
-        AND (type != @type OR is_default != 1)
+      WHERE note_type_id = @noteTypeId
+        AND name = @name
+        AND (
+          title != @title OR
+          type != @type OR
+          sort_order != @sortOrder OR
+          is_default != 1
+        )
+    `)
+    const findExistingColumn = database.prepare(`
+      SELECT id FROM note_columns
+      WHERE note_type_id = ?
+        AND name = ?
+      LIMIT 1
     `)
 
     const seedDefaultColumns = database.transaction(
-      (columns: DefaultNoteColumn[]) => {
+      (typeId: string, columns: DefaultNoteColumnDefinition[]) => {
         for (const column of columns) {
-          insertDefaultColumn.run(column)
-          markAsDefault.run(column)
+          const existingColumn = findExistingColumn.get(
+            typeId,
+            column.name
+          ) as { id: string } | undefined
+
+          if (!existingColumn) {
+            insertDefaultColumn.run({
+              id: uuidV4(),
+              noteTypeId: typeId,
+              name: column.name,
+              title: column.title,
+              type: column.type,
+              sortOrder: column.sortOrder,
+            })
+          }
+
+          markAsDefault.run({
+            noteTypeId: typeId,
+            name: column.name,
+            title: column.title,
+            type: column.type,
+            sortOrder: column.sortOrder,
+          })
         }
       }
     )
 
-    seedDefaultColumns(defaultColumns)
+    seedDefaultColumns(noteTypeId, defaultColumns)
   }
 
-  findAll(): NoteColumn[] {
+  findAll(noteTypeId?: string): NoteColumn[] {
+    if (!noteTypeId) {
+      return this.getDatabase()
+        .prepare(
+          'SELECT * FROM note_columns ORDER BY sort_order ASC, title ASC, id ASC'
+        )
+        .all()
+        .map((row) => this.mapColumnRow(row as NoteColumnRow))
+    }
+
     return this.getDatabase()
-      .prepare('SELECT * FROM note_columns ORDER BY sort_order ASC, title ASC')
-      .all()
+      .prepare(
+        'SELECT * FROM note_columns WHERE note_type_id = ? ORDER BY sort_order ASC, title ASC, id ASC'
+      )
+      .all(noteTypeId)
       .map((row) => this.mapColumnRow(row as NoteColumnRow))
   }
 
@@ -91,20 +148,22 @@ export class ColumnsRepository {
     return row ? this.mapColumnRow(row) : undefined
   }
 
-  findByName(name: string): NoteColumn | undefined {
+  findByName(name: string, noteTypeId: string): NoteColumn | undefined {
     const row = this.getDatabase()
-      .prepare('SELECT * FROM note_columns WHERE name = ?')
-      .get(name) as NoteColumnRow | undefined
+      .prepare(
+        'SELECT * FROM note_columns WHERE note_type_id = ? AND name = ?'
+      )
+      .get(noteTypeId, name) as NoteColumnRow | undefined
 
     return row ? this.mapColumnRow(row) : undefined
   }
 
-  getNextSortOrder(): number {
+  getNextSortOrder(noteTypeId: string): number {
     const row = this.getDatabase()
       .prepare(
-        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns'
+        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ?'
       )
-      .get() as SortOrderRow | undefined
+      .get(noteTypeId) as SortOrderRow | undefined
 
     return row?.sort_order ?? 0
   }
@@ -115,6 +174,7 @@ export class ColumnsRepository {
         `
         INSERT INTO note_columns (
           id,
+          note_type_id,
           name,
           title,
           type,
@@ -124,6 +184,7 @@ export class ColumnsRepository {
           config_json
         ) VALUES (
           @id,
+          @noteTypeId,
           @name,
           @title,
           @type,
@@ -136,6 +197,7 @@ export class ColumnsRepository {
       )
       .run({
         id: column.id,
+        noteTypeId: column.noteTypeId,
         name: column.name,
         title: column.title,
         type: column.type,
@@ -153,7 +215,8 @@ export class ColumnsRepository {
       .prepare(
         `
         UPDATE note_columns
-        SET name = @name,
+        SET note_type_id = @noteTypeId,
+            name = @name,
             title = @title,
             type = @type,
             sort_order = @sortOrder,
@@ -166,6 +229,7 @@ export class ColumnsRepository {
       )
       .run({
         id: column.id,
+        noteTypeId: column.noteTypeId,
         name: column.name,
         title: column.title,
         type: column.type,
@@ -218,6 +282,7 @@ export class ColumnsRepository {
   private mapColumnRow(row: NoteColumnRow): NoteColumn {
     return {
       id: row.id,
+      noteTypeId: row.note_type_id,
       name: row.name,
       title: row.title,
       type: row.type as ColumnTypeEnum,

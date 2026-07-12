@@ -26,6 +26,9 @@ export class NoteDto {
   @ApiProperty({ type: String, description: 'Stable note id.' })
   id: string
 
+  @ApiProperty({ type: String, description: 'Owning note type id.' })
+  noteTypeId: string
+
   @ApiProperty({
     type: 'object',
     additionalProperties: noteValueSchema,

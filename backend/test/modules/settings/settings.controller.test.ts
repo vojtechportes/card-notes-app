@@ -11,6 +11,15 @@ import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-
 let databaseService: DatabaseService
 let settingsController: SettingsController
 
+const getDefaultNoteTypeId = (): string => {
+  return (
+    databaseService
+      .getConnection()
+      .prepare("SELECT id FROM note_types WHERE title = 'Default'")
+      .get() as { id: string }
+  ).id
+}
+
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
   databaseService.initialize()
@@ -92,9 +101,14 @@ describe(SettingsController.name, () => {
     databaseService
       .getConnection()
       .prepare(
-        "INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')"
+        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run()
+      .run(
+        'note-1',
+        getDefaultNoteTypeId(),
+        '2026-07-07T10:00:00.000Z',
+        '2026-07-07T10:00:00.000Z'
+      )
     databaseService
       .getConnection()
       .prepare(
@@ -123,9 +137,14 @@ describe(SettingsController.name, () => {
     databaseService
       .getConnection()
       .prepare(
-        "INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')"
+        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run()
+      .run(
+        'note-1',
+        getDefaultNoteTypeId(),
+        '2026-07-07T10:00:00.000Z',
+        '2026-07-07T10:00:00.000Z'
+      )
     databaseService
       .getConnection()
       .prepare(

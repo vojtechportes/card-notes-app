@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
 import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
+import { NoteTypesRepository } from '../../../src/modules/settings/note-types.repository'
 import { SettingsService } from '../../../src/modules/settings/settings.service'
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum'
 
@@ -22,7 +23,8 @@ beforeEach(() => {
 
   settingsService = new SettingsService(
     new ColumnsRepository(databaseService),
-    new GeneralSettingsRepository(databaseService)
+    new GeneralSettingsRepository(databaseService),
+    new NoteTypesRepository(databaseService)
   )
   settingsService.onModuleInit()
 })
@@ -276,12 +278,18 @@ describe(SettingsService.name, () => {
       type: ColumnTypeEnum.Text,
     })
 
+    const defaultNoteTypeId = settingsService.getDefaultNoteType().id
     databaseService
       .getConnection()
       .prepare(
-        "INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')"
+        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run()
+      .run(
+        'note-1',
+        defaultNoteTypeId,
+        '2026-07-07T10:00:00.000Z',
+        '2026-07-07T10:00:00.000Z'
+      )
     databaseService
       .getConnection()
       .prepare(
@@ -307,12 +315,18 @@ describe(SettingsService.name, () => {
       type: ColumnTypeEnum.Number,
     })
 
+    const defaultNoteTypeId = settingsService.getDefaultNoteType().id
     databaseService
       .getConnection()
       .prepare(
-        "INSERT INTO notes (id, created_at, updated_at) VALUES ('note-1', '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')"
+        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run()
+      .run(
+        'note-1',
+        defaultNoteTypeId,
+        '2026-07-07T10:00:00.000Z',
+        '2026-07-07T10:00:00.000Z'
+      )
     databaseService
       .getConnection()
       .prepare(
@@ -371,3 +385,6 @@ describe(SettingsService.name, () => {
     ).toThrow(BadRequestException)
   })
 })
+
+
+

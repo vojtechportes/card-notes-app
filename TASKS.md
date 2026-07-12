@@ -271,7 +271,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
 
 Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
-- [ ] T70. Add note type domain and migration plan
+- [x] T70. Add note type domain and migration plan
   - Add a `note_types` persistence model with `id`, `title`, `createdAt`, and `updatedAt`.
   - Use `uuid/v4` for generated note type IDs.
   - Create an initial note type named `Default` during migration.
@@ -372,3 +372,4 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+

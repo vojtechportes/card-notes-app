@@ -29,10 +29,16 @@ export class NotesService {
 
   createNote(input: CreateNoteInput = {}): Note {
     const values = input.values ?? {}
+    const noteTypeId = this.settingsService.getDefaultNoteType().id
 
     this.ensureValuesAreValid(values)
 
-    return this.notesRepository.create(uuidV4(), values, this.createTimestamp())
+    return this.notesRepository.create(
+      uuidV4(),
+      noteTypeId,
+      values,
+      this.createTimestamp()
+    )
   }
 
   listNotes(options: ListNotesOptions = {}): Note[] {

@@ -9,6 +9,7 @@ import type { NoteValue, NoteValuePatch, NoteValues } from './types/note-value'
 
 interface NoteRow {
   id: string
+  note_type_id: string
   created_at: string
   updated_at: string
 }
@@ -25,16 +26,22 @@ export class NotesRepository {
     @Inject(DatabaseService) private readonly databaseService: DatabaseService
   ) {}
 
-  create(id: string, values: NoteValues, timestamp: string): Note {
+  create(
+    id: string,
+    noteTypeId: string,
+    values: NoteValues,
+    timestamp: string
+  ): Note {
     const database = this.getDatabase()
     const insertNote = database.prepare(`
-      INSERT INTO notes (id, created_at, updated_at)
-      VALUES (@id, @createdAt, @updatedAt)
+      INSERT INTO notes (id, note_type_id, created_at, updated_at)
+      VALUES (@id, @noteTypeId, @createdAt, @updatedAt)
     `)
     const createNote = database.transaction(
-      (noteId: string, noteValues: NoteValues) => {
+      (noteId: string, typeId: string, noteValues: NoteValues) => {
         insertNote.run({
           id: noteId,
+          noteTypeId: typeId,
           createdAt: timestamp,
           updatedAt: timestamp,
         })
@@ -42,7 +49,7 @@ export class NotesRepository {
       }
     )
 
-    createNote(id, values)
+    createNote(id, noteTypeId, values)
 
     return this.findById(id) as Note
   }
@@ -231,6 +238,7 @@ export class NotesRepository {
   private mapNoteRow(row: NoteRow): Note {
     return {
       id: row.id,
+      noteTypeId: row.note_type_id,
       values: {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,
