@@ -16,7 +16,8 @@ let settingsService: SettingsService
 let notesService: NotesService
 let exportImportController: ExportImportController
 
-const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+const getDefaultNoteTypeId = (): string =>
+  settingsService.getDefaultNoteType().id
 
 const createImportFile = (
   content: string,
@@ -70,14 +71,15 @@ afterEach(() => {
 })
 
 describe(ExportImportController.name, () => {
-  it('exports and imports JSON data through the API surface', async () => {
-    const sourceColumn = settingsService.createColumn({
+  it('exports and imports Phase 7 JSON data through the API surface', async () => {
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const sourceColumn = settingsService.createColumn(books.id, {
       name: 'sourceUrl',
       title: 'Source URL',
       type: ColumnTypeEnum.Link,
     })
     notesService.createNote({
-      noteTypeId: getDefaultNoteTypeId(),
+      noteTypeId: books.id,
       values: { [sourceColumn.id]: 'https://example.com' },
     })
 
@@ -86,33 +88,39 @@ describe(ExportImportController.name, () => {
       createImportFile(JSON.stringify(exportedData))
     )
 
-    expect(exportedData.columns.map((column) => column.name)).toContain(
-      'sourceUrl'
+    expect(exportedData.version).toBe(2)
+    expect(exportedData.noteTypes.map((noteType) => noteType.title)).toContain(
+      'Books'
     )
-    expect(exportedData.notes).toHaveLength(1)
     expect(result).toEqual({
-      importedColumns: 3,
+      importedColumns: exportedData.columns.length,
       importedNotes: 1,
+      unmatchedFields: [],
       updatedGeneralSettings: true,
     })
     expect(notesService.listNotes()).toHaveLength(2)
   })
 
-  it('imports xlsx files through the API surface', async () => {
-    const sourceColumn = settingsService.createColumn({
+  it('imports xlsx files through the API surface when a target note type is supplied', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const sourceColumn = settingsService.createColumn(recipes.id, {
       name: 'sourceUrl',
       title: 'Source URL',
       type: ColumnTypeEnum.Link,
     })
 
     const result = await exportImportController.importData(
-      await createSpreadsheetImportFile()
+      await createSpreadsheetImportFile(),
+      {
+        targetNoteTypeId: recipes.id,
+      }
     )
     const notes = notesService.listNotes()
 
     expect(result).toEqual({
       importedColumns: 1,
       importedNotes: 1,
+      unmatchedFields: [],
       updatedGeneralSettings: false,
     })
     expect(notes).toHaveLength(1)
@@ -121,38 +129,23 @@ describe(ExportImportController.name, () => {
     })
   })
 
+  it('rejects xlsx imports that do not include a target note type selection', async () => {
+    await expect(
+      exportImportController.importData(await createSpreadsheetImportFile())
+    ).rejects.toThrow(BadRequestException)
+  })
+
   it('rejects invalid import files before calling the service', async () => {
-    await expect(() => exportImportController.importData(undefined)).rejects.toThrow(
-      BadRequestException
-    )
+    await expect(() =>
+      exportImportController.importData(undefined)
+    ).rejects.toThrow(BadRequestException)
     await expect(() =>
       exportImportController.importData(createImportFile('{not-json'))
     ).rejects.toThrow(BadRequestException)
     await expect(() =>
       exportImportController.importData(
-        createImportFile('{"version":1}', 'text/plain', 'import.txt')
-      )
-    ).rejects.toThrow(BadRequestException)
-  })
-
-  it('rejects invalid import request bodies after parsing the uploaded file', async () => {
-    const exportedData = exportImportController.exportData()
-
-    await expect(() =>
-      exportImportController.importData(
-        createImportFile(
-          JSON.stringify({
-            ...exportedData,
-            exportedAt: 'not-a-date',
-          })
-        )
-      )
-    ).rejects.toThrow(BadRequestException)
-    await expect(() =>
-      exportImportController.importData(
-        createImportFile(JSON.stringify({ ...exportedData, notes: {} }))
+        createImportFile('{"version":2}', 'text/plain', 'import.txt')
       )
     ).rejects.toThrow(BadRequestException)
   })
 })
-

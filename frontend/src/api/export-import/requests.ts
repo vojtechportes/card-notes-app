@@ -11,9 +11,11 @@ export const getExportData = (
 }
 
 export const importData = (
-  file: File
+  file: File,
+  targetNoteTypeId?: string
 ): Promise<AxiosResponse<ImportResultDto>> => {
   return apiClient.postForm<ImportResultDto>('/export-import/import', {
     file,
+    ...(targetNoteTypeId ? { targetNoteTypeId } : {}),
   })
 }

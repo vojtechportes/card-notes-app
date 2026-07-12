@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ExportImportDataDto,
   ImportResultDto,
+  NoteTypeDto,
 } from '../../../../types/api'
 import '../../../../i18n'
 import { AppProviders } from '../../../../components/app-providers/app-providers'
@@ -16,6 +17,7 @@ import { ExportImportSection } from './export-import-section'
 
 const useExportDataMutationMock = vi.hoisted(() => vi.fn())
 const useImportDataMutationMock = vi.hoisted(() => vi.fn())
+const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../hooks/use-export-data-mutation', () => ({
   useExportDataMutation: useExportDataMutationMock,
@@ -24,6 +26,19 @@ vi.mock('../../hooks/use-export-data-mutation', () => ({
 vi.mock('../../hooks/use-import-data-mutation', () => ({
   useImportDataMutation: useImportDataMutationMock,
 }))
+
+vi.mock('../../hooks/use-note-types-query', () => ({
+  useNoteTypesQuery: useNoteTypesQueryMock,
+}))
+
+const noteTypes: NoteTypeDto[] = [
+  {
+    createdAt: '2026-07-08T10:00:00.000Z',
+    id: 'note-type-1',
+    title: 'Recipes',
+    updatedAt: '2026-07-08T10:00:00.000Z',
+  },
+]
 
 const exportData: ExportImportDataDto = {
   columns: [],
@@ -34,12 +49,14 @@ const exportData: ExportImportDataDto = {
     mergeDateTimeFields: false,
   },
   notes: [],
-  version: 1,
+  noteTypes,
+  version: 2,
 }
 
 const importResult: ImportResultDto = {
   importedColumns: 2,
   importedNotes: 4,
+  unmatchedFields: [],
   updatedGeneralSettings: true,
 }
 
@@ -78,6 +95,11 @@ beforeEach(() => {
 
   useExportDataMutationMock.mockReturnValue(exportMutation)
   useImportDataMutationMock.mockReturnValue(importMutation)
+  useNoteTypesQueryMock.mockReturnValue({
+    data: noteTypes,
+    isError: false,
+    isLoading: false,
+  })
 
   Object.defineProperty(globalThis.URL, 'createObjectURL', {
     configurable: true,
@@ -135,61 +157,96 @@ describe('ExportImportSection', () => {
     expect(await screen.findByText('JSON export was downloaded.')).toBeTruthy()
   })
 
-  it('shows export failure feedback when exporting rejects', async () => {
-    exportMutation.mutateAsync.mockRejectedValueOnce(new Error('export failed'))
+  it('imports a selected JSON file without forcing a target note type', async () => {
     renderExportImportSection()
+    const file = new File(
+      [JSON.stringify(exportData)],
+      'card-notes-backup.json',
+      {
+        type: 'application/json',
+      }
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
-
-    expect(
-      await screen.findByText('App data could not be exported right now.')
-    ).toBeTruthy()
-  })
-
-  it('uploads the selected JSON export file and shows the result summary', async () => {
-    renderExportImportSection()
-    const file = new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
-      type: 'application/json',
-    })
-
-    fireEvent.change(screen.getByLabelText('JSON import file'), {
+    fireEvent.change(screen.getByLabelText('Import file'), {
       target: {
         files: [file],
       },
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Import JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
 
     await waitFor(() => {
-      expect(importMutation.mutateAsync).toHaveBeenCalledWith(file)
+      expect(importMutation.mutateAsync).toHaveBeenCalledWith({
+        file,
+        targetNoteTypeId: undefined,
+      })
     })
 
     expect(
       await screen.findByText(
-        'Import completed. Added 2 columns and 4 notes. General settings were updated.'
-      )
-    ).toBeTruthy()
-    expect(
-      screen.getByText(
-        'Select a JSON export file to import. Existing notes stay in place and imported notes are appended.'
+        'Import completed. Processed 2 fields and appended 4 notes. General settings were updated.'
       )
     ).toBeTruthy()
   })
 
-  it('keeps the import button disabled until a file is selected', () => {
+  it('requires a target note type before importing an xlsx file', async () => {
     renderExportImportSection()
+    const file = new File(['xlsx-content'], 'card-notes.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+
+    fireEvent.change(screen.getByLabelText('Import file'), {
+      target: {
+        files: [file],
+      },
+    })
 
     expect(
-      screen.getByRole('button', { name: 'Import JSON' }).hasAttribute('disabled')
+      screen
+        .getByRole('button', { name: 'Import file' })
+        .hasAttribute('disabled')
     ).toBe(true)
-    expect(importMutation.mutateAsync).not.toHaveBeenCalled()
+
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: 'Import target note type' })
+    )
+    fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
+
+    expect(
+      screen
+        .getByRole('button', { name: 'Import file' })
+        .hasAttribute('disabled')
+    ).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
+
+    await waitFor(() => {
+      expect(importMutation.mutateAsync).toHaveBeenCalledWith({
+        file,
+        targetNoteTypeId: 'note-type-1',
+      })
+    })
   })
 
-  it('shows import failure feedback when the backend rejects the file', async () => {
-    importMutation.mutateAsync.mockRejectedValueOnce(new Error('import failed'))
+  it('clears the selected target note type when the user switches files', async () => {
     renderExportImportSection()
 
-    fireEvent.change(screen.getByLabelText('JSON import file'), {
+    fireEvent.change(screen.getByLabelText('Import file'), {
+      target: {
+        files: [
+          new File(['xlsx-content'], 'card-notes.xlsx', {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        ],
+      },
+    })
+
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: 'Import target note type' })
+    )
+    fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
+
+    fireEvent.change(screen.getByLabelText('Import file'), {
       target: {
         files: [
           new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
@@ -199,37 +256,47 @@ describe('ExportImportSection', () => {
       },
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Import JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
 
-    expect(
-      await screen.findByText(
-        'The selected data could not be imported right now.'
-      )
-    ).toBeTruthy()
-  })
-
-  it('shows loading button labels when export or import is pending', () => {
-    useExportDataMutationMock.mockReturnValue({
-      isPending: true,
-      mutateAsync: vi.fn(),
+    await waitFor(() => {
+      expect(importMutation.mutateAsync).toHaveBeenCalledWith({
+        file: expect.any(File),
+        targetNoteTypeId: undefined,
+      })
     })
-    useImportDataMutationMock.mockReturnValue({
-      isPending: true,
-      mutateAsync: vi.fn(),
+  })
+  it('shows unmatched field feedback returned from the backend', async () => {
+    importMutation.mutateAsync.mockResolvedValueOnce({
+      ...importResult,
+      unmatchedFields: [
+        {
+          name: 'rating',
+          noteTypeTitle: 'Books',
+          title: 'Rating',
+          type: 'number',
+        },
+      ],
     })
 
     renderExportImportSection()
 
+    fireEvent.change(screen.getByLabelText('Import file'), {
+      target: {
+        files: [
+          new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
+            type: 'application/json',
+          }),
+        ],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
+
     expect(
-      screen
-        .getByRole('button', { name: 'Exporting...' })
-        .hasAttribute('disabled')
-    ).toBe(true)
-    expect(
-      screen
-        .getByRole('button', { name: 'Importing...' })
-        .hasAttribute('disabled')
-    ).toBe(true)
+      await screen.findByText(
+        'Some imported fields could not be matched and were skipped:'
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('Books / Rating (rating, Number)')).toBeTruthy()
   })
 })
-

@@ -122,13 +122,15 @@ const createExportImportDataDto = (): ExportImportDataDto => ({
   exportedAt: '2026-07-08T10:00:00.000Z',
   generalSettings: createGeneralSettingsDto(),
   notes: [],
-  version: 1,
+  noteTypes: [],
+  version: 2,
 })
 
 const createImportResultDto = (): ImportResultDto => ({
   importedColumns: 1,
   updatedGeneralSettings: true,
   importedNotes: 2,
+  unmatchedFields: [],
 })
 
 const createDeleteAllNotesResultDto = (): DeleteAllNotesResultDto => ({
@@ -196,15 +198,15 @@ describe('settings queries', () => {
     vi.mocked(getNoteType).mockResolvedValue(createResponse(noteTypeDetail))
     const queryClient = createTestQueryClient()
 
-    const { result } = renderHook(
-      () => useNoteTypeDetailQuery(noteTypeId),
-      {
-        wrapper: createWrapper(queryClient),
-      }
-    )
+    const { result } = renderHook(() => useNoteTypeDetailQuery(noteTypeId), {
+      wrapper: createWrapper(queryClient),
+    })
 
     await waitFor(() => expect(result.current.data).toEqual(noteTypeDetail))
-    expect(getNoteType).toHaveBeenCalledWith(noteTypeId, expect.any(AbortSignal))
+    expect(getNoteType).toHaveBeenCalledWith(
+      noteTypeId,
+      expect.any(AbortSignal)
+    )
   })
 
   it('fetches note columns and maps Axios response data', async () => {
@@ -531,9 +533,13 @@ describe('settings mutations', () => {
   })
 
   it('imports app data and invalidates settings and notes queries', async () => {
-    const payload = new File([JSON.stringify(createExportImportDataDto())], 'backup.json', {
-      type: 'application/json',
-    })
+    const payload = new File(
+      [JSON.stringify(createExportImportDataDto())],
+      'backup.json',
+      {
+        type: 'application/json',
+      }
+    )
     const importResult = createImportResultDto()
     vi.mocked(importData).mockResolvedValue(createResponse(importResult))
     const queryClient = createTestQueryClient()
@@ -544,12 +550,15 @@ describe('settings mutations', () => {
     })
 
     await act(async () => {
-      await expect(result.current.mutateAsync(payload)).resolves.toEqual(
-        importResult
-      )
+      await expect(
+        result.current.mutateAsync({
+          file: payload,
+          targetNoteTypeId: 'note-type-2',
+        })
+      ).resolves.toEqual(importResult)
     })
 
-    expect(importData).toHaveBeenCalledWith(payload)
+    expect(importData).toHaveBeenCalledWith(payload, 'note-type-2')
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: settingsQueryKeys.all(),
     })

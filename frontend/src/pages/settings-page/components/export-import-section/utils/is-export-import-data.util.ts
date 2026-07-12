@@ -14,6 +14,7 @@ export const isExportImportData = (
   return (
     typeof value.version === 'number' &&
     typeof value.exportedAt === 'string' &&
+    Array.isArray(value.noteTypes) &&
     Array.isArray(value.columns) &&
     isRecord(value.generalSettings) &&
     Array.isArray(value.notes)
