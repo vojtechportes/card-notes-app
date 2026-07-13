@@ -37,3 +37,15 @@ test("writes the Certum publisher name to app-update.yml", async () => {
     await rm(appOutDir, { force: true, recursive: true });
   }
 });
+
+test("skips publisher metadata when app-update.yml is not generated", async () => {
+  const appOutDir = await mkdtemp(path.join(tmpdir(), "notestack-app-out-"));
+
+  try {
+    await mkdir(path.join(appOutDir, "resources"), { recursive: true });
+
+    await assert.doesNotReject(writeAppUpdatePublisher(appOutDir));
+  } finally {
+    await rm(appOutDir, { force: true, recursive: true });
+  }
+});
