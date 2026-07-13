@@ -31,7 +31,7 @@ test("writes the Certum publisher name to app-update.yml", async () => {
 
     assert.equal(
       appUpdate.publisherName,
-      "Open Source Developer Vojtěch Porteš",
+      "Open Source Developer Vojtech Porte\u0161",
     );
   } finally {
     await rm(appOutDir, { force: true, recursive: true });

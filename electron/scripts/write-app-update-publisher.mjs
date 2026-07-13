@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 
-const WINDOWS_PUBLISHER_NAME = "Open Source Developer Vojt\u011bch Porte\u0161";
+const WINDOWS_PUBLISHER_NAME = "Open Source Developer Vojtech Porte\u0161";
 
 export const writeAppUpdatePublisher = async (appOutDir) => {
   const appUpdatePath = path.join(appOutDir, "resources", "app-update.yml");

@@ -45,7 +45,7 @@ Signer image requirement:
 Certificate files:
 
 - The local `.cer` or `.pem` certificate files are not uploaded to GitHub and are not used as signing keys. Use one of them to confirm the public certificate fingerprint for `CERTUM_CERT_FINGERPRINT` and the publisher subject used by `electron-updater` for Windows updater verification.
-- The private signing key stays in Certum SimplySign cloud storage and is accessed through the SimplySign Desktop PKCS#11 token during CI. The current updater publisher name is configured from the certificate simple name as `Open Source Developer Vojtěch Porteš`; update `electron/scripts/write-app-update-publisher.mjs` if Certum reissues the certificate with a different subject.
+- The private signing key stays in Certum SimplySign cloud storage and is accessed through the SimplySign Desktop PKCS#11 token during CI. The current updater publisher name is configured from the certificate simple name as `Open Source Developer Vojtech Porteš`; update `electron/scripts/write-app-update-publisher.mjs` if Certum reissues the certificate with a different subject.
 
 Release process:
 
