@@ -28,7 +28,7 @@ The backend health endpoint is available at `/api/health`, and Swagger is expose
 
 ## GitHub Release Automation
 
-Publishing a GitHub release triggers `.github/workflows/release-electron.yml`. The workflow builds unsigned Windows Electron artifacts on Windows, uploads them as a workflow artifact, signs the NSIS installer in a dedicated Certum SimplySign job, refreshes the updater metadata for the signed installer bytes, uploads the signed installer plus updater metadata to the GitHub release for `vojtechportes/card-notes-app`, and verifies that the published release includes the installer, `latest.yml`, and the installer blockmap.
+Publishing a GitHub release triggers `.github/workflows/release-electron.yml`. The workflow builds an unsigned Windows `win-unpacked` app directory on Windows, signs every inner `.exe` from that directory in a dedicated Certum SimplySign job, builds the NSIS installer from the signed app directory, signs the final installer in Certum, refreshes the updater metadata for the signed installer bytes, uploads the signed installer plus updater metadata to the GitHub release for `vojtechportes/card-notes-app`, and verifies that the published release includes the installer, `latest.yml`, and the installer blockmap.
 
 Required GitHub Actions credentials:
 
@@ -55,13 +55,12 @@ Release process:
 4. Update the application version as needed.
 5. Create the Git tag and corresponding GitHub release.
 6. Publish the GitHub release to trigger the workflow.
-7. Wait for the workflow to build unsigned artifacts, sign the installer, refresh updater metadata, and upload release assets.
+7. Wait for the workflow to build the unsigned app directory, sign inner app executables, build and sign the installer, refresh updater metadata, and upload release assets.
 8. Confirm the release assets include `notestack-<version>-setup.exe`, `notestack-<version>-setup.exe.blockmap`, and `latest.yml`.
 9. Install the uploaded build on one machine, then use the in-app updater on an older installed build to confirm update discovery and download behavior.
 
 Known signing limitations:
 
-- The final NSIS installer is signed after packaging. Because signing changes the installer bytes, CI refreshes `latest.yml` and the blockmap before upload.
-- The inner `win-unpacked` application executables are not signed while `CSC_IDENTITY_AUTO_DISCOVERY=false`; T59 tracks adding a pre-installer inner executable signing stage.
+- The inner `win-unpacked` application executables are signed before NSIS installer creation, then the final NSIS installer is signed after packaging. Because final installer signing changes the installer bytes, CI refreshes `latest.yml` and the blockmap before upload.
 - SimplySign Desktop has no stable headless API. The CI action drives the GUI through Xvfb and xdotool, so release signing can be sensitive to UI timing, token state, TOTP clock drift, and signer image updates.
 - A newly issued certificate may still need reputation history before Windows SmartScreen warnings disappear.

@@ -298,7 +298,7 @@ runs:
 
         : "${CERTUM_PKCS11_CONFIG:?SunPKCS11 configuration was not prepared.}"
 
-        shopt -s nullglob
+        shopt -s globstar nullglob
         artifacts=( $ARTIFACTS_GLOB )
         if [ "${#artifacts[@]}" -eq 0 ]; then
           echo "::error::No Windows artifacts matched: $ARTIFACTS_GLOB"

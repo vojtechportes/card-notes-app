@@ -246,7 +246,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Confirm the signing job signs the Windows installer successfully and signature verification passes before upload.
   - Confirm the published release includes `latest.yml`, the signed installer, and the refreshed installer blockmap, and that an older installed build can update from those assets.
 
-- [ ] T59. Sign inner Windows app executables before NSIS installer creation
+- [x] T59. Sign inner Windows app executables before NSIS installer creation
   - Follow-up from T58: final installer signing is implemented, but `CSC_IDENTITY_AUTO_DISCOVERY=false` means electron-builder does not sign the inner `win-unpacked` application executables during packaging.
   - Add a pre-installer signing stage for inner `.exe` files once the Certum signer image is available and the final installer signing flow has been validated in CI.
 

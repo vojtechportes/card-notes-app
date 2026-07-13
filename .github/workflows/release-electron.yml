@@ -10,7 +10,7 @@ permissions:
   packages: read
 
 jobs:
-  build-windows-installer:
+  build-windows-app-directory:
     runs-on: windows-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -28,16 +28,96 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build unsigned Electron release artifacts
-        run: npm run package:release
+      - name: Build unsigned Electron app directory
+        run: npm run package:dir
+
+      - name: Upload unsigned app directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-app-directory
+          path: electron/release/win-unpacked/**
+          if-no-files-found: error
+
+  sign-windows-app-directory:
+    needs: build-windows-app-directory
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/reactiveui/certum-signer:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download unsigned app directory
+        uses: actions/download-artifact@v4
+        with:
+          name: unsigned-windows-app-directory
+          path: electron/release/win-unpacked
+
+      - name: Validate Certum signing environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CERTUM_USER_ID:?Set the CERTUM_USER_ID repository secret to the SimplySign login id.}"
+          : "${CERTUM_OTP_URI:?Set the CERTUM_OTP_URI repository secret to the otpauth:// TOTP URI.}"
+          : "${CERTUM_CERT_FINGERPRINT:?Set CERTUM_CERT_FINGERPRINT to the SHA-256 fingerprint of the Certum code-signing certificate.}"
+          : "${SS_DIST:?The Certum signer image must expose SS_DIST.}"
+          : "${JSIGN_JAR:?The Certum signer image must expose JSIGN_JAR.}"
+
+      - name: Sign inner app executables with Certum SimplySign
+        uses: ./.github/actions/certum-sign
+        with:
+          artifacts-glob: electron/release/win-unpacked/**/*.exe
+
+      - name: Upload signed app directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-windows-app-directory
+          path: electron/release/win-unpacked/**
+          if-no-files-found: error
+
+  build-windows-installer:
+    needs: sign-windows-app-directory
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download signed app directory
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-windows-app-directory
+          path: electron/release/win-unpacked
+
+      - name: Build unsigned installer from signed app directory
+        run: npm run package:prepackaged --workspace electron
 
       - name: Verify unsigned updater release artifacts
         run: npm run verify:release-artifacts --workspace electron
 
-      - name: Upload unsigned release artifacts
+      - name: Upload unsigned installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-windows-release
+          name: unsigned-windows-installer
           path: |
             electron/release/latest.yml
             electron/release/*.exe
@@ -61,10 +141,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Download unsigned release artifacts
+      - name: Download unsigned installer artifacts
         uses: actions/download-artifact@v4
         with:
-          name: unsigned-windows-release
+          name: unsigned-windows-installer
           path: electron/release
 
       - name: Validate Certum signing environment
@@ -85,7 +165,7 @@ jobs:
       - name: Upload signed installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: signed-windows-release
+          name: signed-windows-installer
           path: |
             electron/release/latest.yml
             electron/release/*.exe
@@ -111,10 +191,10 @@ jobs:
       - name: Install dependencies for release metadata refresh
         run: npm ci --ignore-scripts
 
-      - name: Download signed release artifacts
+      - name: Download signed installer artifacts
         uses: actions/download-artifact@v4
         with:
-          name: signed-windows-release
+          name: signed-windows-installer
           path: electron/release
 
       - name: Refresh updater metadata after signing
