@@ -28,6 +28,7 @@ import {
 } from 'react-router-dom'
 import { NotesPage } from '../../pages/notes-page/notes-page'
 import { SettingsPage } from '../../pages/settings-page/settings-page'
+import appLogoUrl from '../../assets/logo.png'
 import { SideDrawer } from '../side-drawer'
 
 const drawerWidth = 248
@@ -152,9 +153,26 @@ export const Layout: FC = () => {
               </IconButton>
             </Tooltip>
           )}
-          <Typography variant="h2" component="div" sx={{ flexGrow: 1 }}>
-            {t('app.title')}
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexGrow: 1,
+              minWidth: 0,
+              fontSize: (theme) => theme.typography.h2.fontSize,
+            }}
+          >
+            <Box
+              component="img"
+              src={appLogoUrl}
+              alt={t('app.logoAlt')}
+              sx={{ height: '1em', width: 'auto', flexShrink: 0 }}
+            />
+            <Typography variant="h2" component="div" noWrap>
+              {t('app.title')}
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
 

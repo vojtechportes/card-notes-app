@@ -363,6 +363,11 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep the query builder integration separate from the initial note type migration unless the implementation naturally needs a reusable filter model.
   - Ensure any future filter UI remains localized and works with mixed note type search results.
 
+## Misc tasks
+
+- [x] TMSC-10. Add logo, favicon and eletron app logo
+  - Source logo is located in `frontend/*/assets/logo.png` and `frontend/*/assets/favicon.png`
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

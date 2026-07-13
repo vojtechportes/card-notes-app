@@ -36,6 +36,7 @@ const packagedFrontendEntryPath = path.join(
   'dist',
   'index.html'
 )
+const applicationIconPath = path.join(workspaceRoot, 'electron', 'build', 'icon.png')
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
 const backendPort = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? '3000')
 const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
@@ -128,6 +129,7 @@ async function createMainWindow(): Promise<void> {
     height: 800,
     minWidth: 960,
     minHeight: 640,
+    icon: existsSync(applicationIconPath) ? applicationIconPath : undefined,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -325,4 +327,3 @@ function delay(timeoutMs: number): Promise<void> {
     setTimeout(resolve, timeoutMs)
   })
 }
-
