@@ -18,6 +18,19 @@ class IntersectionObserverMock {
   }
 }
 
+class ResizeObserverMock {
+  observe() {
+    return undefined
+  }
+
+  unobserve() {
+    return undefined
+  }
+
+  disconnect() {
+    return undefined
+  }
+}
 const createProps = () => ({
   isNoteTypesLoading: false,
   noteTypes: [
@@ -43,6 +56,8 @@ describe('NotesToolbar', () => {
   beforeEach(() => {
     globalThis.IntersectionObserver =
       IntersectionObserverMock as unknown as typeof IntersectionObserver
+    globalThis.ResizeObserver =
+      ResizeObserverMock as unknown as typeof ResizeObserver
   })
 
   afterEach(() => {

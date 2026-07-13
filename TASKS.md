@@ -344,7 +344,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Ensure import still appends data and does not delete existing notes.
   - Update XLSX import so the chosen target note type controls field matching.
 
-- [ ] T77. Note type tests and verification
+- [x] T77. Note type tests and verification
   - Fresh install creates `Default` and its per-type default fields.
   - Backend migration creates `Default` and preserves existing notes/fields.
   - Backend prevents deleting per-type `createdAt` and `updatedAt` fields.
@@ -374,4 +374,3 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-

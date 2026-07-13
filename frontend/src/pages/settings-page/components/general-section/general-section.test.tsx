@@ -107,7 +107,7 @@ describe('GeneralSection', () => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
         cardFieldDisplayCount: null,
         textTruncationLength: null,
-        mergeDateTimeFields: null,
+        mergeDateTimeFields: true,
       })
     })
   })

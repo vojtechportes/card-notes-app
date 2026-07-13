@@ -354,6 +354,119 @@ describe(ExportImportService.name, () => {
       sourceDatabaseService.close()
     }
   })
+  it('round-trips exported data while preserving note type relationships', () => {
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const booksAuthorColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'author',
+        title: 'Author',
+        type: ColumnTypeEnum.Text,
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: {
+          [booksAuthorColumn.id]: 'Martha Wells',
+        },
+      })
+
+      const firstExport = sourceExportImportService.exportData()
+      const importResult = exportImportService.importData(firstExport)
+      const secondExport = exportImportService.exportData()
+      const importedBooks = secondExport.noteTypes.find(
+        (noteType) => noteType.title === 'Books'
+      )
+      const importedAuthorColumn = secondExport.columns.find(
+        (column) =>
+          column.noteTypeId === importedBooks?.id && column.name === 'author'
+      )
+      const importedBookNote = secondExport.notes.find(
+        (note) => note.noteTypeId === importedBooks?.id
+      )
+
+      expect(importResult.importedNotes).toBe(1)
+      expect(importedBooks).toBeDefined()
+      expect(importedAuthorColumn).toBeDefined()
+      expect(importedBookNote?.values).toEqual({
+        [importedAuthorColumn?.id ?? 'missing-column']: 'Martha Wells',
+      })
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
+
+  it('imports into a selected target note type without deleting existing notes', () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const recipeTitleColumn = settingsService.createColumn(recipes.id, {
+      name: 'title',
+      title: 'Recipe title',
+      type: ColumnTypeEnum.Text,
+    })
+    const existingNote = notesService.createNote({
+      noteTypeId: recipes.id,
+      values: {
+        [recipeTitleColumn.id]: 'Existing recipe',
+      },
+    })
+
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const booksTitleColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'title',
+        title: 'Title',
+        type: ColumnTypeEnum.Text,
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: {
+          [booksTitleColumn.id]: 'Imported title',
+        },
+      })
+
+      const exportData = sourceExportImportService.exportData()
+      const result = exportImportService.importData(exportData, {
+        targetNoteTypeId: recipes.id,
+      })
+      const recipeNotes = notesService
+        .listNotes()
+        .filter((note) => note.noteTypeId === recipes.id)
+
+      expect(result.importedNotes).toBe(1)
+      expect(recipeNotes).toHaveLength(2)
+      expect(recipeNotes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: existingNote.id,
+            values: {
+              [recipeTitleColumn.id]: 'Existing recipe',
+            },
+          }),
+          expect.objectContaining({
+            values: {
+              [recipeTitleColumn.id]: 'Imported title',
+            },
+          }),
+        ])
+      )
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
   it('rejects malformed or legacy import payloads', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',

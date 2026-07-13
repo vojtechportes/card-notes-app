@@ -13,6 +13,7 @@ import {
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   SideDrawerContext,
   drawerInitialState,
@@ -41,8 +42,9 @@ type NoteTypeDialogState =
 
 export const NoteTypesSection = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { noteTypeId } = useParams<{ noteTypeId?: string }>()
   const { toggleDrawer } = useContext(SideDrawerContext)
-  const [activeNoteTypeId, setActiveNoteTypeId] = useState<string | null>(null)
   const [dialogState, setDialogState] = useState<NoteTypeDialogState | null>(
     null
   )
@@ -55,16 +57,12 @@ export const NoteTypesSection = () => {
   const createNoteTypeMutation = useCreateNoteTypeMutation()
   const updateNoteTypeMutation = useUpdateNoteTypeMutation()
   const deleteNoteTypeMutation = useDeleteNoteTypeMutation()
-  const noteTypeDetailQuery = useNoteTypeDetailQuery(
-    activeNoteTypeId ?? undefined
-  )
+  const noteTypeDetailQuery = useNoteTypeDetailQuery(noteTypeId)
 
   const noteTypes = noteTypesQuery.data ?? []
   const activeNoteType = useMemo(() => {
-    return (
-      noteTypes.find((noteType) => noteType.id === activeNoteTypeId) ?? null
-    )
-  }, [activeNoteTypeId, noteTypes])
+    return noteTypes.find((noteType) => noteType.id === noteTypeId) ?? null
+  }, [noteTypeId, noteTypes])
 
   const rows = useMemo(() => {
     return noteTypes.map((noteType) => ({
@@ -75,8 +73,8 @@ export const NoteTypesSection = () => {
   }, [noteTypes])
 
   const closeDrawer = useCallback(() => {
-    setActiveNoteTypeId(null)
-  }, [])
+    navigate('/settings')
+  }, [navigate])
 
   const handleOpenCreateDialog = useCallback(() => {
     setDialogError(null)
@@ -113,7 +111,7 @@ export const NoteTypesSection = () => {
             title: values.title.trim(),
           })
 
-          setActiveNoteTypeId(createdNoteType.id)
+          navigate(`/settings/${createdNoteType.id}`)
         }
 
         handleCloseDialog()
@@ -125,6 +123,7 @@ export const NoteTypesSection = () => {
       createNoteTypeMutation,
       dialogState,
       handleCloseDialog,
+      navigate,
       t,
       updateNoteTypeMutation,
     ]
@@ -141,7 +140,7 @@ export const NoteTypesSection = () => {
           id: deleteCandidate.id,
           noteType: payload,
         })
-        if (activeNoteTypeId === deleteCandidate.id) {
+        if (noteTypeId === deleteCandidate.id) {
           closeDrawer()
         }
         handleCloseDeleteDialog()
@@ -150,13 +149,20 @@ export const NoteTypesSection = () => {
       }
     },
     [
-      activeNoteTypeId,
       closeDrawer,
       deleteCandidate,
       deleteNoteTypeMutation,
       handleCloseDeleteDialog,
+      noteTypeId,
       t,
     ]
+  )
+
+  const handleOpenNoteTypeDetail = useCallback(
+    (id: string) => {
+      navigate(`/settings/${id}`)
+    },
+    [navigate]
   )
 
   const gridColumns = useMemo<GridColDef[]>(() => {
@@ -233,7 +239,26 @@ export const NoteTypesSection = () => {
   }, [handleOpenEditDialog, t])
 
   useEffect(() => {
-    if (!activeNoteTypeId) {
+    if (
+      !noteTypeId ||
+      noteTypesQuery.isLoading ||
+      noteTypesQuery.isError ||
+      activeNoteType
+    ) {
+      return
+    }
+
+    navigate('/settings', { replace: true })
+  }, [
+    activeNoteType,
+    navigate,
+    noteTypeId,
+    noteTypesQuery.isError,
+    noteTypesQuery.isLoading,
+  ])
+
+  useEffect(() => {
+    if (!noteTypeId || (!activeNoteType && !noteTypesQuery.isLoading)) {
       toggleDrawer(drawerInitialState)
       return
     }
@@ -244,7 +269,7 @@ export const NoteTypesSection = () => {
         noteTypeDetailQuery.data?.title ??
         activeNoteType?.title ??
         t('settings.noteTypes.drawer.title'),
-      targetPathname: '/settings',
+      targetPathname: `/settings/${noteTypeId}`,
       targetPathnameRoot: '/settings',
       loading: noteTypeDetailQuery.isLoading,
       drawerContent: (
@@ -252,7 +277,7 @@ export const NoteTypesSection = () => {
           isError={noteTypeDetailQuery.isError}
           isLoading={noteTypeDetailQuery.isLoading}
           noteType={noteTypeDetailQuery.data}
-          noteTypeId={activeNoteTypeId}
+          noteTypeId={noteTypeId}
         />
       ),
       onClose: closeDrawer,
@@ -260,11 +285,12 @@ export const NoteTypesSection = () => {
     })
   }, [
     activeNoteType,
-    activeNoteTypeId,
     closeDrawer,
     noteTypeDetailQuery.data,
     noteTypeDetailQuery.isError,
     noteTypeDetailQuery.isLoading,
+    noteTypeId,
+    noteTypesQuery.isLoading,
     t,
     toggleDrawer,
   ])
@@ -318,7 +344,7 @@ export const NoteTypesSection = () => {
               disableVirtualization
               hideFooter
               onRowClick={(params) => {
-                setActiveNoteTypeId(String(params.id))
+                handleOpenNoteTypeDetail(String(params.id))
               }}
               rows={rows}
               sx={{

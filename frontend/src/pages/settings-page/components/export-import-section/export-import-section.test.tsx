@@ -189,6 +189,34 @@ describe('ExportImportSection', () => {
     ).toBeTruthy()
   })
 
+  it('imports a JSON file into the selected target note type when one is chosen', async () => {
+    renderExportImportSection()
+    const file = new File(
+      [JSON.stringify(exportData)],
+      'card-notes-backup.json',
+      {
+        type: 'application/json',
+      }
+    )
+
+    fireEvent.change(screen.getByLabelText('Import file'), {
+      target: {
+        files: [file],
+      },
+    })
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: 'Import target note type' })
+    )
+    fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
+
+    await waitFor(() => {
+      expect(importMutation.mutateAsync).toHaveBeenCalledWith({
+        file,
+        targetNoteTypeId: 'note-type-1',
+      })
+    })
+  })
   it('requires a target note type before importing an xlsx file', async () => {
     renderExportImportSection()
     const file = new File(['xlsx-content'], 'card-notes.xlsx', {

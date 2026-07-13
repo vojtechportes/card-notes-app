@@ -13,15 +13,19 @@ import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import {
+  Children,
+  cloneElement,
   createContext,
   type Dispatch,
   type FC,
+  type MouseEventHandler,
   type PropsWithChildren,
   type ReactNode,
   type SetStateAction,
   useCallback,
   useContext,
   useEffect,
+  isValidElement,
   useMemo,
   useState,
 } from 'react'
@@ -118,6 +122,25 @@ export const SideDrawer: FC = () => {
   const drawerOnClose = sideDrawerInfo.onClose
   const hasDrawerActions = Boolean(sideDrawerInfo.drawerActions)
 
+  const drawerActions = useMemo(() => {
+    return Children.map(sideDrawerInfo.drawerActions, (action) => {
+      if (
+        !isValidElement<{ onClick?: MouseEventHandler<HTMLElement> }>(action)
+      ) {
+        return action
+      }
+
+      const originalOnClick = action.props.onClick
+
+      return cloneElement(action, {
+        onClick: (event) => {
+          originalOnClick?.(event)
+          setActionsAnchorElement(null)
+        },
+      })
+    })
+  }, [sideDrawerInfo.drawerActions])
+
   const handleExpandedButtonClick = useCallback(() => {
     setExpanded((value) => !value)
   }, [])
@@ -212,7 +235,7 @@ export const SideDrawer: FC = () => {
                   }}
                   open={Boolean(actionsAnchorElement)}
                 >
-                  {sideDrawerInfo.drawerActions}
+                  {drawerActions}
                 </Menu>
               </>
             )}

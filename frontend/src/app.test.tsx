@@ -51,6 +51,15 @@ describe('App routing', () => {
     ).toBeTruthy()
   })
 
+  it('renders settings from a note type detail route', async () => {
+    window.location.hash = '#/settings/note-type-1'
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Settings' })
+    ).toBeTruthy()
+  })
   it('renders notes from a note detail route and still allows navigation to settings', async () => {
     window.location.hash = '#/notes/note-1'
 
