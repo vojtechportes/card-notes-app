@@ -98,6 +98,10 @@ export const ColumnsSection = ({
         name: values.name.trim(),
         title: values.title.trim(),
         type: values.type,
+        config:
+          values.type === 'image'
+            ? { isMultiImage: values.isMultiImage }
+            : null,
       }
 
       if (activeColumn) {

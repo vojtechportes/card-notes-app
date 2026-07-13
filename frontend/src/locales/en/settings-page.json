@@ -131,7 +131,8 @@
         "title": "Column title",
         "name": "Column name",
         "type": "Column type",
-        "hidden": "Hide this column from note cards and forms"
+        "hidden": "Hide this column from note cards and forms",
+        "multiImage": "Allow multiple images"
       },
       "types": {
         "text": "Text",

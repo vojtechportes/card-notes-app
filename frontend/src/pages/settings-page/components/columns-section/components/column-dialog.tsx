@@ -16,7 +16,7 @@ import {
   TextField,
 } from '@mui/material'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDto } from '../../../../../types/api'
 import { createFormResolver } from '../../../../../utils/create-form-resolver.util'
@@ -62,6 +62,11 @@ export const ColumnDialog = ({
     defaultValues,
     mode: 'onBlur',
     resolver: createFormResolver(schema),
+  })
+
+  const selectedType = useWatch({
+    control,
+    name: 'type',
   })
 
   const isEditing = !!column
@@ -204,6 +209,24 @@ export const ColumnDialog = ({
                 </FormControl>
               )}
             />
+
+            {selectedType === 'image' ? (
+              <Controller
+                control={control}
+                name="isMultiImage"
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={field.value}
+                        onChange={(_, checked) => field.onChange(checked)}
+                      />
+                    }
+                    label={t('settings.columns.fields.multiImage')}
+                  />
+                )}
+              />
+            ) : null}
 
             <Controller
               control={control}

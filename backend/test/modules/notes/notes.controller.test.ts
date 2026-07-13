@@ -15,7 +15,8 @@ let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesController: NotesController
 
-const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+const getDefaultNoteTypeId = (): string =>
+  settingsService.getDefaultNoteType().id
 
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
@@ -51,6 +52,51 @@ describe(NotesController.name, () => {
     expect(createdNote.noteTypeId).toBe(getDefaultNoteTypeId())
     expect(createdNote.values).toEqual({ [summaryColumn.id]: 'API note' })
     expect(notesController.getNote(createdNote.id)).toEqual(createdNote)
+  })
+
+  it('creates notes from multipart image uploads without requiring base64 in the payload', () => {
+    const imageColumn = settingsService.createColumn({
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+    const payload = {
+      noteTypeId: getDefaultNoteTypeId(),
+      values: {
+        [imageColumn.id]: {
+          altText: 'screen one',
+          fileName: 'screen-one.png',
+          height: 80,
+          uploadKey: 'note-image-0',
+          width: 120,
+        },
+      },
+    }
+
+    const createdNote = notesController.createNote(
+      { payload: JSON.stringify(payload) } as never,
+      [
+        {
+          buffer: Buffer.from('uploaded-image'),
+          fieldname: 'note-image-0',
+          mimetype: 'image/png',
+          originalname: 'screen-one.png',
+          size: 14,
+        },
+      ]
+    )
+
+    expect(createdNote.values[imageColumn.id]).toEqual({
+      altText: 'screen one',
+      dataUrl: `data:image/png;base64,${Buffer.from('uploaded-image').toString(
+        'base64'
+      )}`,
+      fileName: 'screen-one.png',
+      height: 80,
+      mimeType: 'image/png',
+      size: 14,
+      width: 120,
+    })
   })
 
   it('lists notes with default, filtered, and explicit sort query options', () => {
@@ -171,18 +217,18 @@ describe(NotesController.name, () => {
     expect(() => notesController.createNote([] as never)).toThrow(
       BadRequestException
     )
-    expect(() => notesController.createNote({ values: [] as never } as never)).toThrow(
-      BadRequestException
-    )
-    expect(() => notesController.createNote({ values: null as never } as never)).toThrow(
-      BadRequestException
-    )
-    expect(() => notesController.createNote({ noteTypeId: '' } as never)).toThrow(
-      BadRequestException
-    )
-    expect(() => notesController.createNote({ noteTypeId: 1 as never } as never)).toThrow(
-      BadRequestException
-    )
+    expect(() =>
+      notesController.createNote({ values: [] as never } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.createNote({ values: null as never } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.createNote({ noteTypeId: '' } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.createNote({ noteTypeId: 1 as never } as never)
+    ).toThrow(BadRequestException)
     expect(() => notesController.updateNote(note.id, null as never)).toThrow(
       BadRequestException
     )
@@ -206,9 +252,9 @@ describe(NotesController.name, () => {
         sortDirection: 'sideways' as NoteSortDirectionEnum,
       })
     ).toThrow(BadRequestException)
-    expect(() =>
-      notesController.listNotes({ noteTypeIds: '' })
-    ).toThrow(BadRequestException)
+    expect(() => notesController.listNotes({ noteTypeIds: '' })).toThrow(
+      BadRequestException
+    )
     expect(() =>
       notesController.listNotes({ noteTypeIds: [1 as never] })
     ).toThrow(BadRequestException)

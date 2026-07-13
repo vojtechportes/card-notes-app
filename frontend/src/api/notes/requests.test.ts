@@ -78,6 +78,59 @@ describe('notes requests', () => {
     expect(apiClientMock.post).toHaveBeenCalledWith('/notes', note)
   })
 
+  it('creates multipart notes when image values include source files', () => {
+    const file = new File(['image-bytes'], 'screen.png', { type: 'image/png' })
+    const note = {
+      noteTypeId: 'note-type-1',
+      values: {
+        printscreen: {
+          altText: 'screen',
+          dataUrl: 'data:image/png;base64,large-preview',
+          fileName: 'screen.png',
+          height: 80,
+          mimeType: 'image/png',
+          size: file.size,
+          sourceFile: file,
+          width: 120,
+        },
+      },
+    } as CreateNoteDto
+    const response = Promise.resolve(createResponse({ id: 'note-1' }))
+    apiClientMock.post.mockReturnValue(response)
+
+    const result = createNote(note)
+
+    const requestBody = apiClientMock.post.mock.calls[0][1] as FormData
+    const payload = JSON.parse(
+      String(requestBody.get('payload'))
+    ) as CreateNoteDto
+
+    expect(result).toBe(response)
+    expect(apiClientMock.post).toHaveBeenCalledWith(
+      '/notes',
+      expect.any(FormData)
+    )
+    const uploadedFile = requestBody.get('note-image-0') as File
+
+    expect(uploadedFile.name).toBe(file.name)
+    expect(uploadedFile.size).toBe(file.size)
+    expect(uploadedFile.type).toBe(file.type)
+    expect(payload).toEqual({
+      noteTypeId: 'note-type-1',
+      values: {
+        printscreen: {
+          altText: 'screen',
+          fileName: 'screen.png',
+          height: 80,
+          mimeType: 'image/png',
+          size: file.size,
+          uploadKey: 'note-image-0',
+          width: 120,
+        },
+      },
+    })
+  })
+
   it('updates a note', () => {
     const note: UpdateNoteDto = { values: { title: 'Updated note' } }
     const response = Promise.resolve(createResponse({ id: 'note-1' }))
@@ -89,6 +142,58 @@ describe('notes requests', () => {
     expect(apiClientMock.patch).toHaveBeenCalledWith('/notes/note-1', note)
   })
 
+  it('updates notes with existing data url images as multipart files', () => {
+    const note: UpdateNoteDto = {
+      values: {
+        printscreen: [
+          {
+            altText: 'stored screen',
+            dataUrl: 'data:image/png;base64,aW1hZ2UtYnl0ZXM=',
+            fileName: 'stored-screen.png',
+            height: 80,
+            mimeType: 'image/png',
+            size: 11,
+            width: 120,
+          },
+        ],
+      },
+    }
+    const response = Promise.resolve(createResponse({ id: 'note-1' }))
+    apiClientMock.patch.mockReturnValue(response)
+
+    const result = updateNote('note-1', note)
+
+    const requestBody = apiClientMock.patch.mock.calls[0][1] as FormData
+    const payload = JSON.parse(
+      String(requestBody.get('payload'))
+    ) as UpdateNoteDto
+
+    expect(result).toBe(response)
+    expect(apiClientMock.patch).toHaveBeenCalledWith(
+      '/notes/note-1',
+      expect.any(FormData)
+    )
+    const uploadedFile = requestBody.get('note-image-0') as File
+
+    expect(uploadedFile.name).toBe('stored-screen.png')
+    expect(uploadedFile.size).toBe(11)
+    expect(uploadedFile.type).toBe('image/png')
+    expect(payload).toEqual({
+      values: {
+        printscreen: [
+          {
+            altText: 'stored screen',
+            fileName: 'stored-screen.png',
+            height: 80,
+            mimeType: 'image/png',
+            size: 11,
+            uploadKey: 'note-image-0',
+            width: 120,
+          },
+        ],
+      },
+    })
+  })
   it('deletes all notes', () => {
     const response = Promise.resolve(
       createResponse<DeleteAllNotesResultDto>({ deletedCount: 12 })

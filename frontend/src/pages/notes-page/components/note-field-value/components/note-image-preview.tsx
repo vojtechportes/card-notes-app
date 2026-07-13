@@ -4,6 +4,7 @@ import { ImageOverlay } from '../../../../../components/image-overlay'
 
 interface NoteImagePreviewProps {
   alt: string
+  aspectRatio?: string
   closeOverlayLabel: string
   enableOverlay?: boolean
   maxWidth?: number | string
@@ -12,6 +13,7 @@ interface NoteImagePreviewProps {
 
 export const NoteImagePreview = ({
   alt,
+  aspectRatio = '4 / 3',
   closeOverlayLabel,
   enableOverlay = false,
   maxWidth,
@@ -53,7 +55,7 @@ export const NoteImagePreview = ({
         <Box
           sx={{
             alignItems: 'center',
-            aspectRatio: '4 / 3',
+            aspectRatio,
             backgroundColor: 'background.default',
             border: 1,
             borderColor: 'divider',

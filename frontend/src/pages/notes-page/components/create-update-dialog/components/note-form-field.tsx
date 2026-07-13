@@ -7,8 +7,9 @@ import type {
 import { Controller } from 'react-hook-form'
 import type { ColumnDto } from '../../../../../types/api'
 import type { FormValues } from '../types/form-values'
-import type { NoteFormImageValue } from '../types/note-form-image-value'
+import { isMultiImageColumn } from '../../../../../utils/is-multi-image-column.util'
 import { NoteImageDropZone } from './note-image-drop-zone'
+import type { NoteImageDropZoneValue } from './note-image-drop-zone'
 
 interface NoteFormFieldProps {
   autoFocus: boolean
@@ -35,6 +36,7 @@ export const NoteFormField = ({
         render={({ field, fieldState }) => (
           <NoteImageDropZone
             errorMessage={fieldState.error?.message}
+            isMultiImage={isMultiImageColumn(column)}
             label={column.title}
             onChange={(value) => field.onChange(value)}
             onFileError={(message) => {
@@ -48,7 +50,7 @@ export const NoteFormField = ({
 
               clearErrors(fieldName)
             }}
-            value={(field.value as NoteFormImageValue | null) ?? null}
+            value={(field.value as NoteImageDropZoneValue) ?? null}
           />
         )}
       />

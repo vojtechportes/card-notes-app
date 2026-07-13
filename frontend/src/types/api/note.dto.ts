@@ -2,20 +2,37 @@
 // Do not edit by hand.
 
 export type NoteDto = {
-  "id": string;
-  "noteTypeId": string;
-  "values": Record<string, string | number | {
-  "fileName"?: string;
-  "mimeType"?: string;
-  "size"?: number;
-  "dataUrl"?: string;
-  "path"?: string;
-  "url"?: string;
-  "altText"?: string;
-  "width"?: number;
-  "height"?: number;
-  [key: string]: unknown;
-}>;
-  "createdAt": string;
-  "updatedAt": string;
-};
+  id: string
+  noteTypeId: string
+  values: Record<
+    string,
+    | string
+    | number
+    | {
+        fileName?: string
+        mimeType?: string
+        size?: number
+        dataUrl?: string
+        path?: string
+        url?: string
+        altText?: string
+        width?: number
+        height?: number
+        [key: string]: unknown
+      }
+    | Array<{
+        fileName?: string
+        mimeType?: string
+        size?: number
+        dataUrl?: string
+        path?: string
+        url?: string
+        altText?: string
+        width?: number
+        height?: number
+        [key: string]: unknown
+      }>
+  >
+  createdAt: string
+  updatedAt: string
+}

@@ -71,7 +71,8 @@
         "more": "More actions",
         "openDetail": "Open detail",
         "openDetailNamed": "Open detail for {{label}}"
-      }
+      },
+      "moreImages": "{{count}} more images"
     },
     "detail": {
       "title": "Note detail",
@@ -126,7 +127,10 @@
         "actions": {
           "select": "Choose image",
           "replace": "Replace image",
-          "remove": "Remove image"
+          "remove": "Remove image",
+          "addMore": "Add images",
+          "removeAll": "Remove images",
+          "removeOne": "Remove {{caption}}"
         },
         "status": {
           "processing": "Processing image..."
@@ -134,7 +138,9 @@
         "errors": {
           "invalidType": "Select an image file.",
           "readFailed": "The selected image could not be processed."
-        }
+        },
+        "multiHint": "Drop images here or choose files to attach them to this note.",
+        "supportedFormats": "Supported formats: PNG, JPG, JPEG, GIF, WebP, SVG, and BMP."
       }
     },
     "createDialog": {
@@ -145,4 +151,3 @@
     }
   }
 }
-

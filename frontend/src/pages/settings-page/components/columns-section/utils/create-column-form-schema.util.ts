@@ -12,6 +12,7 @@ export const createColumnFormSchema = (
 ) => {
   return yup.object({
     isHidden: yup.boolean().required(),
+    isMultiImage: yup.boolean().required(),
     name: yup
       .string()
       .transform((value) => normalizeColumnName(value ?? ''))

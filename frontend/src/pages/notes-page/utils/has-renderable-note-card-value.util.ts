@@ -1,5 +1,6 @@
 import type { NoteCardFieldValue } from '../types/note-card-field'
 import { isImageNoteValue } from './is-image-note-value.util'
+import { isNoteImageValueList } from './is-note-image-value-list.util'
 
 export const hasRenderableNoteCardValue = (
   value: NoteCardFieldValue | undefined
@@ -14,6 +15,10 @@ export const hasRenderableNoteCardValue = (
 
   if (typeof value === 'number') {
     return Number.isFinite(value)
+  }
+
+  if (isNoteImageValueList(value)) {
+    return value.some(hasRenderableNoteCardValue)
   }
 
   if (!isImageNoteValue(value)) {

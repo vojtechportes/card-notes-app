@@ -55,15 +55,27 @@ export const createNoteFormSchema = (
                   return true
                 }
 
-                if (typeof value !== 'object' || Array.isArray(value)) {
+                const imageValues = Array.isArray(value) ? value : [value]
+
+                if (imageValues.length === 0) {
                   return false
                 }
 
-                return (
-                  typeof value.dataUrl === 'string' ||
-                  typeof value.path === 'string' ||
-                  typeof value.url === 'string'
-                )
+                return imageValues.every((imageValue) => {
+                  if (
+                    typeof imageValue !== 'object' ||
+                    imageValue === null ||
+                    Array.isArray(imageValue)
+                  ) {
+                    return false
+                  }
+
+                  return (
+                    typeof imageValue.dataUrl === 'string' ||
+                    typeof imageValue.path === 'string' ||
+                    typeof imageValue.url === 'string'
+                  )
+                })
               }
             )
           break

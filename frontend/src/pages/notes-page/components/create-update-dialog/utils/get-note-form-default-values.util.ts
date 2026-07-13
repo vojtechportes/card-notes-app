@@ -1,5 +1,8 @@
 import type { ColumnDto, NoteDto } from '../../../../../types/api'
 import type { FormValues } from '../types/form-values'
+import { isMultiImageColumn } from '../../../../../utils/is-multi-image-column.util'
+import { isImageNoteValue } from '../../../utils/is-image-note-value.util'
+import { isNoteImageValueList } from '../../../utils/is-note-image-value-list.util'
 import { normalizeDateInputValue } from './normalize-date-input-value.util'
 
 export const getNoteFormDefaultValues = (
@@ -10,8 +13,18 @@ export const getNoteFormDefaultValues = (
     const value = note?.values[column.id]
 
     if (column.type === 'image') {
-      accumulator[column.id] =
-        typeof value === 'object' && value !== null && !Array.isArray(value)
+      if (isMultiImageColumn(column)) {
+        accumulator[column.id] = isNoteImageValueList(value)
+          ? value
+          : isImageNoteValue(value)
+            ? [value]
+            : null
+        return accumulator
+      }
+
+      accumulator[column.id] = isNoteImageValueList(value)
+        ? (value[0] ?? null)
+        : isImageNoteValue(value)
           ? value
           : null
       return accumulator

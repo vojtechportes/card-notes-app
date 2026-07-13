@@ -2,16 +2,34 @@
 // Do not edit by hand.
 
 export type UpdateNoteDto = {
-  "values"?: Record<string, string | number | null | {
-  "fileName"?: string;
-  "mimeType"?: string;
-  "size"?: number;
-  "dataUrl"?: string;
-  "path"?: string;
-  "url"?: string;
-  "altText"?: string;
-  "width"?: number;
-  "height"?: number;
-  [key: string]: unknown;
-}>;
-};
+  values?: Record<
+    string,
+    | string
+    | number
+    | null
+    | {
+        fileName?: string
+        mimeType?: string
+        size?: number
+        dataUrl?: string
+        path?: string
+        url?: string
+        altText?: string
+        width?: number
+        height?: number
+        [key: string]: unknown
+      }
+    | Array<{
+        fileName?: string
+        mimeType?: string
+        size?: number
+        dataUrl?: string
+        path?: string
+        url?: string
+        altText?: string
+        width?: number
+        height?: number
+        [key: string]: unknown
+      }>
+  >
+}

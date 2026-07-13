@@ -231,6 +231,7 @@ describe('ColumnsSection', () => {
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
+          config: null,
           isHidden: false,
           name: 'firstField',
           title: 'First field',
@@ -267,6 +268,7 @@ describe('ColumnsSection', () => {
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
+          config: null,
           isHidden: false,
           name: 'projectStatus',
           title: 'Duplicate summary',
@@ -303,6 +305,7 @@ describe('ColumnsSection', () => {
     await waitFor(() => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
+          config: null,
           isHidden: false,
           name: 'createdAt',
           title: 'Created on',
@@ -462,7 +465,8 @@ describe('ColumnsSection', () => {
     })
 
     renderColumnsSection()
-    expect(screen.getByText('Fields could not be loaded right now.')).toBeTruthy()
+    expect(
+      screen.getByText('Fields could not be loaded right now.')
+    ).toBeTruthy()
   })
 })
-

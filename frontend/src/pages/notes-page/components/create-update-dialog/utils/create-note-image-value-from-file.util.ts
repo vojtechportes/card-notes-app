@@ -18,6 +18,7 @@ export const createNoteImageValueFromFile = async (
     height: dimensions.height,
     mimeType: file.type || undefined,
     size: file.size,
+    sourceFile: file,
     width: dimensions.width,
   }
 }

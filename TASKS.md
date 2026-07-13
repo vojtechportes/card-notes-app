@@ -382,6 +382,14 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Add a theme-derived light border to note image preview containers.
   - Match note detail field title styling to the note card list title styling.
   - Match Settings side drawer detail title styling to the note card list title styling.
+
+- [x] TMSC-15. Add multi-image fields
+  - Add settings-owned image field configuration for single-image vs multi-image behavior.
+  - Import duplicate XLSX image headers into a configured multi-image field in sheet order.
+  - For duplicate XLSX image headers mapped to a single-image field, import only the first image value.
+  - Render multi-image previews as 128px square tiles; in card lists show the first image plus a `+N` overflow tile.
+  - Keep existing single-image notes and imports compatible.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
@@ -393,4 +401,3 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
-
