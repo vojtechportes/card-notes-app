@@ -1,7 +1,7 @@
 import type {
   UpdaterRelease,
   UpdaterState,
-} from '../../../../../types/card-notes-updater'
+} from '../../../../../types/notestack-updater'
 
 export const getUpdateFromUpdaterState = (
   state: UpdaterState

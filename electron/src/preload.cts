@@ -1,5 +1,5 @@
 import type { IpcRenderer } from 'electron'
-import type { CardNotesUpdaterBridge, UpdaterState } from './updater/updater-contract.js'
+import type { NoteStackUpdaterBridge, UpdaterState } from './updater/updater-contract.js'
 
 const { contextBridge, ipcRenderer } = require('electron') as {
   contextBridge: {
@@ -16,7 +16,7 @@ const updaterIpcChannels = {
   stateChanged: 'updater:state-changed',
 } as const
 
-const updaterBridge: CardNotesUpdaterBridge = {
+const updaterBridge: NoteStackUpdaterBridge = {
   checkForUpdates: () => {
     return ipcRenderer.invoke(updaterIpcChannels.checkForUpdates)
   },
@@ -45,4 +45,4 @@ const updaterBridge: CardNotesUpdaterBridge = {
   },
 }
 
-contextBridge.exposeInMainWorld('cardNotesUpdater', updaterBridge)
+contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)

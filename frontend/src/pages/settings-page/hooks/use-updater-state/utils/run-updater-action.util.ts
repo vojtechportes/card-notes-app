@@ -1,12 +1,12 @@
 import type {
-  CardNotesUpdaterBridge,
+  NoteStackUpdaterBridge,
   UpdaterState,
-} from '../../../../../types/card-notes-updater'
+} from '../../../../../types/notestack-updater'
 import type { UpdaterActionName } from '../types/updater-action-name'
 import { createUnexpectedUpdaterErrorState } from './create-unexpected-updater-error-state.util'
 
 export const runUpdaterAction = async (
-  updater: CardNotesUpdaterBridge,
+  updater: NoteStackUpdaterBridge,
   action: UpdaterActionName,
   onStateChange: (state: UpdaterState) => void,
   currentState: UpdaterState,

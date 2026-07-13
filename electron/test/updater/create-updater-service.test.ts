@@ -71,7 +71,7 @@ test('tracks manual check, download, and install transitions', async () => {
     client.emit('checking-for-update')
     client.emit('update-available', {
       releaseDate: '2026-07-10T08:00:00.000Z',
-      releaseName: 'Card Notes App 1.1.0',
+      releaseName: 'NoteStack 1.1.0',
       version: '1.1.0',
     })
   }
@@ -85,7 +85,7 @@ test('tracks manual check, download, and install transitions', async () => {
     })
     client.emit('update-downloaded', {
       releaseDate: '2026-07-10T08:00:00.000Z',
-      releaseName: 'Card Notes App 1.1.0',
+      releaseName: 'NoteStack 1.1.0',
       version: '1.1.0',
     })
   }
@@ -98,7 +98,7 @@ test('tracks manual check, download, and install transitions', async () => {
     kind: 'available',
     update: {
       releaseDate: '2026-07-10T08:00:00.000Z',
-      releaseName: 'Card Notes App 1.1.0',
+      releaseName: 'NoteStack 1.1.0',
       version: '1.1.0',
     },
   })
@@ -111,7 +111,7 @@ test('tracks manual check, download, and install transitions', async () => {
     kind: 'downloaded',
     update: {
       releaseDate: '2026-07-10T08:00:00.000Z',
-      releaseName: 'Card Notes App 1.1.0',
+      releaseName: 'NoteStack 1.1.0',
       version: '1.1.0',
     },
   })
@@ -138,7 +138,7 @@ test('tracks manual check, download, and install transitions', async () => {
       kind: 'available',
       update: {
         releaseDate: '2026-07-10T08:00:00.000Z',
-        releaseName: 'Card Notes App 1.1.0',
+        releaseName: 'NoteStack 1.1.0',
         version: '1.1.0',
       },
     },
@@ -153,7 +153,7 @@ test('tracks manual check, download, and install transitions', async () => {
       },
       update: {
         releaseDate: '2026-07-10T08:00:00.000Z',
-        releaseName: 'Card Notes App 1.1.0',
+        releaseName: 'NoteStack 1.1.0',
         version: '1.1.0',
       },
     },
@@ -162,7 +162,7 @@ test('tracks manual check, download, and install transitions', async () => {
       kind: 'downloaded',
       update: {
         releaseDate: '2026-07-10T08:00:00.000Z',
-        releaseName: 'Card Notes App 1.1.0',
+        releaseName: 'NoteStack 1.1.0',
         version: '1.1.0',
       },
     },
@@ -171,7 +171,7 @@ test('tracks manual check, download, and install transitions', async () => {
       kind: 'installing',
       update: {
         releaseDate: '2026-07-10T08:00:00.000Z',
-        releaseName: 'Card Notes App 1.1.0',
+        releaseName: 'NoteStack 1.1.0',
         version: '1.1.0',
       },
     },
@@ -195,7 +195,7 @@ test('guards overlapping updater commands before electron-updater emits later ev
       resolveCheck = () => {
         client.emit('update-available', {
           releaseDate: '2026-07-10T08:00:00.000Z',
-          releaseName: 'Card Notes App 1.1.0',
+          releaseName: 'NoteStack 1.1.0',
           version: '1.1.0',
         })
         resolve(undefined)
@@ -219,7 +219,7 @@ test('guards overlapping updater commands before electron-updater emits later ev
       resolveDownload = () => {
         client.emit('update-downloaded', {
           releaseDate: '2026-07-10T08:00:00.000Z',
-          releaseName: 'Card Notes App 1.1.0',
+          releaseName: 'NoteStack 1.1.0',
           version: '1.1.0',
         })
         resolve(undefined)

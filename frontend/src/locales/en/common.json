@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "Card Notes",
-    "brand": "Card Notes",
-    "logoAlt": "Card Notes logo"
+    "title": "NoteStack",
+    "brand": "NoteStack",
+    "logoAlt": "NoteStack logo"
   },
   "navigation": {
     "open": "Open navigation",

@@ -42,8 +42,8 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(appConfig.globalApiPrefix)
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Card Notes App API')
-    .setDescription('Local backend API for the Card Notes App.')
+    .setTitle('NoteStack API')
+    .setDescription('Local backend API for NoteStack.')
     .setVersion('0.1.0')
     .build()
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, {

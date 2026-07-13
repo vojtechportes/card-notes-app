@@ -28,7 +28,7 @@ test('keeps the upstream verifier result when the update is already trusted', as
     verifySignature: async () => null,
   })
 
-  const result = await verifySignature(['Card Notes App'], 'update.exe')
+  const result = await verifySignature(['NoteStack'], 'update.exe')
 
   assert.equal(result, null)
 })
@@ -45,43 +45,43 @@ test('accepts a self-signed update when it uses the same certificate as the runn
     readSignatureInfo: createSignatureReader({
       'current.exe': {
         path: 'current.exe',
-        signerSubject: 'CN=Card Notes App',
+        signerSubject: 'CN=NoteStack',
         signerThumbprint: '596C1F5860A068AE8F87539A5FD4FF593B49C091',
         status: 1,
         statusMessage: 'A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider',
       },
       'update.exe': {
         path: 'update.exe',
-        signerSubject: 'CN=Card Notes App',
+        signerSubject: 'CN=NoteStack',
         signerThumbprint: '596c1f5860a068ae8f87539a5fd4ff593b49c091',
         status: 1,
         statusMessage: 'A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider',
       },
     }),
-    verifySignature: async () => 'publisherNames: Card Notes App, raw info: invalid signature',
+    verifySignature: async () => 'publisherNames: NoteStack, raw info: invalid signature',
   })
 
-  const result = await verifySignature(['Card Notes App'], 'update.exe')
+  const result = await verifySignature(['NoteStack'], 'update.exe')
 
   assert.equal(result, null)
   assert.equal(warnings.length, 1)
 })
 
 test('returns the upstream verifier error when the certificate thumbprint changes', async () => {
-  const upstreamError = 'publisherNames: Card Notes App, raw info: invalid signature'
+  const upstreamError = 'publisherNames: NoteStack, raw info: invalid signature'
   const verifySignature = createWindowsUpdateSignatureVerifier({
     currentFilePath: 'current.exe',
     readSignatureInfo: createSignatureReader({
       'current.exe': {
         path: 'current.exe',
-        signerSubject: 'CN=Card Notes App',
+        signerSubject: 'CN=NoteStack',
         signerThumbprint: 'AAA111',
         status: 1,
         statusMessage: 'Self-signed root is not trusted.',
       },
       'update.exe': {
         path: 'update.exe',
-        signerSubject: 'CN=Card Notes App',
+        signerSubject: 'CN=NoteStack',
         signerThumbprint: 'BBB222',
         status: 1,
         statusMessage: 'Self-signed root is not trusted.',
@@ -90,19 +90,19 @@ test('returns the upstream verifier error when the certificate thumbprint change
     verifySignature: async () => upstreamError,
   })
 
-  const result = await verifySignature(['Card Notes App'], 'update.exe')
+  const result = await verifySignature(['NoteStack'], 'update.exe')
 
   assert.equal(result, upstreamError)
 })
 
 test('does not bypass a publisher mismatch when the upstream verifier already trusts the update chain', async () => {
-  const upstreamError = 'publisherNames: Card Notes App, raw info: incorrect publisher'
+  const upstreamError = 'publisherNames: NoteStack, raw info: incorrect publisher'
   const verifySignature = createWindowsUpdateSignatureVerifier({
     currentFilePath: 'current.exe',
     readSignatureInfo: createSignatureReader({
       'current.exe': {
         path: 'current.exe',
-        signerSubject: 'CN=Card Notes App',
+        signerSubject: 'CN=NoteStack',
         signerThumbprint: 'AAA111',
         status: 1,
         statusMessage: 'Self-signed root is not trusted.',
@@ -118,7 +118,7 @@ test('does not bypass a publisher mismatch when the upstream verifier already tr
     verifySignature: async () => upstreamError,
   })
 
-  const result = await verifySignature(['Card Notes App'], 'update.exe')
+  const result = await verifySignature(['NoteStack'], 'update.exe')
 
   assert.equal(result, upstreamError)
 })

@@ -1,8 +1,8 @@
-import type { CardNotesUpdaterBridge } from './card-notes-updater'
+import type { NoteStackUpdaterBridge } from './notestack-updater'
 
 declare global {
   interface Window {
-    cardNotesUpdater?: CardNotesUpdaterBridge
+    noteStackUpdater?: NoteStackUpdaterBridge
   }
 }
 

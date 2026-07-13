@@ -69,7 +69,7 @@ export interface UpdaterActionResult {
 
 export type UpdaterStateListener = (state: UpdaterState) => void
 
-export interface CardNotesUpdaterBridge {
+export interface NoteStackUpdaterBridge {
   checkForUpdates: () => Promise<UpdaterActionResult>
   downloadUpdate: () => Promise<UpdaterActionResult>
   getState: () => Promise<UpdaterState>

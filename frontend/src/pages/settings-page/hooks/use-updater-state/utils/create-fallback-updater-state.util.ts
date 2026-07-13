@@ -1,4 +1,4 @@
-import type { UpdaterState } from '../../../../../types/card-notes-updater'
+import type { UpdaterState } from '../../../../../types/notestack-updater'
 
 export const createFallbackUpdaterState = (): UpdaterState => {
   return {
