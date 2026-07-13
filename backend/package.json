@@ -1,5 +1,5 @@
 {
-  "name": "@card-notes-app/backend",
+  "name": "@notestack/backend",
   "version": "1.0.11",
   "private": true,
   "type": "commonjs",

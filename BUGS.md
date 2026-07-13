@@ -1,4 +1,4 @@
-# Card Notes App Bugs
+# NoteStack Bugs
 
 ## Status Legend
 

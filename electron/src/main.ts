@@ -50,7 +50,7 @@ let mainWindow: BrowserWindow | null = null
 let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
 let updaterService: UpdaterService | null = null
 
-app.setName('Card Notes App')
+app.setName('NoteStack')
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
@@ -111,7 +111,7 @@ async function startApplication(): Promise<void> {
     })
   } catch (error) {
     dialog.showErrorBox(
-      'Unable to start Card Notes App',
+      'Unable to start NoteStack',
       error instanceof Error ? error.message : 'Unknown startup error.'
     )
 

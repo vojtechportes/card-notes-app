@@ -70,7 +70,7 @@ const importMutation = {
   mutateAsync: vi.fn(),
 }
 
-const createObjectUrlMock = vi.fn(() => 'blob:card-notes-export')
+const createObjectUrlMock = vi.fn(() => 'blob:notestack-export')
 const revokeObjectUrlMock = vi.fn()
 const clickMock = vi.fn()
 const originalCreateElement = document.createElement.bind(document)
@@ -150,10 +150,10 @@ describe('ExportImportSection', () => {
 
     expect(createObjectUrlMock).toHaveBeenCalledTimes(1)
     expect(createdAnchor?.download).toBe(
-      'card-notes-export-2026-07-08T10-00-00-000Z.json'
+      'notestack-export-2026-07-08T10-00-00-000Z.json'
     )
     expect(clickMock).toHaveBeenCalledTimes(1)
-    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:card-notes-export')
+    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:notestack-export')
     expect(await screen.findByText('JSON export was downloaded.')).toBeTruthy()
   })
 
@@ -161,7 +161,7 @@ describe('ExportImportSection', () => {
     renderExportImportSection()
     const file = new File(
       [JSON.stringify(exportData)],
-      'card-notes-backup.json',
+      'notestack-backup.json',
       {
         type: 'application/json',
       }
@@ -193,7 +193,7 @@ describe('ExportImportSection', () => {
     renderExportImportSection()
     const file = new File(
       [JSON.stringify(exportData)],
-      'card-notes-backup.json',
+      'notestack-backup.json',
       {
         type: 'application/json',
       }
@@ -219,7 +219,7 @@ describe('ExportImportSection', () => {
   })
   it('requires a target note type before importing an xlsx file', async () => {
     renderExportImportSection()
-    const file = new File(['xlsx-content'], 'card-notes.xlsx', {
+    const file = new File(['xlsx-content'], 'notestack.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
 
@@ -262,7 +262,7 @@ describe('ExportImportSection', () => {
     fireEvent.change(screen.getByLabelText('Import file'), {
       target: {
         files: [
-          new File(['xlsx-content'], 'card-notes.xlsx', {
+          new File(['xlsx-content'], 'notestack.xlsx', {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           }),
         ],
@@ -277,7 +277,7 @@ describe('ExportImportSection', () => {
     fireEvent.change(screen.getByLabelText('Import file'), {
       target: {
         files: [
-          new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
+          new File([JSON.stringify(exportData)], 'notestack-backup.json', {
             type: 'application/json',
           }),
         ],
@@ -311,7 +311,7 @@ describe('ExportImportSection', () => {
     fireEvent.change(screen.getByLabelText('Import file'), {
       target: {
         files: [
-          new File([JSON.stringify(exportData)], 'card-notes-backup.json', {
+          new File([JSON.stringify(exportData)], 'notestack-backup.json', {
             type: 'application/json',
           }),
         ],

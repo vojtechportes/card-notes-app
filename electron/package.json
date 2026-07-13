@@ -1,5 +1,5 @@
 {
-  "name": "@card-notes-app/electron",
+  "name": "@notestack/electron",
   "version": "1.0.11",
   "private": true,
   "type": "module",
@@ -21,8 +21,8 @@
     "electron-builder": "^26.15.3",
     "typescript": "^5.8.0"
   },
-  "description": "Electron shell for the Card Notes App.",
-  "author": "Card Notes App",
+  "description": "Electron shell for NoteStack.",
+  "author": "NoteStack",
   "dependencies": {
     "electron-updater": "^6.8.9"
   }

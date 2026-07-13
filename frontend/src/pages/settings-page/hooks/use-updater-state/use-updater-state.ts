@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
-  CardNotesUpdaterBridge,
+  NoteStackUpdaterBridge,
   UpdaterState,
-} from '../../../../types/card-notes-updater'
-import { getCardNotesUpdater } from '../../../../utils/get-card-notes-updater.util'
+} from '../../../../types/notestack-updater'
+import { getNoteStackUpdater } from '../../../../utils/get-notestack-updater.util'
 import { createFallbackUpdaterState } from './utils/create-fallback-updater-state.util'
 import { createUnexpectedUpdaterErrorState } from './utils/create-unexpected-updater-error-state.util'
 import { runUpdaterAction } from './utils/run-updater-action.util'
 
 export const useUpdaterState = () => {
   const { t } = useTranslation()
-  const [updater] = useState<CardNotesUpdaterBridge | null>(getCardNotesUpdater)
+  const [updater] = useState<NoteStackUpdaterBridge | null>(getNoteStackUpdater)
   const [state, setState] = useState<UpdaterState>(createFallbackUpdaterState)
   const [isLoading, setIsLoading] = useState(updater !== null)
 

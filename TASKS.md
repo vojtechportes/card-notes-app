@@ -1,4 +1,4 @@
-# Card Notes App Tasks
+# NoteStack Tasks
 
 This backlog is derived from `AGENTS.md`. Keep tasks incremental and update statuses as work lands.
 
@@ -367,6 +367,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo
   - Source logo is located in `frontend/*/assets/logo.png` and `frontend/*/assets/favicon.png`
+- [x] TMSC-11. Rename the app to "NoteStack"
 
 ## Sub-Agent Execution Plan
 

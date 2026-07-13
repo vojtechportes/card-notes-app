@@ -1,6 +1,6 @@
-# Card Notes App
+# NoteStack
 
-Local-first Electron card notes application with a NestJS backend and React/Vite frontend.
+Local-first Electron structured notes application with a NestJS backend and React/Vite frontend.
 
 ## Install
 
@@ -41,7 +41,7 @@ Release process:
 2. Create the Git tag and corresponding GitHub release.
 3. Publish the GitHub release to trigger the workflow.
 4. Wait for the workflow to finish uploading the Windows installer and updater metadata.
-5. Confirm the release assets include `card-notes-app-<version>-setup.exe`, `card-notes-app-<version>-setup.exe.blockmap`, and `latest.yml`.
+5. Confirm the release assets include `notestack-<version>-setup.exe`, `notestack-<version>-setup.exe.blockmap`, and `latest.yml`.
 6. Install the uploaded build on one machine, then use the in-app updater on an older installed build to confirm update discovery and download behavior.
 
 Self-signed release note:

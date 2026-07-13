@@ -1,5 +1,5 @@
 {
-  "name": "@card-notes-app/frontend",
+  "name": "@notestack/frontend",
   "version": "1.0.11",
   "private": true,
   "type": "module",

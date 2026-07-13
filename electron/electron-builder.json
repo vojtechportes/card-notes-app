@@ -1,7 +1,7 @@
 {
   "appId": "com.cardnotes.app",
-  "productName": "Card Notes App",
-  "artifactName": "card-notes-app-${version}-setup.${ext}",
+  "productName": "NoteStack",
+  "artifactName": "notestack-${version}-setup.${ext}",
   "directories": {
     "output": "release"
   },

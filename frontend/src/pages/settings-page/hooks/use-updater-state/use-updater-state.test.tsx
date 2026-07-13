@@ -8,13 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import '../../../../i18n'
 import type {
-  CardNotesUpdaterBridge,
+  NoteStackUpdaterBridge,
   UpdaterActionResult,
   UpdaterState,
-} from '../../../../types/card-notes-updater'
+} from '../../../../types/notestack-updater'
 import { useUpdaterState } from './use-updater-state'
 
-interface MockUpdaterBridge extends CardNotesUpdaterBridge {
+interface MockUpdaterBridge extends NoteStackUpdaterBridge {
   emit: (state: UpdaterState) => void
   unsubscribe: ReturnType<typeof vi.fn>
 }
@@ -84,12 +84,12 @@ const createBridge = (initialState: UpdaterState): MockUpdaterBridge => {
 
 describe('useUpdaterState', () => {
   beforeEach(() => {
-    delete window.cardNotesUpdater
+    delete window.noteStackUpdater
   })
 
   afterEach(() => {
     cleanup()
-    delete window.cardNotesUpdater
+    delete window.noteStackUpdater
   })
 
   it('falls back to an unavailable state when the updater bridge is missing', () => {
@@ -111,7 +111,7 @@ describe('useUpdaterState', () => {
     })
 
     ;(bridge.getState as Mock).mockRejectedValueOnce(new Error('load failed'))
-    window.cardNotesUpdater = bridge
+    window.noteStackUpdater = bridge
 
     const { result } = renderHook(() => useUpdaterState())
 
@@ -133,7 +133,7 @@ describe('useUpdaterState', () => {
       kind: 'idle',
     })
 
-    window.cardNotesUpdater = bridge
+    window.noteStackUpdater = bridge
 
     const { result, unmount } = renderHook(() => useUpdaterState())
 
@@ -179,7 +179,7 @@ describe('useUpdaterState', () => {
       kind: 'idle',
     })
 
-    window.cardNotesUpdater = bridge
+    window.noteStackUpdater = bridge
 
     const { result } = renderHook(() => useUpdaterState())
 
@@ -234,7 +234,7 @@ describe('useUpdaterState', () => {
     ;(bridge.checkForUpdates as Mock).mockRejectedValueOnce(
       new Error('action failed')
     )
-    window.cardNotesUpdater = bridge
+    window.noteStackUpdater = bridge
 
     const { result } = renderHook(() => useUpdaterState())
 

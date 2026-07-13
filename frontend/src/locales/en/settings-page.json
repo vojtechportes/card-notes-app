@@ -88,7 +88,7 @@
       "errors": {
         "export": "App data could not be exported right now.",
         "invalidJson": "The selected file is not valid JSON.",
-        "invalidShape": "The selected file does not match the expected Card Notes export format.",
+        "invalidShape": "The selected file does not match the expected NoteStack export format.",
         "import": "The selected data could not be imported right now.",
         "noteTypes": "Note types could not be loaded right now.",
         "targetRequired": "Choose a target note type before importing an XLSX file."

@@ -1,12 +1,12 @@
 import type { IpcRenderer } from 'electron'
 import { updaterIpcChannels } from './updater-ipc-channels.js'
-import type { CardNotesUpdaterBridge, UpdaterState } from './updater-contract.js'
+import type { NoteStackUpdaterBridge, UpdaterState } from './updater-contract.js'
 
 type UpdaterIpcRenderer = Pick<IpcRenderer, 'invoke' | 'on' | 'removeListener'>
 
 export const createUpdaterBridge = (
   ipcRenderer: UpdaterIpcRenderer
-): CardNotesUpdaterBridge => {
+): NoteStackUpdaterBridge => {
   return {
     checkForUpdates: () => {
       return ipcRenderer.invoke(updaterIpcChannels.checkForUpdates)

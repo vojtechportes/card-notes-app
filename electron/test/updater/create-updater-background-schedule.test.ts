@@ -174,7 +174,7 @@ test('skips scheduled checks while updater state is not idle or error', async ()
     kind: 'available',
     update: {
       releaseDate: '2026-07-10T08:00:00.000Z',
-      releaseName: 'Card Notes App 1.1.0',
+      releaseName: 'NoteStack 1.1.0',
       version: '1.1.0',
     },
   })

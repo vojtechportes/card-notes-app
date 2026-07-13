@@ -1,4 +1,4 @@
-import type { UpdaterState } from '../../../../../types/card-notes-updater'
+import type { UpdaterState } from '../../../../../types/notestack-updater'
 import { getUpdateFromUpdaterState } from './get-update-from-updater-state.util'
 
 export const createUnexpectedUpdaterErrorState = (
