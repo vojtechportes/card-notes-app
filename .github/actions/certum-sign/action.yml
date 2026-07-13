@@ -1,0 +1,282 @@
+name: Certum SimplySign Windows artifact signing
+description: Sign Windows release artifacts with a Certum SimplySign cloud code-signing certificate.
+
+inputs:
+  artifacts-glob:
+    description: Glob of Windows artifacts to sign.
+    required: false
+    default: electron/release/*.exe
+  timestamp-url:
+    description: RFC3161 timestamp authority URL.
+    required: false
+    default: http://time.certum.pl
+  launch-seconds:
+    description: Seconds to wait after launching SimplySign before driving the login UI.
+    required: false
+    default: "20"
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve SimplySign tooling
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        : "${SS_DIST:?SS_DIST must point to the SimplySign Desktop installation in the signer image}"
+        : "${JSIGN_JAR:?JSIGN_JAR must point to the jsign jar in the signer image}"
+
+        {
+          echo "SS_DIST=$SS_DIST"
+          echo "SS_START=$(find "$SS_DIST/" -name 'SimplySignDesktop_start' -type f | head -1)"
+          echo "SS_EXE=$(find "$SS_DIST/" -name 'SimplySignDesktop' -type f | head -1)"
+          echo "SS_PKCS11=$(find "$SS_DIST/" -name 'SimplySignPKCS*.so' | head -1)"
+          echo "JSIGN_JAR=$JSIGN_JAR"
+        } >> "$GITHUB_ENV"
+
+    - name: Validate signing inputs
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        : "${CERTUM_USER_ID:?Set the CERTUM_USER_ID repository secret to the SimplySign login id.}"
+        : "${CERTUM_OTP_URI:?Set the CERTUM_OTP_URI repository secret to the otpauth:// TOTP URI.}"
+        : "${CERTUM_CERT_FINGERPRINT:?Set CERTUM_CERT_FINGERPRINT to the SHA-256 fingerprint of the Certum code-signing certificate.}"
+        : "${SS_PKCS11:?SimplySign PKCS#11 library was not found under SS_DIST.}"
+
+        if [ -z "${SS_START:-}" ] && [ -z "${SS_EXE:-}" ]; then
+          echo "::error::SimplySign Desktop executable was not found under SS_DIST."
+          exit 1
+        fi
+
+        if [ ! -f "$JSIGN_JAR" ]; then
+          echo "::error::jsign jar was not found at JSIGN_JAR=$JSIGN_JAR."
+          exit 1
+        fi
+
+    - name: Start headless display
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        Xvfb :99 -screen 0 1280x1024x24 >"$RUNNER_TEMP/xvfb.log" 2>&1 &
+        sleep 3
+
+        mkdir -p "$HOME/.fluxbox"
+        printf 'session.screen0.rootCommand: /bin/true\n' > "$HOME/.fluxbox/init"
+        DISPLAY=:99 fluxbox >"$RUNNER_TEMP/fluxbox.log" 2>&1 &
+        sleep 2
+
+        DISPLAY=:99 xdpyinfo >/dev/null
+
+    - name: Connect SimplySign token
+      shell: bash
+      env:
+        DISPLAY: ":99"
+      run: |
+        set -euo pipefail
+
+        export USER="${USER:-root}"
+        cp "$SS_DIST/SimplySignDesktop.xml" "$HOME/" 2>/dev/null || true
+        mkdir -p "$HOME/.config"
+        {
+          echo "[General]"
+          echo "CacheUserIdAtLogon=Yes"
+          echo "ShowLogonDialogAfterApplicationStartup=Yes"
+          echo "ShowLogonDialogWhenAnyAppRequestsAccess=Yes"
+        } > "$HOME/.config/Unknown Organization.conf"
+
+        export LD_LIBRARY_PATH="$SS_DIST:${LD_LIBRARY_PATH:-}"
+        if [ -n "${SS_START:-}" ]; then
+          "$SS_START" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
+        else
+          "$SS_EXE" >"$RUNNER_TEMP/simplysign.log" 2>&1 &
+        fi
+
+        sleep "${{ inputs.launch-seconds }}"
+
+        OTP="$(python3 - <<'PY'
+        import base64
+        import hashlib
+        import hmac
+        import os
+        import struct
+        import time
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(os.environ['CERTUM_OTP_URI']).query)
+        secret = query['secret'][0]
+        digits = int(query.get('digits', ['6'])[0])
+        period = int(query.get('period', ['30'])[0])
+        algorithm = query.get('algorithm', ['SHA1'])[0].upper()
+        hash_algorithm = {'SHA1': hashlib.sha1, 'SHA256': hashlib.sha256, 'SHA512': hashlib.sha512}[algorithm]
+        key = base64.b32decode(secret + '=' * ((8 - len(secret) % 8) % 8))
+        digest = hmac.new(key, struct.pack('>Q', int(time.time() // period)), hash_algorithm).digest()
+        offset = digest[-1] & 0xF
+        code = (int.from_bytes(digest[offset:offset + 4], 'big') & 0x7fffffff) % (10 ** digits)
+        print(str(code).zfill(digits))
+        PY
+        )"
+        echo "::add-mask::$OTP"
+
+        WID=""
+        BX=0
+        BY=0
+        BW=0
+        BH=0
+        for attempt in $(seq 1 30); do
+          best=0
+          WID=""
+          for window in $(xdotool search --name '' 2>/dev/null || true); do
+            name="$(xdotool getwindowname "$window" 2>/dev/null || true)"
+            case "$name" in
+              *implySign*) ;;
+              *) continue ;;
+            esac
+
+            eval "$(xdotool getwindowgeometry --shell "$window" 2>/dev/null)"
+            area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
+            if [ "$area" -gt "$best" ]; then
+              best=$area
+              WID=$window
+              BX=${X:-0}
+              BY=${Y:-0}
+              BW=${WIDTH:-0}
+              BH=${HEIGHT:-0}
+            fi
+          done
+
+          if [ "${BW:-0}" -ge 400 ] && [ "${BH:-0}" -ge 300 ]; then
+            echo "SimplySign login window found on attempt $attempt."
+            break
+          fi
+
+          WID=""
+          sleep 2
+        done
+
+        if [ -z "$WID" ]; then
+          echo "::error::SimplySign login window did not appear."
+          cat "$RUNNER_TEMP/simplysign.log" || true
+          exit 1
+        fi
+
+        xdotool windowactivate --sync "$WID" || xdotool windowactivate "$WID" || true
+        xdotool windowraise "$WID" || true
+        sleep 1
+        xdotool mousemove $((BX + BW / 2)) $((BY + BH * 39 / 100)) click 1
+        sleep 1
+        xdotool type --clearmodifiers --delay 50 "$CERTUM_USER_ID"
+        xdotool key Tab
+        sleep 1
+        xdotool type --clearmodifiers --delay 50 "$OTP"
+        xdotool mousemove $((BX + BW / 2)) $((BY + BH * 76 / 100)) click 1
+        sleep 8
+
+        best=0
+        for window in $(xdotool search --name '' 2>/dev/null || true); do
+          name="$(xdotool getwindowname "$window" 2>/dev/null || true)"
+          case "$name" in
+            *implySign*) ;;
+            *) continue ;;
+          esac
+
+          eval "$(xdotool getwindowgeometry --shell "$window" 2>/dev/null)"
+          area=$(( ${WIDTH:-0} * ${HEIGHT:-0} ))
+          if [ "$area" -gt "$best" ]; then
+            best=$area
+            WID=$window
+            BX=${X:-0}
+            BY=${Y:-0}
+            BW=${WIDTH:-0}
+            BH=${HEIGHT:-0}
+          fi
+        done
+
+        xdotool windowactivate --sync "$WID" || true
+        xdotool mousemove $((BX + BW / 2)) $((BY + BH * 94 / 100)) click 1
+        sleep 3
+
+        timeout 60 pkcs11-tool --module "$SS_PKCS11" -L
+
+    - name: Resolve Certum signing certificate alias
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        expected="$(echo "$CERTUM_CERT_FINGERPRINT" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+        tmp_dir="$RUNNER_TEMP/certum-certs"
+        objects_path="$tmp_dir/pkcs11-certificates.txt"
+        mkdir -p "$tmp_dir"
+        pkcs11-tool --module "$SS_PKCS11" -O --type cert > "$objects_path"
+
+        mapfile -t cert_entries < <(awk -F': ' '/label:/ { label=$2 } /ID:/ { print $2 "\t" label; label="" }' "$objects_path")
+        if [ "${#cert_entries[@]}" -eq 0 ]; then
+          echo "::error::No certificates were exposed by the SimplySign PKCS#11 token."
+          exit 1
+        fi
+
+        matched_id=""
+        matched_alias=""
+        for cert_entry in "${cert_entries[@]}"; do
+          cert_id="${cert_entry%%$'\t'*}"
+          cert_alias="${cert_entry#*$'\t'}"
+          cert_path="$tmp_dir/$cert_id.der"
+          pkcs11-tool --module "$SS_PKCS11" --read-object --type cert --id "$cert_id" > "$cert_path"
+          actual="$(openssl x509 -inform DER -in "$cert_path" -noout -fingerprint -sha256 | sed 's/^.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          if [ "$actual" = "$expected" ]; then
+            matched_id="$cert_id"
+            matched_alias="$cert_alias"
+            break
+          fi
+        done
+
+        if [ -z "$matched_id" ]; then
+          echo "::error::CERTUM_CERT_FINGERPRINT does not match any certificate exposed by SimplySign."
+          exit 1
+        fi
+
+        if [ -z "$matched_alias" ]; then
+          echo "::error::The matching Certum certificate does not expose a PKCS#11 label that jsign can use as an alias."
+          exit 1
+        fi
+
+        echo "CERTUM_CERT_ALIAS=$matched_alias" >> "$GITHUB_ENV"
+
+    - name: Sign Windows artifacts
+      shell: bash
+      env:
+        ARTIFACTS_GLOB: ${{ inputs.artifacts-glob }}
+        TIMESTAMP_URL: ${{ inputs.timestamp-url }}
+      run: |
+        set -euo pipefail
+
+        config_path="$RUNNER_TEMP/sunpkcs11.conf"
+        {
+          echo "name = SimplySign"
+          echo "library = $SS_PKCS11"
+          echo "slotListIndex = 0"
+        } > "$config_path"
+
+        shopt -s nullglob
+        artifacts=( $ARTIFACTS_GLOB )
+        if [ "${#artifacts[@]}" -eq 0 ]; then
+          echo "::error::No Windows artifacts matched: $ARTIFACTS_GLOB"
+          exit 1
+        fi
+
+        for artifact in "${artifacts[@]}"; do
+          echo "::group::Signing $artifact"
+          java -jar "$JSIGN_JAR" \
+            --storetype PKCS11 \
+            --keystore "$config_path" \
+            --storepass "" \
+            --alias "$CERTUM_CERT_ALIAS" \
+            --alg SHA-256 \
+            --tsmode RFC3161 \
+            --tsaurl "$TIMESTAMP_URL" \
+            --replace \
+            "$artifact"
+          java -jar "$JSIGN_JAR" --verify --verbose "$artifact"
+          echo "::endgroup::"
+        done

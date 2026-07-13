@@ -219,8 +219,8 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Validate the secret-based Windows signing flow still works with updater publishing.
   - Document the release/update process and known self-signed certificate limitations.
 
-- [ ] T58. Replace Windows PFX signing with Certum SimplySign cloud signing
-  - Status: waiting for Certum identity verification and issued cloud code-signing certificate.
+- [x] T58. Replace Windows PFX signing with Certum SimplySign cloud signing
+  - Status: implementation complete; Certum-backed release validation is tracked separately in T58A.
   - Reference implementation to follow closely: ReactiveUI Extensions release workflow and shared Certum signing action.
   - Primary reference: `https://github.com/reactiveui/Extensions/blob/main/.github/workflows/release.yml`
   - Shared workflow reference: `https://github.com/reactiveui/actions-common/blob/main/.github/workflows/workflow-common-release.yml`
@@ -239,9 +239,16 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
   - Test checklist:
     - `npm run package:release` still works locally without Certum secrets.
     - Release workflow fails early with a clear message when Certum secrets are missing.
-    - A test release signs the Windows installer successfully.
-    - Signature verification passes before GitHub asset upload.
-    - Published release still includes `latest.yml`, signed installer, and installer blockmap.
+    - Local tests cover signed-artifact metadata refresh and updater publisher metadata injection.
+
+- [ ] T58A. Validate Certum SimplySign release in GitHub Actions
+  - Run a test release after the Certum cloud code-signing certificate is issued and GitHub secrets are configured.
+  - Confirm the signing job signs the Windows installer successfully and signature verification passes before upload.
+  - Confirm the published release includes `latest.yml`, the signed installer, and the refreshed installer blockmap, and that an older installed build can update from those assets.
+
+- [ ] T59. Sign inner Windows app executables before NSIS installer creation
+  - Follow-up from T58: final installer signing is implemented, but `CSC_IDENTITY_AUTO_DISCOVERY=false` means electron-builder does not sign the inner `win-unpacked` application executables during packaging.
+  - Add a pre-installer signing stage for inner `.exe` files once the Certum signer image is available and the final installer signing flow has been validated in CI.
 
 ## Phase 6: Testing and Verification
 

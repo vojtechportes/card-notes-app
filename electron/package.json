@@ -13,13 +13,15 @@
     "package:release": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never",
     "package:dir": "npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never",
     "test": "tsx --test test/**/*.test.ts",
-    "verify:release-artifacts": "node ./scripts/verify-release-artifacts.mjs"
+    "verify:release-artifacts": "node ./scripts/verify-release-artifacts.mjs",
+    "refresh:signed-release-artifacts": "node ./scripts/refresh-signed-release-artifacts.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "electron": "32.0.0",
     "electron-builder": "^26.15.3",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "yaml": "^2.9.0"
   },
   "description": "Electron shell for NoteStack.",
   "author": "NoteStack",

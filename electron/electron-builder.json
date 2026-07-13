@@ -13,10 +13,7 @@
       "releaseType": "release"
     }
   ],
-  "files": [
-    "dist/**/*",
-    "package.json"
-  ],
+  "files": ["dist/**/*", "package.json"],
   "extraResources": [
     {
       "from": ".backend-runtime",
@@ -27,14 +24,13 @@
       "to": "frontend/dist"
     }
   ],
+  "afterPack": "scripts/write-app-update-publisher.mjs",
   "win": {
     "icon": "build/icon.ico",
     "target": [
       {
         "target": "nsis",
-        "arch": [
-          "x64"
-        ]
+        "arch": ["x64"]
       }
     ]
   },
