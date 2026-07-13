@@ -241,7 +241,7 @@ This backlog is derived from `AGENTS.md`. Keep tasks incremental and update stat
     - Release workflow fails early with a clear message when Certum secrets are missing.
     - Local tests cover signed-artifact metadata refresh and updater publisher metadata injection.
 
-- [ ] T58A. Validate Certum SimplySign release in GitHub Actions
+- [x] T58A. Validate Certum SimplySign release in GitHub Actions
   - Run a test release after the Certum cloud code-signing certificate is issued and GitHub secrets are configured.
   - Confirm the signing job signs the Windows installer successfully and signature verification passes before upload.
   - Confirm the published release includes `latest.yml`, the signed installer, and the refreshed installer blockmap, and that an older installed build can update from those assets.
