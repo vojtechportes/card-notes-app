@@ -145,25 +145,25 @@ export const NotesPage = () => {
       title: t('notes.detail.title'),
       targetPathname: `/notes/${selectedNote.id}`,
       targetPathnameRoot: '/notes',
-      drawerActions: (
-        <>
-          <MenuItem
-            onClick={() => {
-              handleOpenNoteDialog(selectedNote)
-            }}
-          >
-            <ListItemText>{t('notes.detail.actions.edit')}</ListItemText>
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              void handleDeleteNote(selectedNote)
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            <ListItemText>{t('notes.detail.actions.delete')}</ListItemText>
-          </MenuItem>
-        </>
-      ),
+      drawerActions: [
+        <MenuItem
+          key="edit-note"
+          onClick={() => {
+            handleOpenNoteDialog(selectedNote)
+          }}
+        >
+          <ListItemText>{t('notes.detail.actions.edit')}</ListItemText>
+        </MenuItem>,
+        <MenuItem
+          key="delete-note"
+          onClick={() => {
+            void handleDeleteNote(selectedNote)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemText>{t('notes.detail.actions.delete')}</ListItemText>
+        </MenuItem>,
+      ],
       drawerContent: (
         <NoteDetailPanel
           columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? []}

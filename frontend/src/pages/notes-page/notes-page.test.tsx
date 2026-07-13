@@ -536,7 +536,7 @@ describe('NotesPage', () => {
     fireEvent.click(
       within(sideDrawer).getByRole('button', { name: 'More actions' })
     )
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit note' }))
 
     expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
     expect(
@@ -599,7 +599,9 @@ describe('NotesPage', () => {
     fireEvent.click(
       within(sideDrawer).getByRole('button', { name: 'More actions' })
     )
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Delete note' })
+    )
     fireEvent.click(await screen.findByRole('button', { name: 'Delete note' }))
 
     await waitFor(() => {

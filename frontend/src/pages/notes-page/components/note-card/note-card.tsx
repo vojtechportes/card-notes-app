@@ -1,4 +1,4 @@
-import { MoreVert } from '@mui/icons-material'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import {
   Box,
   Card,
@@ -172,7 +172,7 @@ export const NoteCard = ({
               }}
               size="small"
             >
-              <MoreVert fontSize="small" />
+              <MoreVertIcon fontSize="small" />
             </IconButton>
           </Box>
           <Menu

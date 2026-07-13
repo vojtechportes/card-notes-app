@@ -197,6 +197,7 @@ export const Layout: FC = () => {
             <Route path="/notes" element={<NotesPage />} />
             <Route path="/notes/:noteId" element={<NotesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/:noteTypeId" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Container>

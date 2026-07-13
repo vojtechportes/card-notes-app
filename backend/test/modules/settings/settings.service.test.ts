@@ -98,12 +98,33 @@ describe(SettingsService.name, () => {
 
     expect(noteType.id).toMatch(uuidV4Pattern)
     expect(noteType.title).toBe('Books')
-    expect(settingsService.listColumns(noteType.id).map((column) => column.name)).toEqual([
-      'createdAt',
-      'updatedAt',
-    ])
+    expect(
+      settingsService.listColumns(noteType.id).map((column) => column.name)
+    ).toEqual(['createdAt', 'updatedAt'])
   })
 
+  it('prevents deleting per-type default timestamp columns', () => {
+    const books = settingsService.createNoteType({ title: 'Books' })
+    const booksColumns = settingsService.listColumns(books.id)
+    const createdAtColumn = booksColumns.find(
+      (column) => column.name === 'createdAt'
+    )
+    const updatedAtColumn = booksColumns.find(
+      (column) => column.name === 'updatedAt'
+    )
+
+    expect(createdAtColumn).toBeDefined()
+    expect(updatedAtColumn).toBeDefined()
+    expect(() =>
+      settingsService.deleteColumn(books.id, createdAtColumn?.id ?? '')
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsService.deleteColumn(books.id, updatedAtColumn?.id ?? '')
+    ).toThrow(BadRequestException)
+    expect(
+      settingsService.listColumns(books.id).map((column) => column.name)
+    ).toEqual(['createdAt', 'updatedAt'])
+  })
   it('updates note types and rejects duplicate titles', () => {
     const books = settingsService.createNoteType({ title: 'Books' })
     settingsService.createNoteType({ title: 'Movies' })
@@ -196,7 +217,9 @@ describe(SettingsService.name, () => {
     ])
 
     expect(() =>
-      settingsService.updateColumn(books.id, summary.id, { title: 'Wrong type' })
+      settingsService.updateColumn(books.id, summary.id, {
+        title: 'Wrong type',
+      })
     ).toThrow(NotFoundException)
     expect(() =>
       settingsService.reorderColumns(books.id, [summary.id])
@@ -271,9 +294,9 @@ describe(SettingsService.name, () => {
       deletedNotesCount: 1,
       movedNotesCount: 0,
     })
-    expect(settingsService.listNoteTypes().map((noteType) => noteType.id)).not.toContain(
-      books.id
-    )
+    expect(
+      settingsService.listNoteTypes().map((noteType) => noteType.id)
+    ).not.toContain(books.id)
   })
 
   it('recreates Default when deleting the last remaining note type with delete-notes', () => {
@@ -296,10 +319,9 @@ describe(SettingsService.name, () => {
     expect(noteTypes).toHaveLength(1)
     expect(noteTypes[0].title).toBe('Default')
     expect(noteTypes[0].id).not.toBe(defaultNoteType.id)
-    expect(settingsService.listColumns(noteTypes[0].id).map((column) => column.name)).toEqual([
-      'createdAt',
-      'updatedAt',
-    ])
+    expect(
+      settingsService.listColumns(noteTypes[0].id).map((column) => column.name)
+    ).toEqual(['createdAt', 'updatedAt'])
   })
 
   it('moves notes to another type and preserves only explicitly mapped values', () => {
@@ -456,9 +478,9 @@ describe(SettingsService.name, () => {
       })
     ).toThrow(BadRequestException)
 
-    expect(settingsService.listNoteTypes().map((noteType) => noteType.title)).toEqual([
-      'Default',
-    ])
+    expect(
+      settingsService.listNoteTypes().map((noteType) => noteType.title)
+    ).toEqual(['Default'])
   })
 
   it('gets and updates optional general settings', () => {
@@ -501,4 +523,3 @@ describe(SettingsService.name, () => {
     ).toThrow(BadRequestException)
   })
 })
-

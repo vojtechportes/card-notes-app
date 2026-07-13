@@ -15,6 +15,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import '../../../../i18n'
 import { AppProviders } from '../../../../components/app-providers/app-providers'
 import {
@@ -237,6 +238,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  window.location.hash = ''
   useNoteTypesQueryMock.mockReturnValue({
     data: noteTypes,
     isError: false,
@@ -264,13 +266,41 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  window.location.hash = ''
 })
 
-const renderNoteTypesSection = () => {
+const LocationProbe = () => {
+  const location = useLocation()
+
+  return <span data-testid="location-path">{location.pathname}</span>
+}
+
+const renderNoteTypesSection = (route = '/settings') => {
+  window.location.hash = `#${route}`
+
   return render(
     <AppProviders>
       <SideDrawerProvider>
-        <NoteTypesSection />
+        <Routes>
+          <Route
+            path="/settings"
+            element={
+              <>
+                <NoteTypesSection />
+                <LocationProbe />
+              </>
+            }
+          />
+          <Route
+            path="/settings/:noteTypeId"
+            element={
+              <>
+                <NoteTypesSection />
+                <LocationProbe />
+              </>
+            }
+          />
+        </Routes>
         <SideDrawer />
       </SideDrawerProvider>
     </AppProviders>
@@ -278,7 +308,7 @@ const renderNoteTypesSection = () => {
 }
 
 describe('NoteTypesSection', () => {
-  it('renders note types in a grid and opens the shared detail drawer', async () => {
+  it('renders note types in a grid and opens the shared detail drawer route', async () => {
     renderNoteTypesSection()
 
     expect(screen.getByText('Projects')).toBeTruthy()
@@ -286,6 +316,11 @@ describe('NoteTypesSection', () => {
 
     fireEvent.click(screen.getByText('Projects'))
 
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path').textContent).toBe(
+        '/settings/note-type-1'
+      )
+    })
     expect(
       await screen.findByText('Fields section for note-type-1 (embedded)')
     ).toBeTruthy()
@@ -293,7 +328,40 @@ describe('NoteTypesSection', () => {
     expect(screen.getAllByText('Updated at').length).toBeGreaterThan(0)
   })
 
-  it('creates a new note type from the section action and opens its detail drawer', async () => {
+  it('opens the shared detail drawer from a note type detail route', async () => {
+    renderNoteTypesSection('/settings/note-type-2')
+
+    expect(
+      await screen.findByText('Fields section for note-type-2 (embedded)')
+    ).toBeTruthy()
+    expect(screen.getByTestId('location-path').textContent).toBe(
+      '/settings/note-type-2'
+    )
+  })
+
+  it('returns to settings when the note type detail drawer is closed', async () => {
+    renderNoteTypesSection('/settings/note-type-1')
+
+    expect(
+      await screen.findByText('Fields section for note-type-1 (embedded)')
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close detail' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path').textContent).toBe('/settings')
+    })
+  })
+
+  it('redirects an unknown note type detail route back to settings', async () => {
+    renderNoteTypesSection('/settings/missing-note-type')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path').textContent).toBe('/settings')
+    })
+  })
+
+  it('creates a new note type from the section action and opens its detail drawer route', async () => {
     renderNoteTypesSection()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Add note type' })[0])
@@ -308,6 +376,11 @@ describe('NoteTypesSection', () => {
       })
     })
 
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path').textContent).toBe(
+        '/settings/note-type-3'
+      )
+    })
     expect(
       await screen.findByText('Fields section for note-type-3 (embedded)')
     ).toBeTruthy()

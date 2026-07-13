@@ -1,5 +1,11 @@
 import { MenuItem, ThemeProvider } from '@mui/material'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../i18n'
 import { theme } from '../theme'
@@ -78,6 +84,8 @@ describe('SideDrawer', () => {
     )
 
     expect(handleDelete).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('menuitem', { name: 'Delete note' })).toBeNull()
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Delete note' })).toBeNull()
+    })
   })
 })
