@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Card Notes",
-    "brand": "Card Notes"
+    "brand": "Card Notes",
+    "logoAlt": "Card Notes logo"
   },
   "navigation": {
     "open": "Open navigation",
