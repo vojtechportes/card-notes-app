@@ -34,6 +34,39 @@ runs:
           echo "JSIGN_JAR=$JSIGN_JAR"
         } >> "$GITHUB_ENV"
 
+    - name: Ensure osslsigncode is available
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if command -v osslsigncode >/dev/null 2>&1; then
+          osslsigncode --version
+          exit 0
+        fi
+
+        if ! command -v apt-get >/dev/null 2>&1; then
+          echo "::error::osslsigncode is missing and apt-get is not available to install it."
+          exit 1
+        fi
+
+        apt_get=(env DEBIAN_FRONTEND=noninteractive apt-get)
+        remove=(rm -rf)
+        if [ "$(id -u)" -ne 0 ]; then
+          if ! command -v sudo >/dev/null 2>&1; then
+            echo "::error::osslsigncode is missing and the current user cannot install it without sudo."
+            exit 1
+          fi
+
+          apt_get=(sudo env DEBIAN_FRONTEND=noninteractive apt-get)
+          remove=(sudo rm -rf)
+        fi
+
+        "${apt_get[@]}" update
+        "${apt_get[@]}" install -y --no-install-recommends osslsigncode
+        "${apt_get[@]}" clean
+        "${remove[@]}" /var/lib/apt/lists/*
+        osslsigncode --version
+
     - name: Validate signing inputs
       shell: bash
       run: |
