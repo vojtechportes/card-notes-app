@@ -39,8 +39,8 @@ Required GitHub Actions credentials:
 
 Signer image requirement:
 
-- The signing job currently runs in `ghcr.io/reactiveui/certum-signer:latest`, following the referenced ReactiveUI Certum flow. That image must be accessible to this repository and must expose `SS_DIST` for SimplySign Desktop and `JSIGN_JAR` for jsign.
-- If that image is not accessible, publish a repo-owned signer image with SimplySign Desktop, jsign, OpenJDK, Xvfb, fluxbox, xdotool, OpenSC, OpenSSL, Python 3, and the `SS_DIST` / `JSIGN_JAR` environment variables, then update the workflow container image.
+- The signing job currently runs in `ghcr.io/reactiveui/certum-signer:latest`, following the referenced ReactiveUI Certum flow. That image must be accessible to this repository and must expose `SS_DIST` for SimplySign Desktop, `JSIGN_JAR` for jsign, and `osslsigncode` for signature verification.
+- If that image is not accessible, publish a repo-owned signer image with SimplySign Desktop, jsign, OpenJDK, Xvfb, fluxbox, xdotool, OpenSC, OpenSSL, osslsigncode, Python 3, and the `SS_DIST` / `JSIGN_JAR` environment variables, then update the workflow container image.
 
 Certificate files:
 

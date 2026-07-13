@@ -54,6 +54,11 @@ runs:
           exit 1
         fi
 
+        if ! command -v osslsigncode >/dev/null 2>&1; then
+          echo "::error::osslsigncode is required to verify signed Windows artifacts."
+          exit 1
+        fi
+
     - name: Start headless display
       shell: bash
       run: |
@@ -279,6 +284,6 @@ runs:
             --tsaurl "$TIMESTAMP_URL" \
             --replace \
             "$artifact"
-          java -jar "$JSIGN_JAR" --verify --verbose "$artifact"
+          osslsigncode verify -in "$artifact"
           echo "::endgroup::"
         done
