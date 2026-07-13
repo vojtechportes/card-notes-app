@@ -30,6 +30,23 @@ const createSpreadsheetBuffer = async (
   return Buffer.from(buffer)
 }
 
+const addPngImage = (
+  workbook: Workbook,
+  worksheet: Workbook['worksheets'][number],
+  columnIndex: number,
+  rowIndex: number,
+  base64: string
+): void => {
+  const imageId = workbook.addImage({
+    base64,
+    extension: 'png',
+  })
+
+  worksheet.addImage(imageId, {
+    ext: { height: 16, width: 16 },
+    tl: { col: columnIndex, row: rowIndex },
+  })
+}
 const createServices = () => {
   const sourceDatabaseService = new DatabaseService({ filePath: ':memory:' })
 
@@ -303,6 +320,80 @@ describe(ExportImportService.name, () => {
     expect(importedRecipeNotes).toHaveLength(1)
     expect(importedRecipeNotes[0].values).toEqual({
       [recipeTitleColumn.id]: 'Imported title',
+    })
+  })
+
+  it('imports duplicate xlsx image headers into multi-image fields in sheet order', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const printscreenColumn = settingsService.createColumn(recipes.id, {
+      config: { isMultiImage: true },
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+    const firstImage =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
+    const secondImage =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AABQMBgK7nXwAAAABJRU5ErkJggg=='
+    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
+      const worksheet = workbook.addWorksheet('Import')
+
+      worksheet.addRow(['printscreen', 'printscreen'])
+      worksheet.addRow(['', ''])
+      addPngImage(workbook, worksheet, 0, 1, firstImage)
+      addPngImage(workbook, worksheet, 1, 1, secondImage)
+    })
+
+    const result = await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer,
+      recipes.id
+    )
+    const importedRecipeNotes = notesService
+      .listNotes()
+      .filter((note) => note.noteTypeId === recipes.id)
+    const importedImages = importedRecipeNotes[0].values[printscreenColumn.id]
+
+    expect(result.importedNotes).toBe(1)
+    expect(Array.isArray(importedImages)).toBe(true)
+    expect(importedImages).toMatchObject([
+      { dataUrl: expect.stringContaining(firstImage) },
+      { dataUrl: expect.stringContaining(secondImage) },
+    ])
+  })
+
+  it('imports only the first duplicate xlsx image header into single-image fields', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const printscreenColumn = settingsService.createColumn(recipes.id, {
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+    const firstImage =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
+    const secondImage =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AABQMBgK7nXwAAAABJRU5ErkJggg=='
+    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
+      const worksheet = workbook.addWorksheet('Import')
+
+      worksheet.addRow(['printscreen', 'printscreen'])
+      worksheet.addRow(['', ''])
+      addPngImage(workbook, worksheet, 0, 1, firstImage)
+      addPngImage(workbook, worksheet, 1, 1, secondImage)
+    })
+
+    await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer,
+      recipes.id
+    )
+
+    const importedRecipeNotes = notesService
+      .listNotes()
+      .filter((note) => note.noteTypeId === recipes.id)
+    const importedImage = importedRecipeNotes[0].values[printscreenColumn.id]
+
+    expect(Array.isArray(importedImage)).toBe(false)
+    expect(importedImage).toMatchObject({
+      dataUrl: expect.stringContaining(firstImage),
     })
   })
 

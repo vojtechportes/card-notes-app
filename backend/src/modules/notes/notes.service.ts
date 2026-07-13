@@ -7,6 +7,7 @@ import {
 import { v4 as uuidV4 } from 'uuid'
 import { SettingsService } from '../settings/settings.service'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
+import { isMultiImageColumn } from '../settings/utils/is-multi-image-column.util'
 import type { NoteColumn } from '../settings/types/note-column'
 import { NotesRepository } from './notes.repository'
 import type { ListNotesOptions } from './types/list-notes-options'
@@ -160,7 +161,7 @@ export class NotesService {
         }
         return
       case ColumnTypeEnum.Image:
-        if (!this.isValidImageValue(value)) {
+        if (!this.isValidImageNoteValue(value, column)) {
           throw new BadRequestException(
             'Image note values must be image metadata objects.'
           )
@@ -171,7 +172,24 @@ export class NotesService {
     }
   }
 
-  private isValidImageValue(value: NoteValue): value is NoteImageValue {
+  private isValidImageNoteValue(
+    value: NoteValue,
+    column: NoteColumn
+  ): value is NoteImageValue | NoteImageValue[] {
+    if (this.isValidImageValue(value)) {
+      return true
+    }
+
+    if (!isMultiImageColumn(column) || !Array.isArray(value)) {
+      return false
+    }
+
+    return (
+      value.length > 0 && value.every((item) => this.isValidImageValue(item))
+    )
+  }
+
+  private isValidImageValue(value: unknown): value is NoteImageValue {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       return false
     }

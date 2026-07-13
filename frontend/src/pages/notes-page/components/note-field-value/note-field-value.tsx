@@ -7,6 +7,7 @@ import type { NoteCardField } from '../../types/note-card-field'
 import { formatNoteDateValue } from '../../utils/format-note-date-value.util'
 import { hasRenderableNoteCardValue } from '../../utils/has-renderable-note-card-value.util'
 import { isImageNoteValue } from '../../utils/is-image-note-value.util'
+import { isNoteImageValueList } from '../../utils/is-note-image-value-list.util'
 
 interface NoteFieldValueProps {
   emptyImageLabel: string
@@ -33,11 +34,15 @@ export const NoteFieldValue = ({
     ) : null
   }
 
-  if (field.type === 'image' && isImageNoteValue(field.value)) {
+  if (
+    field.type === 'image' &&
+    (isImageNoteValue(field.value) || isNoteImageValueList(field.value))
+  ) {
     return (
       <ImageNoteFieldValue
         emptyImageLabel={emptyImageLabel}
         enableImageOverlay={enableImageOverlay}
+        fieldConfig={field.config}
         imagePreviewMaxWidth={imagePreviewMaxWidth}
         title={field.title}
         value={field.value}
@@ -73,4 +78,3 @@ export const NoteFieldValue = ({
     />
   )
 }
-

@@ -6,6 +6,7 @@ coverage/
 .env.*
 .DS_Store
 *.tsbuildinfo
+cert/
 
 electron/release/
 electron/.backend-runtime/

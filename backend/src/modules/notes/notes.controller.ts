@@ -10,8 +10,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common'
 import {
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -19,6 +23,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger'
+import { AnyFilesInterceptor } from '@nestjs/platform-express'
 import { NotesService } from './notes.service'
 import { CreateNoteDto } from './types/create-note.dto'
 import { DeleteAllNotesResultDto } from './types/delete-all-notes-result.dto'
@@ -26,8 +31,21 @@ import { ListNotesQueryDto } from './types/list-notes-query.dto'
 import { NoteDto } from './types/note.dto'
 import { NoteSortDirectionEnum } from './types/note-sort-direction-enum'
 import { NoteSortFieldEnum } from './types/note-sort-field-enum'
-import type { NoteValuePatch, NoteValues } from './types/note-value'
+import type {
+  NoteImageValue,
+  NoteValue,
+  NoteValuePatch,
+  NoteValues,
+} from './types/note-value'
 import { UpdateNoteDto } from './types/update-note.dto'
+
+interface NoteUploadFile {
+  buffer?: Buffer
+  fieldname?: string
+  mimetype?: string
+  originalname?: string
+  size?: number
+}
 
 interface NoteSortOptions {
   noteTypeIds?: string[]
@@ -43,12 +61,31 @@ export class NotesController {
   ) {}
 
   @Post()
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        fileSize: 25 * 1024 * 1024,
+        files: 50,
+      },
+    })
+  )
+  @ApiConsumes('application/json', 'multipart/form-data')
+  @ApiBody({ type: CreateNoteDto })
   @ApiOperation({ summary: 'Create a note' })
   @ApiCreatedResponse({ description: 'Created note.', type: NoteDto })
-  createNote(@Body() body: CreateNoteDto = {} as CreateNoteDto): NoteDto {
+  createNote(
+    @Body() body: CreateNoteDto = {} as CreateNoteDto,
+    @UploadedFiles() files: NoteUploadFile[] = []
+  ): NoteDto {
+    const payload = this.resolveMultipartPayload<CreateNoteDto>(body)
+    const filesByUploadKey = this.createFilesByUploadKey(files)
+
     return this.notesService.createNote({
-      noteTypeId: this.resolveNoteTypeId(body),
-      values: this.resolveNoteValues(body),
+      noteTypeId: this.resolveNoteTypeId(payload),
+      values: this.resolveUploadedNoteValues(
+        this.resolveNoteValues(payload),
+        filesByUploadKey
+      ),
     })
   }
 
@@ -72,15 +109,32 @@ export class NotesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        fileSize: 25 * 1024 * 1024,
+        files: 50,
+      },
+    })
+  )
+  @ApiConsumes('application/json', 'multipart/form-data')
+  @ApiBody({ type: UpdateNoteDto })
   @ApiOperation({ summary: 'Update note values' })
   @ApiParam({ name: 'id', description: 'Note id.' })
   @ApiOkResponse({ description: 'Updated note.', type: NoteDto })
   updateNote(
     @Param('id') id: string,
-    @Body() body: UpdateNoteDto = {}
+    @Body() body: UpdateNoteDto = {},
+    @UploadedFiles() files: NoteUploadFile[] = []
   ): NoteDto {
+    const payload = this.resolveMultipartPayload<UpdateNoteDto>(body)
+    const filesByUploadKey = this.createFilesByUploadKey(files)
+
     return this.notesService.updateNote(id, {
-      values: this.resolveNoteValuePatch(body),
+      values: this.resolveUploadedNoteValuePatch(
+        this.resolveNoteValuePatch(payload),
+        filesByUploadKey
+      ),
     })
   }
 
@@ -141,6 +195,131 @@ export class NotesController {
     return body.values as NoteValuePatch
   }
 
+  private resolveMultipartPayload<T>(body: T | Record<string, unknown>): T {
+    if (!this.isRecord(body) || typeof body.payload !== 'string') {
+      return body as T
+    }
+
+    try {
+      const payload = JSON.parse(body.payload) as unknown
+
+      this.ensureRequestBodyIsRecord(payload)
+
+      return payload as T
+    } catch {
+      throw new BadRequestException(
+        'Multipart note payload must be valid JSON.'
+      )
+    }
+  }
+
+  private createFilesByUploadKey(
+    files: NoteUploadFile[]
+  ): Map<string, NoteUploadFile> {
+    const filesByUploadKey = new Map<string, NoteUploadFile>()
+
+    for (const file of files) {
+      if (!file.fieldname) {
+        continue
+      }
+
+      filesByUploadKey.set(file.fieldname, file)
+    }
+
+    return filesByUploadKey
+  }
+
+  private resolveUploadedNoteValues(
+    values: NoteValues | undefined,
+    filesByUploadKey: Map<string, NoteUploadFile>
+  ): NoteValues | undefined {
+    if (!values) {
+      return undefined
+    }
+
+    return Object.entries(values).reduce<NoteValues>(
+      (result, [columnId, value]) => {
+        result[columnId] = this.resolveUploadedNoteValue(
+          value,
+          filesByUploadKey
+        )
+
+        return result
+      },
+      {}
+    )
+  }
+
+  private resolveUploadedNoteValuePatch(
+    values: NoteValuePatch | undefined,
+    filesByUploadKey: Map<string, NoteUploadFile>
+  ): NoteValuePatch | undefined {
+    if (!values) {
+      return undefined
+    }
+
+    return Object.entries(values).reduce<NoteValuePatch>(
+      (result, [columnId, value]) => {
+        result[columnId] =
+          value === null
+            ? null
+            : this.resolveUploadedNoteValue(value, filesByUploadKey)
+
+        return result
+      },
+      {}
+    )
+  }
+
+  private resolveUploadedNoteValue(
+    value: NoteValue,
+    filesByUploadKey: Map<string, NoteUploadFile>
+  ): NoteValue {
+    if (Array.isArray(value)) {
+      return value.map((item) =>
+        this.resolveUploadedImageValue(item, filesByUploadKey)
+      )
+    }
+
+    if (this.isRecord(value)) {
+      return this.resolveUploadedImageValue(value, filesByUploadKey)
+    }
+
+    return value
+  }
+
+  private resolveUploadedImageValue(
+    value: NoteImageValue,
+    filesByUploadKey: Map<string, NoteUploadFile>
+  ): NoteImageValue {
+    const multipartValue = value as Record<string, unknown>
+
+    if (typeof multipartValue.uploadKey !== 'string') {
+      return value
+    }
+
+    const file = filesByUploadKey.get(multipartValue.uploadKey)
+
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Uploaded note image file is missing.')
+    }
+
+    const mimeType = file.mimetype || 'application/octet-stream'
+    const fileName =
+      typeof value.fileName === 'string' && value.fileName.trim().length > 0
+        ? value.fileName
+        : file.originalname
+
+    return {
+      altText: typeof value.altText === 'string' ? value.altText : undefined,
+      dataUrl: `data:${mimeType};base64,${file.buffer.toString('base64')}`,
+      fileName,
+      height: typeof value.height === 'number' ? value.height : undefined,
+      mimeType,
+      size: file.size ?? file.buffer.length,
+      width: typeof value.width === 'number' ? value.width : undefined,
+    }
+  }
   private ensureRequestBodyIsRecord(body: unknown): void {
     if (!this.isRecord(body)) {
       throw new BadRequestException('Note request body must be an object.')
@@ -190,9 +369,7 @@ export class NotesController {
     const rawValues = Array.isArray(noteTypeIds) ? noteTypeIds : [noteTypeIds]
     const resolvedNoteTypeIds = rawValues.flatMap((value) => {
       if (typeof value !== 'string') {
-        throw new BadRequestException(
-          'Note type filters must be strings.'
-        )
+        throw new BadRequestException('Note type filters must be strings.')
       }
 
       return value
@@ -216,4 +393,3 @@ export class NotesController {
     return String(sortDirection).toLowerCase() as NoteSortDirectionEnum
   }
 }
-

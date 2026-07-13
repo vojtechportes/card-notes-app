@@ -111,12 +111,56 @@ describe('NoteCardList', () => {
     const image = screen.getByRole('img', { name: 'Invoice image' })
     expect(image.getAttribute('src')).toBe('data:image/png;base64,abc123')
     expect(screen.getByText('invoice.png')).toBeTruthy()
-    expect(
-      screen.queryByRole('button', { name: 'Invoice image' })
-    ).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Invoice image' })).toBeNull()
     expect(
       screen.queryByRole('button', { name: 'Close image preview' })
     ).toBeNull()
+  })
+
+  it('renders multi-image fields as the first card image plus a remaining count tile', () => {
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            config: { isMultiImage: true },
+            id: 'image-column',
+            name: 'printscreen',
+            sortOrder: 0,
+            title: 'Printscreen',
+            type: 'image',
+          }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[
+          {
+            createdAt: '2026-07-07T10:00:00.000Z',
+            id: 'note-1',
+            noteTypeId: 'note-type-1',
+            updatedAt: '2026-07-07T12:00:00.000Z',
+            values: {
+              'image-column': [
+                {
+                  altText: 'First printscreen',
+                  dataUrl: 'data:image/png;base64,first',
+                },
+                {
+                  altText: 'Second printscreen',
+                  dataUrl: 'data:image/png;base64,second',
+                },
+                {
+                  altText: 'Third printscreen',
+                  dataUrl: 'data:image/png;base64,third',
+                },
+              ],
+            },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole('img', { name: 'First printscreen' })).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'Second printscreen' })).toBeNull()
+    expect(screen.getByText('+2')).toBeTruthy()
   })
 
   it('renders unsafe links as text and suppresses remote image sources', () => {
@@ -445,4 +489,3 @@ describe('NoteCardList', () => {
     ).toBeTruthy()
   })
 })
-

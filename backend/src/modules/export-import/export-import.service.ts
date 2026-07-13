@@ -15,6 +15,7 @@ import type {
 import { SettingsService } from '../settings/settings.service'
 import { defaultNoteColumns } from '../settings/constants/default-note-columns'
 import { areColumnTypesCompatible } from '../settings/utils/are-column-types-compatible.util'
+import { isMultiImageColumn } from '../settings/utils/is-multi-image-column.util'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
 import type { GeneralSettings } from '../settings/types/general-settings'
 import type { NoteColumn } from '../settings/types/note-column'
@@ -541,9 +542,9 @@ export class ExportImportService {
       })
     }
 
-    this.ensureUniqueValues(
+    this.ensureSpreadsheetHeaderNamesAreAllowed(
       headerNames,
-      'XLSX header column names must be unique.'
+      existingColumnsByName
     )
 
     const imagesByCellAddress = this.resolveWorksheetImages(worksheet, workbook)
@@ -565,7 +566,7 @@ export class ExportImportService {
         )
 
         if (resolvedValue !== null) {
-          values[column.id] = resolvedValue
+          this.assignSpreadsheetValue(values, column, resolvedValue)
         }
       }
 
@@ -579,6 +580,69 @@ export class ExportImportService {
     }
   }
 
+  private ensureSpreadsheetHeaderNamesAreAllowed(
+    headerNames: string[],
+    existingColumnsByName: Map<string, NoteColumn>
+  ): void {
+    const headerCounts = new Map<string, number>()
+
+    for (const headerName of headerNames) {
+      headerCounts.set(headerName, (headerCounts.get(headerName) ?? 0) + 1)
+    }
+
+    for (const [headerName, count] of headerCounts.entries()) {
+      if (count <= 1) {
+        continue
+      }
+
+      const column = existingColumnsByName.get(headerName)
+
+      if (column?.type === ColumnTypeEnum.Image) {
+        continue
+      }
+
+      throw new BadRequestException(
+        'XLSX duplicate header names are only supported for image columns.'
+      )
+    }
+  }
+
+  private assignSpreadsheetValue(
+    values: NoteValues,
+    column: NoteColumn,
+    resolvedValue: NoteValue
+  ): void {
+    if (column.type !== ColumnTypeEnum.Image) {
+      values[column.id] = resolvedValue
+      return
+    }
+
+    if (!isMultiImageColumn(column)) {
+      if (values[column.id] === undefined) {
+        values[column.id] = resolvedValue
+      }
+
+      return
+    }
+
+    if (!this.isValidImageValue(resolvedValue)) {
+      return
+    }
+
+    const existingValue = values[column.id]
+
+    if (Array.isArray(existingValue)) {
+      values[column.id] = [...existingValue, resolvedValue]
+      return
+    }
+
+    if (this.isValidImageValue(existingValue)) {
+      values[column.id] = [existingValue, resolvedValue]
+      return
+    }
+
+    values[column.id] = [resolvedValue]
+  }
   private resolveWorksheetImages(
     worksheet: Workbook['worksheets'][number],
     workbook: Workbook
@@ -1333,7 +1397,7 @@ export class ExportImportService {
         }
         return
       case ColumnTypeEnum.Image:
-        if (!this.isValidImageValue(value)) {
+        if (!this.isValidImageNoteValue(value, column)) {
           throw new BadRequestException(
             'Image note values must be image metadata objects.'
           )
@@ -1355,12 +1419,31 @@ export class ExportImportService {
       return
     }
 
-    if (this.isValidImageValue(value)) {
+    if (this.isValidImageValue(value) || this.isValidImageValueList(value)) {
       return
     }
 
     throw new BadRequestException(
-      'Imported note values must be strings, finite numbers, or image metadata objects.'
+      'Imported note values must be strings, finite numbers, image metadata objects, or image metadata arrays.'
+    )
+  }
+
+  private isValidImageNoteValue(
+    value: NoteValue,
+    column: NoteColumn
+  ): value is NoteImageValue | NoteImageValue[] {
+    if (this.isValidImageValue(value)) {
+      return true
+    }
+
+    return isMultiImageColumn(column) && this.isValidImageValueList(value)
+  }
+
+  private isValidImageValueList(value: unknown): value is NoteImageValue[] {
+    return (
+      Array.isArray(value) &&
+      value.length > 0 &&
+      value.every((item) => this.isValidImageValue(item))
     )
   }
 

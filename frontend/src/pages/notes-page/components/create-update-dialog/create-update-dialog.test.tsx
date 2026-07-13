@@ -377,6 +377,127 @@ describe('CreateUpdateDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('removes individual images from a multi-image field before submit', async () => {
+    const onClose = vi.fn()
+    const multiImageColumns = bookColumns.map((column) =>
+      column.id === 'receipt-column'
+        ? { ...column, config: { isMultiImage: true } }
+        : column
+    )
+
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data:
+        noteTypeId === 'note-type-1'
+          ? multiImageColumns
+          : noteTypeId === 'note-type-2'
+            ? movieColumns
+            : undefined,
+      isError: false,
+      isLoading: false,
+    }))
+    createNoteImageValueFromFileMock.mockImplementation((file: File) =>
+      Promise.resolve({
+        altText: file.name,
+        dataUrl: `data:${file.type};base64,${file.name}`,
+        fileName: file.name,
+        mimeType: file.type,
+        size: file.size,
+      })
+    )
+
+    render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
+
+    await selectSpecificNoteType('Books')
+
+    const firstFile = new File(['first'], 'first.png', { type: 'image/png' })
+    const secondFile = new File(['second'], 'second.png', { type: 'image/png' })
+
+    fireEvent.drop(
+      screen.getByRole('group', { name: 'Receipt image image drop zone' }),
+      {
+        dataTransfer: {
+          files: [firstFile, secondFile],
+        },
+      }
+    )
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Remove first.png' })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        noteTypeId: 'note-type-1',
+        values: {
+          'receipt-column': [
+            {
+              altText: 'second.png',
+              dataUrl: 'data:image/png;base64,second.png',
+              fileName: 'second.png',
+              mimeType: 'image/png',
+              size: secondFile.size,
+            },
+          ],
+        },
+      })
+    })
+  })
+
+  it('renders existing multi-image values when editing a note', () => {
+    const multiImageColumns = bookColumns.map((column) =>
+      column.id === 'receipt-column'
+        ? { ...column, config: { isMultiImage: true } }
+        : column
+    )
+    const note: NoteDto = {
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-1',
+      noteTypeId: 'note-type-1',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+      values: {
+        'receipt-column': [
+          {
+            altText: 'First stored image',
+            dataUrl: 'data:image/png;base64,first-stored',
+            fileName: 'first-stored.png',
+          },
+          {
+            altText: 'Second stored image',
+            dataUrl: 'data:image/png;base64,second-stored',
+            fileName: 'second-stored.png',
+          },
+        ],
+      },
+    }
+
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data:
+        noteTypeId === 'note-type-1'
+          ? multiImageColumns
+          : noteTypeId === 'note-type-2'
+            ? movieColumns
+            : undefined,
+      isError: false,
+      isLoading: false,
+    }))
+
+    render(
+      <CreateUpdateDialog mode="update" note={note} onClose={vi.fn()} open />
+    )
+
+    expect(screen.getByRole('img', { name: 'First stored image' })).toBeTruthy()
+    expect(
+      screen.getByRole('img', { name: 'Second stored image' })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Remove first-stored.png' })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Remove second-stored.png' })
+    ).toBeTruthy()
+  })
+
   it('keeps the note type fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',

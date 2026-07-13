@@ -10,7 +10,9 @@ export interface NoteImageValue {
   height?: number
 }
 
-export type NoteValue = string | number | NoteImageValue
+export type NoteImageValues = NoteImageValue[]
+
+export type NoteValue = string | number | NoteImageValue | NoteImageValues
 
 export type NoteValues = Record<string, NoteValue>
 

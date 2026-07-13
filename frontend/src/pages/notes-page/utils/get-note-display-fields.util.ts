@@ -51,6 +51,7 @@ export const getNoteDisplayFields = (
       columnId: column.id,
       title: column.title,
       type: column.type,
+      config: column.config,
       value: resolveNoteCardColumnValue(note, column),
     })
   })

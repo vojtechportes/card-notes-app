@@ -7,6 +7,7 @@ import type {
   NoteDto,
   UpdateNoteDto,
 } from '../../types/api'
+import { createNoteRequestBody } from './utils/create-note-request-body.util'
 
 export const getNotes = (
   query?: ListNotesQueryDto,
@@ -30,14 +31,14 @@ export const getNotes = (
 export const createNote = (
   note: CreateNoteDto
 ): Promise<AxiosResponse<NoteDto>> => {
-  return apiClient.post<NoteDto>('/notes', note)
+  return apiClient.post<NoteDto>('/notes', createNoteRequestBody(note))
 }
 
 export const updateNote = (
   id: string,
   note: UpdateNoteDto
 ): Promise<AxiosResponse<NoteDto>> => {
-  return apiClient.patch<NoteDto>(`/notes/${id}`, note)
+  return apiClient.patch<NoteDto>(`/notes/${id}`, createNoteRequestBody(note))
 }
 
 export const deleteAllNotes = (): Promise<

@@ -6,5 +6,6 @@ export interface NoteCardField {
   columnId: string
   title: string
   type: ColumnDto['type']
+  config?: ColumnDto['config']
   value: NoteCardFieldValue | undefined
 }
