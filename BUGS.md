@@ -8,3 +8,4 @@
 - `[!]` Blocked or needs decision
 
 - [x] B100. Add missing translation for mergeDateTimeFields field
+- [x] B101. GitHub workflow "Sign installer with Certum SimplySign" is failing
