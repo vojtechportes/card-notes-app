@@ -369,6 +369,19 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Source logo is located in `frontend/*/assets/logo.png` and `frontend/*/assets/favicon.png`
 - [x] TMSC-11. Rename the app to "NoteStack"
 
+- [x] TMSC-12. Refactor note field value components
+  - Create a `components` folder under `frontend/src/pages/notes-page/components/note-field-value`.
+  - Split note field value rendering into individual components for text, image, number, and link values.
+  - Keep components slim and preserve one utility per file / one component per file conventions.
+
+- [x] TMSC-13. Add shared note image preview overlay
+  - Reuse the note card image styling through a shared preview component.
+  - Cap detail image previews at 520px while preserving card image sizing.
+  - Add a generic image overlay with backdrop, close action, and viewport-constrained centered image.
+- [x] TMSC-14. Align detail titles and image borders
+  - Add a theme-derived light border to note image preview containers.
+  - Match note detail field title styling to the note card list title styling.
+  - Match Settings side drawer detail title styling to the note card list title styling.
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
@@ -380,3 +393,4 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+

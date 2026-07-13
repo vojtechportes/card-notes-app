@@ -57,6 +57,11 @@
     "fields": {
       "lastUpdatedAt": "Last updated at"
     },
+    "imageOverlay": {
+      "actions": {
+        "close": "Close image preview"
+      }
+    },
     "card": {
       "noVisibleFields": "No visible note fields.",
       "imagePreviewUnavailable": "Image preview unavailable.",
@@ -140,3 +145,4 @@
     }
   }
 }
+

@@ -60,7 +60,9 @@ export const NoteDetailPanel = ({
             <NoteFieldValue
               emptyImageLabel={t('notes.card.imagePreviewUnavailable')}
               emptyValueLabel={t('notes.detail.emptyValue')}
+              enableImageOverlay
               field={field}
+              imagePreviewMaxWidth={520}
               textTruncationLength={generalSettings.textTruncationLength}
             />
           </NoteDetailItem>
@@ -69,3 +71,4 @@ export const NoteDetailPanel = ({
     </Stack>
   )
 }
+

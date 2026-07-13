@@ -474,6 +474,24 @@ describe('NotesPage', () => {
     expect(
       within(sideDrawer).getByRole('img', { name: 'Alpha note image' })
     ).toBeTruthy()
+
+    fireEvent.click(
+      within(sideDrawer).getByRole('button', { name: 'Alpha note image' })
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Close image preview' })
+      ).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close image preview' }))
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Close image preview' })
+      ).toBeNull()
+    })
   })
 
   it('merges created and updated timestamps in the detail drawer when enabled', async () => {
@@ -617,3 +635,4 @@ describe('NotesPage', () => {
     expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
   })
 })
+
