@@ -7,13 +7,13 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build-windows-installer:
     runs-on: windows-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -28,153 +28,178 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore Windows code-signing certificate
-        shell: powershell
-        run: |
-          $certificatePath = Join-Path $env:RUNNER_TEMP 'card-notes-app-signing.pfx'
-          $certificateBytes = [Convert]::FromBase64String("${{ secrets.WINDOWS_CERT_BASE64 }}")
-          [IO.File]::WriteAllBytes($certificatePath, $certificateBytes)
-
-          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_LINK=$certificatePath"
-          Add-Content -Path $env:GITHUB_ENV -Value "WIN_CSC_KEY_PASSWORD=${{ secrets.WINDOWS_CERT_PASSWORD }}"
-
-      - name: Verify release signing and publish environment
-        shell: powershell
-        run: |
-          if (-not (Test-Path $env:WIN_CSC_LINK)) {
-            throw 'WIN_CSC_LINK does not point to a restored signing certificate.'
-          }
-
-          if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_KEY_PASSWORD)) {
-            throw 'WIN_CSC_KEY_PASSWORD is missing.'
-          }
-
-          if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
-            throw 'GH_TOKEN is missing.'
-          }
-
-      - name: Build Electron release artifacts
+      - name: Build unsigned Electron release artifacts
         run: npm run package:release
 
-      - name: Verify local updater release artifacts
+      - name: Verify unsigned updater release artifacts
+        run: npm run verify:release-artifacts --workspace electron
+
+      - name: Upload unsigned release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-release
+          path: |
+            electron/release/latest.yml
+            electron/release/*.exe
+            electron/release/*.exe.blockmap
+          if-no-files-found: error
+
+  sign-windows-installer:
+    needs: build-windows-installer
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/reactiveui/certum-signer:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CERTUM_USER_ID: ${{ secrets.CERTUM_USER_ID }}
+      CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+      CERTUM_CERT_FINGERPRINT: ${{ secrets.CERTUM_CERT_FINGERPRINT }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download unsigned release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: unsigned-windows-release
+          path: electron/release
+
+      - name: Validate Certum signing environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CERTUM_USER_ID:?Set the CERTUM_USER_ID repository secret to the SimplySign login id.}"
+          : "${CERTUM_OTP_URI:?Set the CERTUM_OTP_URI repository secret to the otpauth:// TOTP URI.}"
+          : "${CERTUM_CERT_FINGERPRINT:?Set CERTUM_CERT_FINGERPRINT to the SHA-256 fingerprint of the Certum code-signing certificate.}"
+          : "${SS_DIST:?The Certum signer image must expose SS_DIST.}"
+          : "${JSIGN_JAR:?The Certum signer image must expose JSIGN_JAR.}"
+
+      - name: Sign installer with Certum SimplySign
+        uses: ./.github/actions/certum-sign
+        with:
+          artifacts-glob: electron/release/*.exe
+
+      - name: Upload signed installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-windows-release
+          path: |
+            electron/release/latest.yml
+            electron/release/*.exe
+            electron/release/*.exe.blockmap
+          if-no-files-found: error
+
+  publish-windows-installer:
+    needs: sign-windows-installer
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies for release metadata refresh
+        run: npm ci --ignore-scripts
+
+      - name: Download signed release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-windows-release
+          path: electron/release
+
+      - name: Refresh updater metadata after signing
+        run: npm run refresh:signed-release-artifacts --workspace electron
+
+      - name: Verify signed updater release artifacts
         run: npm run verify:release-artifacts --workspace electron
 
       - name: Upload GitHub release assets
-        shell: powershell
+        shell: bash
         run: |
-          $headers = @{
-            Authorization = "Bearer $env:GH_TOKEN"
-            Accept = 'application/vnd.github+json'
-            'X-GitHub-Api-Version' = '2022-11-28'
-          }
+          set -euo pipefail
+          : "${GH_TOKEN:?GH_TOKEN is missing.}"
 
-          $releaseUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ github.event.release.id }}"
-          $release = Invoke-RestMethod -Headers $headers -Uri $releaseUri
-          $uploadBaseUri = [string]$release.upload_url
+          latest_yml_path="electron/release/latest.yml"
+          if [ ! -f "$latest_yml_path" ]; then
+            echo "::error::The updater manifest was not found at $latest_yml_path."
+            exit 1
+          fi
 
-          if ([string]::IsNullOrWhiteSpace($uploadBaseUri)) {
-            throw 'The GitHub release payload did not include an upload_url.'
-          }
+          installer_file_name="$(sed -n 's/^path:[[:space:]]*//p' "$latest_yml_path" | head -1 | tr -d '\r')"
+          if [ -z "$installer_file_name" ]; then
+            echo "::error::The updater manifest does not include a path entry for the installer."
+            exit 1
+          fi
 
-          $uploadBaseUri = $uploadBaseUri.Split('{')[0]
-
-          if (-not [System.Uri]::IsWellFormedUriString($uploadBaseUri, [System.UriKind]::Absolute)) {
-            throw "The GitHub release upload_url is not a valid absolute URI: $uploadBaseUri"
-          }
-
-          $releaseRoot = Join-Path $PWD 'electron\release'
-          $latestYmlPath = Join-Path $releaseRoot 'latest.yml'
-
-          if (-not (Test-Path $latestYmlPath)) {
-            throw "The updater manifest was not found at $latestYmlPath"
-          }
-
-          $latestYmlContent = Get-Content $latestYmlPath -Raw
-          $manifestPathMatch = [regex]::Match($latestYmlContent, '^path:\s+(.+)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-
-          if (-not $manifestPathMatch.Success) {
-            throw 'The updater manifest does not include a path entry for the installer.'
-          }
-
-          $installerFileName = $manifestPathMatch.Groups[1].Value.Trim()
-          $assetPaths = @(
-            $latestYmlPath,
-            (Join-Path $releaseRoot $installerFileName),
-            (Join-Path $releaseRoot "$installerFileName.blockmap")
+          asset_paths=(
+            "$latest_yml_path"
+            "electron/release/$installer_file_name"
+            "electron/release/$installer_file_name.blockmap"
           )
 
-          foreach ($assetPath in $assetPaths) {
-            if (-not (Test-Path $assetPath)) {
-              throw "Expected release asset not found: $assetPath"
-            }
-          }
+          for asset_path in "${asset_paths[@]}"; do
+            if [ ! -f "$asset_path" ]; then
+              echo "::error::Expected release asset not found: $asset_path"
+              exit 1
+            fi
+          done
 
-          $existingAssets = @{}
-          foreach ($asset in $release.assets) {
-            $existingAssets[$asset.name] = $asset.id
-          }
-
-          foreach ($assetPath in $assetPaths) {
-            $assetName = Split-Path $assetPath -Leaf
-
-            if ($existingAssets.ContainsKey($assetName)) {
-              $deleteUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/assets/$($existingAssets[$assetName])"
-              Invoke-RestMethod -Headers $headers -Uri $deleteUri -Method Delete
-            }
-
-            $uploadHeaders = @{
-              Authorization = "Bearer $env:GH_TOKEN"
-              Accept = 'application/vnd.github+json'
-              'Content-Type' = 'application/octet-stream'
-              'X-GitHub-Api-Version' = '2022-11-28'
-            }
-            $encodedAssetName = [System.Uri]::EscapeDataString($assetName)
-            $uploadUri = '{0}?name={1}' -f $uploadBaseUri, $encodedAssetName
-            Invoke-RestMethod -Headers $uploadHeaders -Uri $uploadUri -Method Post -InFile $assetPath | Out-Null
-          }
+          gh release upload "${{ github.event.release.tag_name }}" "${asset_paths[@]}" --clobber --repo "${{ github.repository }}"
 
       - name: Verify GitHub release updater assets
-        shell: powershell
+        shell: bash
         run: |
-          $headers = @{
-            Authorization = "Bearer $env:GH_TOKEN"
-            Accept = 'application/vnd.github+json'
-          }
-          $releaseUri = "${{ github.api_url }}/repos/${{ github.repository }}/releases/${{ github.event.release.id }}"
-          $release = Invoke-RestMethod -Headers $headers -Uri $releaseUri
-          $assetNames = @($release.assets | ForEach-Object { $_.name })
-          $latestAsset = $release.assets | Where-Object { $_.name -eq 'latest.yml' } | Select-Object -First 1
+          set -euo pipefail
+          : "${GH_TOKEN:?GH_TOKEN is missing.}"
 
-          if (-not $latestAsset) {
-            throw 'The published GitHub release is missing latest.yml.'
-          }
+          release_json="$(gh api "repos/${{ github.repository }}/releases/${{ github.event.release.id }}")"
+          latest_url="$(printf '%s' "$release_json" | jq -r '.assets[] | select(.name == "latest.yml") | .browser_download_url' | head -1)"
 
-          $latestYmlContent = Invoke-RestMethod -Headers $headers -Uri $latestAsset.browser_download_url
-          $latestYmlLines = $latestYmlContent -split "`n"
-          $manifestPathLine = $latestYmlLines | Where-Object { $_ -match '^path:\s+' } | Select-Object -First 1
-          $manifestVersionLine = $latestYmlLines | Where-Object { $_ -match '^version:\s+' } | Select-Object -First 1
+          if [ -z "$latest_url" ] || [ "$latest_url" = "null" ]; then
+            echo "::error::The published GitHub release is missing latest.yml."
+            exit 1
+          fi
 
-          if (-not $manifestPathLine) {
-            throw 'The published latest.yml is missing the installer path.'
-          }
+          latest_yml_content="$(curl --fail --location --silent --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/octet-stream' "$latest_url")"
+          expected_installer_name="$(printf '%s\n' "$latest_yml_content" | sed -n 's/^path:[[:space:]]*//p' | head -1 | tr -d '\r')"
+          manifest_version="$(printf '%s\n' "$latest_yml_content" | sed -n 's/^version:[[:space:]]*//p' | head -1 | tr -d '\r')"
 
-          if (-not $manifestVersionLine) {
-            throw 'The published latest.yml is missing the version field.'
-          }
+          if [ -z "$expected_installer_name" ]; then
+            echo "::error::The published latest.yml is missing the installer path."
+            exit 1
+          fi
 
-          $expectedInstallerName = ($manifestPathLine -replace '^path:\s+', '').Trim()
-          $expectedBlockMapName = "$expectedInstallerName.blockmap"
-          $releaseVersion = "${{ github.event.release.tag_name }}" -replace '^v', ''
-          $manifestVersion = ($manifestVersionLine -replace '^version:\s+', '').Trim()
+          if [ -z "$manifest_version" ]; then
+            echo "::error::The published latest.yml is missing the version field."
+            exit 1
+          fi
 
-          if ($manifestVersion -ne $releaseVersion) {
-            throw "The published latest.yml version ($manifestVersion) does not match the release tag version ($releaseVersion)."
-          }
+          release_version="${{ github.event.release.tag_name }}"
+          release_version="${release_version#v}"
+          if [ "$manifest_version" != "$release_version" ]; then
+            echo "::error::The published latest.yml version ($manifest_version) does not match the release tag version ($release_version)."
+            exit 1
+          fi
 
-          if (-not ($assetNames -contains $expectedInstallerName)) {
-            throw "The published GitHub release is missing the installer referenced by latest.yml: $expectedInstallerName"
-          }
+          expected_blockmap_name="$expected_installer_name.blockmap"
+          asset_names="$(printf '%s' "$release_json" | jq -r '.assets[].name')"
 
-          if (-not ($assetNames -contains $expectedBlockMapName)) {
-            throw "The published GitHub release is missing the blockmap referenced by latest.yml: $expectedBlockMapName"
-          }
+          if ! printf '%s\n' "$asset_names" | grep -Fxq "$expected_installer_name"; then
+            echo "::error::The published GitHub release is missing the installer referenced by latest.yml: $expected_installer_name"
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$asset_names" | grep -Fxq "$expected_blockmap_name"; then
+            echo "::error::The published GitHub release is missing the blockmap referenced by latest.yml: $expected_blockmap_name"
+            exit 1
+          fi
