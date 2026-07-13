@@ -206,42 +206,49 @@ runs:
 
         expected="$(echo "$CERTUM_CERT_FINGERPRINT" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
         tmp_dir="$RUNNER_TEMP/certum-certs"
-        objects_path="$tmp_dir/pkcs11-certificates.txt"
+        keytool_output_path="$tmp_dir/pkcs11-certificates.txt"
+        config_path="$tmp_dir/sunpkcs11.conf"
         mkdir -p "$tmp_dir"
-        pkcs11-tool --module "$SS_PKCS11" -O --type cert > "$objects_path"
 
-        mapfile -t cert_entries < <(awk -F': ' '/label:/ { label=$2 } /ID:/ { print $2 "\t" label; label="" }' "$objects_path")
-        if [ "${#cert_entries[@]}" -eq 0 ]; then
-          echo "::error::No certificates were exposed by the SimplySign PKCS#11 token."
-          exit 1
-        fi
+        {
+          echo "name = SimplySign"
+          echo "library = $SS_PKCS11"
+          echo "slotListIndex = 0"
+        } > "$config_path"
 
-        matched_id=""
-        matched_alias=""
-        for cert_entry in "${cert_entries[@]}"; do
-          cert_id="${cert_entry%%$'\t'*}"
-          cert_alias="${cert_entry#*$'\t'}"
-          cert_path="$tmp_dir/$cert_id.der"
-          pkcs11-tool --module "$SS_PKCS11" --read-object --type cert --id "$cert_id" > "$cert_path"
-          actual="$(openssl x509 -inform DER -in "$cert_path" -noout -fingerprint -sha256 | sed 's/^.*=//' | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-          if [ "$actual" = "$expected" ]; then
-            matched_id="$cert_id"
-            matched_alias="$cert_alias"
-            break
-          fi
-        done
+        keytool \
+          -list \
+          -v \
+          -keystore NONE \
+          -storetype PKCS11 \
+          -storepass "" \
+          -providerClass sun.security.pkcs11.SunPKCS11 \
+          -providerArg "$config_path" \
+          > "$keytool_output_path"
 
-        if [ -z "$matched_id" ]; then
+        matched_alias="$(awk -v expected="$expected" '
+          /^Alias name:/ {
+            alias = substr($0, index($0, ":") + 2)
+          }
+          /^[[:space:]]*SHA256:/ {
+            fingerprint = $0
+            sub(/^[[:space:]]*SHA256:[[:space:]]*/, "", fingerprint)
+            gsub(/[:[:space:]]/, "", fingerprint)
+            fingerprint = toupper(fingerprint)
+            if (fingerprint == expected && alias != "") {
+              print alias
+              exit
+            }
+          }
+        ' "$keytool_output_path")"
+
+        if [ -z "$matched_alias" ]; then
           echo "::error::CERTUM_CERT_FINGERPRINT does not match any certificate exposed by SimplySign."
           exit 1
         fi
 
-        if [ -z "$matched_alias" ]; then
-          echo "::error::The matching Certum certificate does not expose a PKCS#11 label that jsign can use as an alias."
-          exit 1
-        fi
-
         echo "CERTUM_CERT_ALIAS=$matched_alias" >> "$GITHUB_ENV"
+        echo "CERTUM_PKCS11_CONFIG=$config_path" >> "$GITHUB_ENV"
 
     - name: Sign Windows artifacts
       shell: bash
@@ -251,12 +258,7 @@ runs:
       run: |
         set -euo pipefail
 
-        config_path="$RUNNER_TEMP/sunpkcs11.conf"
-        {
-          echo "name = SimplySign"
-          echo "library = $SS_PKCS11"
-          echo "slotListIndex = 0"
-        } > "$config_path"
+        : "${CERTUM_PKCS11_CONFIG:?SunPKCS11 configuration was not prepared.}"
 
         shopt -s nullglob
         artifacts=( $ARTIFACTS_GLOB )
@@ -269,7 +271,7 @@ runs:
           echo "::group::Signing $artifact"
           java -jar "$JSIGN_JAR" \
             --storetype PKCS11 \
-            --keystore "$config_path" \
+            --keystore "$CERTUM_PKCS11_CONFIG" \
             --storepass "" \
             --alias "$CERTUM_CERT_ALIAS" \
             --alg SHA-256 \
