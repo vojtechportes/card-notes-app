@@ -111,6 +111,12 @@ describe('NoteCardList', () => {
     const image = screen.getByRole('img', { name: 'Invoice image' })
     expect(image.getAttribute('src')).toBe('data:image/png;base64,abc123')
     expect(screen.getByText('invoice.png')).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Invoice image' })
+    ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Close image preview' })
+    ).toBeNull()
   })
 
   it('renders unsafe links as text and suppresses remote image sources', () => {
@@ -439,3 +445,4 @@ describe('NoteCardList', () => {
     ).toBeTruthy()
   })
 })
+

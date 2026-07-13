@@ -8,7 +8,7 @@ interface NoteDetailItemProps extends PropsWithChildren {
 export const NoteDetailItem = ({ children, label }: NoteDetailItemProps) => {
   return (
     <Stack spacing={0.25}>
-      <Typography color="text.secondary" variant="body2">
+      <Typography component="h3" variant="subtitle2">
         {label}
       </Typography>
       {children}

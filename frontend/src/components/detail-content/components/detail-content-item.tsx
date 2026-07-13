@@ -45,10 +45,9 @@ export const DetailContentItem: FC<DetailContentItemProps> = ({
       data-test-value={typeof label === 'string' ? label : undefined}
     >
       <Typography
-        sx={{
-          lineBreak: 'auto',
-          color: 'text.secondary',
-        }}
+        component="h3"
+        sx={{ lineBreak: 'auto' }}
+        variant="subtitle2"
       >
         {label}
       </Typography>
