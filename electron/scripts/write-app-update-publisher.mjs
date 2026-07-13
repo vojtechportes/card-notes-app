@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
 
@@ -6,6 +6,17 @@ const WINDOWS_PUBLISHER_NAME = "Open Source Developer Vojtech Porte\u0161";
 
 export const writeAppUpdatePublisher = async (appOutDir) => {
   const appUpdatePath = path.join(appOutDir, "resources", "app-update.yml");
+
+  try {
+    await access(appUpdatePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+
   const appUpdateContent = await readFile(appUpdatePath, "utf8");
   const appUpdateDocument = YAML.parseDocument(appUpdateContent);
 
