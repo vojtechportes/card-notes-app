@@ -6,6 +6,10 @@
       "general": {
         "title": "General",
         "description": "Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note."
+      },
+      "noteTemplates": {
+        "title": "Note templates",
+        "description": "Create and organize note templates, then open a template to manage its nested fields and field settings."
       }
     },
     "sections": {
@@ -30,8 +34,8 @@
         "description": "Check for newer app versions and install them when they are ready."
       },
       "noteTypes": {
-        "title": "Note templates",
-        "description": "Create note templates, open their details, and manage fields per template."
+        "title": "Templates",
+        "description": "Create, rename, delete, and open templates to manage their fields."
       }
     },
     "general": {
