@@ -84,7 +84,6 @@ export const createWindowsUpdateSignatureVerifier = ({
     const updateSubject = normalizeCertificateValue(updateSignature.signerSubject)
 
     if (
-      updateSignature.status !== 0 &&
       currentThumbprint &&
       updateThumbprint &&
       currentSubject &&
@@ -93,7 +92,7 @@ export const createWindowsUpdateSignatureVerifier = ({
       currentSubject === updateSubject
     ) {
       logger.warn?.(
-        'Accepted self-signed update because the installer certificate matches the running application certificate thumbprint.'
+        'Accepted update because the installer certificate matches the running application certificate thumbprint and subject.'
       )
 
       return null
