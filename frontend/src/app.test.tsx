@@ -61,11 +61,11 @@ describe('App routing', () => {
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Note types' })
+      await screen.findByRole('heading', { name: 'Note templates' })
     ).toBeTruthy()
   })
 
-  it('redirects legacy note type detail routes to note templates', async () => {
+  it('redirects legacy note template detail routes to note templates', async () => {
     window.location.hash = '#/settings/note-type-1'
 
     render(<App />)

@@ -29,14 +29,14 @@
         "button": "Filters",
         "buttonWithCount": "Filters ({{count}})",
         "title": "Advanced filters",
-        "description": "Filter the notes list by note type.",
+        "description": "Filter the notes list by note template.",
         "actions": {
           "clear": "Clear",
           "close": "Close"
         },
         "status": {
-          "loading": "Loading note types...",
-          "empty": "No note types are available."
+          "loading": "Loading note templates...",
+          "empty": "No note templates are available."
         }
       },
       "actions": {
@@ -76,7 +76,7 @@
     },
     "detail": {
       "title": "Note detail",
-      "noteType": "Note type",
+      "noteType": "Note template",
       "emptyValue": "-",
       "actions": {
         "edit": "Edit note",
@@ -102,15 +102,15 @@
         "update": "Save changes"
       },
       "status": {
-        "loadingNoteTypes": "Loading note types...",
-        "noteTypesError": "Note types could not be loaded.",
-        "selectNoteType": "Select a note type to load its fields.",
+        "loadingNoteTypes": "Loading note templates...",
+        "noteTypesError": "Note templates could not be loaded.",
+        "selectNoteType": "Select a note template to load its fields.",
         "loadingColumns": "Loading note fields...",
         "columnsError": "Note fields could not be loaded."
       },
       "noteType": {
-        "label": "Note type",
-        "placeholder": "Select a note type"
+        "label": "Note template",
+        "placeholder": "Select a note template"
       },
       "emptyEditableColumns": "No editable columns are currently available. You can still save this note without any custom fields.",
       "errors": {

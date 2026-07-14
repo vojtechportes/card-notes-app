@@ -308,7 +308,7 @@ const renderNoteTypesSection = (route = '/settings/note-templates') => {
 }
 
 describe('NoteTypesSection', () => {
-  it('renders note types in a grid and opens the shared detail drawer route', async () => {
+  it('renders note templates in a grid and opens the shared detail drawer route', async () => {
     renderNoteTypesSection()
 
     expect(screen.getByText('Projects')).toBeTruthy()
@@ -328,7 +328,7 @@ describe('NoteTypesSection', () => {
     expect(screen.getAllByText('Updated at').length).toBeGreaterThan(0)
   })
 
-  it('opens the shared detail drawer from a note type detail route', async () => {
+  it('opens the shared detail drawer from a note template detail route', async () => {
     renderNoteTypesSection('/settings/note-templates/note-type-2')
 
     expect(
@@ -339,7 +339,7 @@ describe('NoteTypesSection', () => {
     )
   })
 
-  it('returns to settings when the note type detail drawer is closed', async () => {
+  it('returns to settings when the note template detail drawer is closed', async () => {
     renderNoteTypesSection('/settings/note-templates/note-type-1')
 
     expect(
@@ -355,7 +355,7 @@ describe('NoteTypesSection', () => {
     })
   })
 
-  it('redirects an unknown note type detail route back to settings', async () => {
+  it('redirects an unknown note template detail route back to settings', async () => {
     renderNoteTypesSection('/settings/note-templates/missing-note-type')
 
     await waitFor(() => {
@@ -365,14 +365,18 @@ describe('NoteTypesSection', () => {
     })
   })
 
-  it('creates a new note type from the section action and opens its detail drawer route', async () => {
+  it('creates a new note template from the section action and opens its detail drawer route', async () => {
     renderNoteTypesSection()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Add note type' })[0])
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Add note template' })[0]
+    )
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Recipes' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create note type' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create note template' })
+    )
 
     await waitFor(() => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
@@ -391,16 +395,16 @@ describe('NoteTypesSection', () => {
     expect(screen.getAllByText('Recipes').length).toBeGreaterThan(0)
   })
 
-  it('edits only the note type name', async () => {
+  it('edits only the note template name', async () => {
     renderNoteTypesSection()
 
     fireEvent.click(
-      screen.getAllByRole('button', { name: 'Edit note type' })[0]
+      screen.getAllByRole('button', { name: 'Edit note template' })[0]
     )
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Projects updated' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save note type' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save note template' }))
 
     await waitFor(() => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
@@ -416,11 +420,11 @@ describe('NoteTypesSection', () => {
     renderNoteTypesSection()
 
     fireEvent.click(
-      screen.getAllByRole('button', { name: 'Delete note type' })[0]
+      screen.getAllByRole('button', { name: 'Delete note template' })[0]
     )
     fireEvent.click(
       screen.getByRole('radio', {
-        name: 'Delete this note type and move its notes to another note type',
+        name: 'Delete this note template and move its notes to another note template',
       })
     )
 
@@ -436,7 +440,7 @@ describe('NoteTypesSection', () => {
 
     const dialog = screen.getByRole('dialog')
     fireEvent.click(
-      within(dialog).getByRole('button', { name: 'Delete note type' })
+      within(dialog).getByRole('button', { name: 'Delete note template' })
     )
 
     await waitFor(() => {
@@ -470,7 +474,7 @@ describe('NoteTypesSection', () => {
     renderNoteTypesSection()
 
     fireEvent.click(
-      screen.getAllByRole('button', { name: 'Delete note type' })[0]
+      screen.getAllByRole('button', { name: 'Delete note template' })[0]
     )
 
     expect(screen.getByText(/recreate Default/)).toBeTruthy()

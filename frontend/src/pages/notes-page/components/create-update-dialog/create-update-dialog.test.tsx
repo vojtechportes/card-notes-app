@@ -172,13 +172,13 @@ const selectNoteType = async (label: string) => {
   fireEvent.mouseDown(screen.getByRole('combobox', { name: label }))
   fireEvent.click(
     await screen.findByRole('option', {
-      name: label === 'Note type' ? /.*/ : label,
+      name: label === 'Note template' ? /.*/ : label,
     })
   )
 }
 
 const selectSpecificNoteType = async (title: string) => {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note type' }))
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note template' }))
   fireEvent.click(await screen.findByRole('option', { name: title }))
 }
 
@@ -219,17 +219,17 @@ afterEach(() => {
 })
 
 describe('CreateUpdateDialog', () => {
-  it('renders note type selection first and waits to load fields in create mode', () => {
+  it('renders note template selection first and waits to load fields in create mode', () => {
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
-    expect(screen.getByLabelText('Note type')).toBeTruthy()
+    expect(screen.getByLabelText('Note template')).toBeTruthy()
     expect(
-      screen.getByText('Select a note type to load its fields.')
+      screen.getByText('Select a note template to load its fields.')
     ).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
   })
 
-  it('loads editable fields for the selected create note type only', async () => {
+  it('loads editable fields for the selected create note template only', async () => {
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
     await selectSpecificNoteType('Movies')
@@ -238,7 +238,7 @@ describe('CreateUpdateDialog', () => {
     expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
   })
 
-  it('shows the loading state from the note types query', () => {
+  it('shows the loading state from the note templates query', () => {
     useNoteTypesQueryMock.mockReturnValue({
       data: undefined,
       isError: false,
@@ -247,10 +247,10 @@ describe('CreateUpdateDialog', () => {
 
     render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
 
-    expect(screen.getByText('Loading note types...')).toBeTruthy()
+    expect(screen.getByText('Loading note templates...')).toBeTruthy()
   })
 
-  it('shows the error state from the note columns query after note type selection', async () => {
+  it('shows the error state from the note columns query after note template selection', async () => {
     useNoteColumnsQueryMock.mockReturnValue({
       data: undefined,
       isError: true,
@@ -264,7 +264,7 @@ describe('CreateUpdateDialog', () => {
     expect(screen.getByText('Note fields could not be loaded.')).toBeTruthy()
   })
 
-  it('creates an empty note when the selected note type has no editable columns', async () => {
+  it('creates an empty note when the selected note template has no editable columns', async () => {
     const onClose = vi.fn()
 
     useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
@@ -292,7 +292,7 @@ describe('CreateUpdateDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('preserves in-progress values when note columns refetch while the dialog stays open for the same note type', async () => {
+  it('preserves in-progress values when note columns refetch while the dialog stays open for the same note template', async () => {
     let currentColumns = bookColumns
     const onClose = vi.fn()
 
@@ -319,7 +319,7 @@ describe('CreateUpdateDialog', () => {
     ).toBe('Draft note')
   })
 
-  it('submits create values keyed by column id for the selected note type and supports image, link, and date fields', async () => {
+  it('submits create values keyed by column id for the selected note template and supports image, link, and date fields', async () => {
     const onClose = vi.fn()
     render(<CreateUpdateDialog mode="create" onClose={onClose} open />)
 
@@ -498,7 +498,7 @@ describe('CreateUpdateDialog', () => {
     ).toBeTruthy()
   })
 
-  it('keeps the note type fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
+  it('keeps the note template fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
     const note: NoteDto = {
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
@@ -518,7 +518,7 @@ describe('CreateUpdateDialog', () => {
 
     expect(
       screen
-        .getByRole('combobox', { name: 'Note type' })
+        .getByRole('combobox', { name: 'Note template' })
         .getAttribute('aria-disabled')
     ).toBe('true')
     expect((screen.getByLabelText('Due date') as HTMLInputElement).value).toBe(

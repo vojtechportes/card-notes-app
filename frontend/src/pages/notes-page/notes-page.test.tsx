@@ -363,7 +363,7 @@ describe('NotesPage', () => {
     })
   })
 
-  it('passes loaded notes, search text, and note type titles to the notes search hook', () => {
+  it('passes loaded notes, search text, and note template titles to the notes search hook', () => {
     renderNotesPage()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search notes' }), {
@@ -391,7 +391,7 @@ describe('NotesPage', () => {
     })
   })
 
-  it('passes selected note type filters into the notes query', () => {
+  it('passes selected note template filters into the notes query', () => {
     renderNotesPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
@@ -404,7 +404,7 @@ describe('NotesPage', () => {
     })
   })
 
-  it('renders mixed note cards without note type labels in the list', () => {
+  it('renders mixed note cards without note template labels in the list', () => {
     renderNotesPage()
 
     expect(screen.getByText('Alpha note')).toBeTruthy()
@@ -413,16 +413,16 @@ describe('NotesPage', () => {
     expect(screen.queryByText('Movies')).toBeNull()
   })
 
-  it('opens the create note dialog with note type selection first', async () => {
+  it('opens the create note dialog with note template selection first', async () => {
     renderNotesPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
 
     expect(screen.getByRole('dialog', { name: 'Create note' })).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: 'Note type' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Note template' })).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note type' }))
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Note template' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Books' }))
 
     expect(screen.getByRole('textbox', { name: 'Title' })).toBeTruthy()
@@ -434,7 +434,7 @@ describe('NotesPage', () => {
     })
   })
 
-  it('opens the edit dialog from a note card with a fixed note type and existing values', async () => {
+  it('opens the edit dialog from a note card with a fixed note template and existing values', async () => {
     renderNotesPage()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'More actions' })[0])
@@ -443,7 +443,7 @@ describe('NotesPage', () => {
     expect(screen.getByRole('dialog', { name: 'Edit note' })).toBeTruthy()
     expect(
       screen
-        .getByRole('combobox', { name: 'Note type' })
+        .getByRole('combobox', { name: 'Note template' })
         .getAttribute('aria-disabled')
     ).toBe('true')
     expect(
@@ -451,7 +451,7 @@ describe('NotesPage', () => {
     ).toBe('Alpha note')
   })
 
-  it('opens and renders the note detail drawer with note type as a regular detail row', async () => {
+  it('opens and renders the note detail drawer with note template as a regular detail row', async () => {
     renderNotesPage()
 
     fireEvent.click(
@@ -462,7 +462,7 @@ describe('NotesPage', () => {
 
     const sideDrawer = await getRenderedSideDrawer()
 
-    expect(within(sideDrawer).getByText('Note type')).toBeTruthy()
+    expect(within(sideDrawer).getByText('Note template')).toBeTruthy()
     expect(within(sideDrawer).getByText('Books')).toBeTruthy()
     expect(within(sideDrawer).getByText('Summary')).toBeTruthy()
     expect(within(sideDrawer).getByText('Alpha summary')).toBeTruthy()
@@ -635,4 +635,3 @@ describe('NotesPage', () => {
     expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
   })
 })
-
