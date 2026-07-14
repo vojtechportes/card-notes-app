@@ -393,7 +393,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep existing domain names such as note types internally when renaming them would add risk without user-visible benefit.
   - Localize all renamed copy.
 
-- [ ] T83. Move note template and field management into a dedicated Note templates page
+- [x] T83. Move note template and field management into a dedicated Note templates page
   - Change the page title to Note templates instead of the generic Settings title.
   - Add a Note templates-specific page description that explains templates and their nested fields.
   - The Note templates page owns template list/create/rename/delete flows.
