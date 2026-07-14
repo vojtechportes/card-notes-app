@@ -52,12 +52,15 @@ describe('SettingsPage', () => {
     ).toBeTruthy()
   })
 
-  it('renders the general settings sub-page', () => {
+  it('renders the general settings sub-page without the generic settings title', () => {
     renderSettingsRoute('/settings/general')
 
     expect(
       screen.getByRole('heading', { level: 3, name: 'General page' })
     ).toBeTruthy()
+    expect(
+      screen.queryByRole('heading', { level: 2, name: 'Settings' })
+    ).toBeNull()
   })
 
   it('renders the note templates sub-page and detail route', () => {
