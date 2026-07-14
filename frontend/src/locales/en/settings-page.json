@@ -2,14 +2,20 @@
   "settings": {
     "title": "Settings",
     "description": "Manage app preferences, note templates, imports, exports, and data operations.",
+    "pages": {
+      "general": {
+        "title": "General",
+        "description": "Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note."
+      }
+    },
     "sections": {
       "columns": {
         "title": "Columns",
         "description": "Add, edit, reorder, hide, and remove the note fields your cards use."
       },
       "general": {
-        "title": "General",
-        "description": "Card display preferences live here."
+        "title": "Display preferences",
+        "description": "Control how note cards summarize values across the app."
       },
       "exportImport": {
         "title": "Export / Import",

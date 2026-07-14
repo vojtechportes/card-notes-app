@@ -46,10 +46,12 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(
-      await screen.findByRole('heading', { name: /Settings/ })
-    ).toBeTruthy()
     expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note.'
+      )
+    ).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
   })
 
@@ -58,9 +60,6 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(
-      await screen.findByRole('heading', { name: /Settings/ })
-    ).toBeTruthy()
     expect(
       await screen.findByRole('heading', { name: 'Note types' })
     ).toBeTruthy()
@@ -71,9 +70,6 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(
-      await screen.findByRole('heading', { name: /Settings/ })
-    ).toBeTruthy()
     await waitFor(() =>
       expect(window.location.hash).toBe('#/settings/note-templates/note-type-1')
     )
@@ -89,9 +85,7 @@ describe('App routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
-    expect(
-      await screen.findByRole('heading', { name: /Settings/ })
-    ).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
   })
 
@@ -104,9 +98,7 @@ describe('App routing', () => {
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
-    expect(
-      await screen.findByRole('heading', { name: /Settings/ })
-    ).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))

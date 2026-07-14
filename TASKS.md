@@ -379,7 +379,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep Settings as the parent navigation item and show the sub-page links underneath it.
   - Ensure the Settings landing/default route opens General or redirects there consistently.
 
-- [ ] T81. Move General settings into a dedicated page
+- [x] T81. Move General settings into a dedicated page
   - Change the page title to General instead of the generic Settings title.
   - Add a General-specific page description that explains app-wide display preferences.
   - Keep app-wide display preferences here, including optional text truncation character count.

@@ -1,5 +1,4 @@
-import { Stack, Typography } from '@mui/material'
-import { useTranslation } from 'react-i18next'
+import { Stack } from '@mui/material'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DataManagementSettingsPage } from './components/data-management-settings-page/data-management-settings-page'
 import { ExportImportSettingsPage } from './components/export-import-settings-page/export-import-settings-page'
@@ -9,19 +8,8 @@ import { NoteTemplatesSettingsPage } from './components/note-templates-settings-
 import { settingsSubPageRoutes } from './constants/settings-sub-page-routes'
 
 export const SettingsPage = () => {
-  const { t } = useTranslation()
-
   return (
     <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography component="h2" variant="h4">
-          {t('settings.title')}
-        </Typography>
-        <Typography color="text.secondary">
-          {t('settings.description')}
-        </Typography>
-      </Stack>
-
       <Routes>
         <Route
           index
