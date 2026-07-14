@@ -308,6 +308,17 @@ const renderNoteTypesSection = (route = '/settings/note-templates') => {
 }
 
 describe('NoteTypesSection', () => {
+  it('renders without the internal Templates card header', () => {
+    renderNoteTypesSection()
+
+    expect(screen.queryByRole('heading', { name: 'Templates' })).toBeNull()
+    expect(
+      screen.queryByText(
+        'Create, rename, delete, and open templates to manage their fields.'
+      )
+    ).toBeNull()
+  })
+
   it('renders note templates in a grid and opens the shared detail drawer route', async () => {
     renderNoteTypesSection()
 

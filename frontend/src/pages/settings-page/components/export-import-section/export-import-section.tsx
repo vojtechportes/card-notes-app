@@ -170,10 +170,7 @@ export const ExportImportSection = () => {
   ])
 
   return (
-    <SettingsSection
-      description={t('settings.sections.exportImport.description')}
-      title={t('settings.sections.exportImport.title')}
-    >
+    <SettingsSection>
       <Stack spacing={2}>
         <Typography color="text.secondary" variant="body2">
           {t('settings.exportImport.summary')}

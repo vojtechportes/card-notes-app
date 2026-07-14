@@ -50,7 +50,7 @@ describe('DataManagementSettingsPage', () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        'Review destructive and maintenance data actions for your local notes, with guarded controls for anything permanent.'
+        'Manage actions that affect your saved notes, including clearing your note collection.'
       )
     ).toBeTruthy()
   })

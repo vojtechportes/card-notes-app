@@ -139,6 +139,19 @@ afterEach(() => {
 })
 
 describe('ExportImportSection', () => {
+  it('renders without the internal Export / Import card header', () => {
+    renderExportImportSection()
+
+    expect(
+      screen.queryByRole('heading', { name: 'Export / Import' })
+    ).toBeNull()
+    expect(
+      screen.queryByText(
+        'Move your notes data in and out as JSON, or append notes from an XLSX worksheet.'
+      )
+    ).toBeNull()
+  })
+
   it('exports app data and starts a JSON download', async () => {
     renderExportImportSection()
 

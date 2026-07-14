@@ -430,6 +430,13 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Existing Settings workflows for general settings, template/field management, export/import, and destructive actions still pass.
   - Frontend build passes.
 
+- [x] T87. Refine Settings sub-page card headings and Data Management copy
+  - Remove the duplicate internal card title and subtitle from the Note templates card.
+  - Remove the duplicate internal card title and subtitle from the Export / Import card.
+  - Use the Danger Zone summary as the section subtitle and remove the old generic subtitle.
+  - Rewrite the Data Management page subtitle in plain user-facing language.
+  - Update frontend tests for the adjusted visible copy and removed duplicate card headings.
+
 ## Misc tasks
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo

@@ -17,7 +17,7 @@
       },
       "dataManagement": {
         "title": "Data Management",
-        "description": "Review destructive and maintenance data actions for your local notes, with guarded controls for anything permanent."
+        "description": "Manage actions that affect your saved notes, including clearing your note collection."
       }
     },
     "sections": {
