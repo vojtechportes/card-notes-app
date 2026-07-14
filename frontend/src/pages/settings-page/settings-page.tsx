@@ -7,6 +7,8 @@ import { LegacyNoteTypeSettingsRedirect } from './components/legacy-note-type-se
 import { NoteTemplatesSettingsPage } from './components/note-templates-settings-page/note-templates-settings-page'
 import { settingsSubPageRoutes } from './constants/settings-sub-page-routes'
 
+const settingsGeneralPath = `/settings/${settingsSubPageRoutes.general}`
+
 export const SettingsPage = () => {
   return (
     <Stack spacing={3}>
@@ -41,7 +43,7 @@ export const SettingsPage = () => {
         />
         <Route
           path="*"
-          element={<Navigate to={settingsSubPageRoutes.general} replace />}
+          element={<Navigate to={settingsGeneralPath} replace />}
         />
       </Routes>
     </Stack>

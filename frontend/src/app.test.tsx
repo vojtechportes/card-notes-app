@@ -26,6 +26,10 @@ class IntersectionObserverMock {
 globalThis.IntersectionObserver =
   IntersectionObserverMock as unknown as typeof IntersectionObserver
 
+const openNavigation = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+}
+
 describe('App routing', () => {
   afterEach(() => {
     cleanup()
@@ -46,7 +50,9 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'General' })
+    ).toBeTruthy()
     expect(
       screen.getByText(
         'Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note.'
@@ -61,7 +67,12 @@ describe('App routing', () => {
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Note templates' })
+      await screen.findByRole('heading', { level: 2, name: 'Note templates' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Create and organize note templates, then open a template to manage its nested fields and field settings.'
+      )
     ).toBeTruthy()
   })
 
@@ -82,34 +93,104 @@ describe('App routing', () => {
 
     expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    openNavigation()
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
-    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'General' })
+    ).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
+  })
+
+  it('navigates between all settings sub-pages with localized titles and descriptions', async () => {
+    render(<App />)
+
+    openNavigation()
+    fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'General' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note.'
+      )
+    ).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
+
+    openNavigation()
+    expect(screen.getByRole('link', { name: 'Note templates' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Fields' })).toBeNull()
+    expect(screen.queryByText('Note types')).toBeNull()
+    fireEvent.click(screen.getByRole('link', { name: 'Note templates' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Note templates' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Create and organize note templates, then open a template to manage its nested fields and field settings.'
+      )
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(window.location.hash).toBe('#/settings/note-templates')
+    )
+
+    openNavigation()
+    fireEvent.click(screen.getByRole('link', { name: 'Export / Import' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Export / Import' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Move data in and out of NoteStack with JSON backups or XLSX imports while keeping existing notes intact.'
+      )
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(window.location.hash).toBe('#/settings/export-import')
+    )
+
+    openNavigation()
+    fireEvent.click(screen.getByRole('link', { name: 'Data Management' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Data Management' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Review destructive and maintenance data actions for your local notes, with guarded controls for anything permanent.'
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Danger Zone' })).toBeTruthy()
+    await waitFor(() =>
+      expect(window.location.hash).toBe('#/settings/data-management')
+    )
   })
 
   it('updates the route when navigation links are clicked', async () => {
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    openNavigation()
     expect(
       screen.getByRole('navigation', { name: 'Main navigation' })
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
-    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'General' })
+    ).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    openNavigation()
     fireEvent.click(screen.getByRole('link', { name: 'Export / Import' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Export / Import' })
+      await screen.findByRole('heading', { level: 2, name: 'Export / Import' })
     ).toBeTruthy()
     expect(window.location.hash).toBe('#/settings/export-import')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    openNavigation()
     fireEvent.click(screen.getByRole('link', { name: /Notes/ }))
 
     expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()

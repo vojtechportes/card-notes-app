@@ -97,4 +97,11 @@ describe('SettingsPage', () => {
       })
     ).toBeTruthy()
   })
+  it('redirects unknown settings sub-routes to general settings', async () => {
+    renderSettingsRoute('/settings/missing/deep-route')
+
+    expect(
+      await screen.findByRole('heading', { level: 3, name: 'General page' })
+    ).toBeTruthy()
+  })
 })
