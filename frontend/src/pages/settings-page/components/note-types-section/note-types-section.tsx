@@ -24,11 +24,14 @@ import { useDeleteNoteTypeMutation } from '../../hooks/use-delete-note-type-muta
 import { useNoteTypeDetailQuery } from '../../hooks/use-note-type-detail-query'
 import { useNoteTypesQuery } from '../../hooks/use-note-types-query'
 import { useUpdateNoteTypeMutation } from '../../hooks/use-update-note-type-mutation'
+import { settingsSubPageRoutes } from '../../constants/settings-sub-page-routes'
 import { SettingsSection } from '../settings-section'
 import { DeleteNoteTypeDialog } from './delete-note-type-dialog'
 import { NoteTypeDetailPanel } from './note-type-detail-panel'
 import { NoteTypeDialog } from './note-type-dialog'
 import { formatSettingsDate } from './utils/format-settings-date.util'
+
+const noteTemplatesSettingsPath = `/settings/${settingsSubPageRoutes.noteTemplates}`
 
 type NoteTypeDialogState =
   | {
@@ -73,7 +76,7 @@ export const NoteTypesSection = () => {
   }, [noteTypes])
 
   const closeDrawer = useCallback(() => {
-    navigate('/settings')
+    navigate(noteTemplatesSettingsPath)
   }, [navigate])
 
   const handleOpenCreateDialog = useCallback(() => {
@@ -111,7 +114,7 @@ export const NoteTypesSection = () => {
             title: values.title.trim(),
           })
 
-          navigate(`/settings/${createdNoteType.id}`)
+          navigate(`${noteTemplatesSettingsPath}/${createdNoteType.id}`)
         }
 
         handleCloseDialog()
@@ -160,7 +163,7 @@ export const NoteTypesSection = () => {
 
   const handleOpenNoteTypeDetail = useCallback(
     (id: string) => {
-      navigate(`/settings/${id}`)
+      navigate(`${noteTemplatesSettingsPath}/${id}`)
     },
     [navigate]
   )
@@ -248,7 +251,7 @@ export const NoteTypesSection = () => {
       return
     }
 
-    navigate('/settings', { replace: true })
+    navigate(noteTemplatesSettingsPath, { replace: true })
   }, [
     activeNoteType,
     navigate,
@@ -269,8 +272,8 @@ export const NoteTypesSection = () => {
         noteTypeDetailQuery.data?.title ??
         activeNoteType?.title ??
         t('settings.noteTypes.drawer.title'),
-      targetPathname: `/settings/${noteTypeId}`,
-      targetPathnameRoot: '/settings',
+      targetPathname: `${noteTemplatesSettingsPath}/${noteTypeId}`,
+      targetPathnameRoot: noteTemplatesSettingsPath,
       loading: noteTypeDetailQuery.isLoading,
       drawerContent: (
         <NoteTypeDetailPanel

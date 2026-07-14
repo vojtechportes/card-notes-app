@@ -1,7 +1,7 @@
 {
   "settings": {
     "title": "Settings",
-    "description": "Manage note types, per-type fields, and shared app configuration in one place.",
+    "description": "Manage app preferences, note templates, imports, exports, and data operations.",
     "sections": {
       "columns": {
         "title": "Columns",

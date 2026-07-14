@@ -12,7 +12,13 @@
     "notes": "Notes",
     "notesSummary": "Browse, search, and manage note cards",
     "settings": "Settings",
-    "settingsSummary": "Columns and app preferences"
+    "settingsSummary": "Note templates and app preferences",
+    "settingsPages": {
+      "general": "General",
+      "noteTemplates": "Note templates",
+      "exportImport": "Export / Import",
+      "dataManagement": "Data Management"
+    }
   },
   "detail": {
     "actions": {
