@@ -412,7 +412,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep target note template selection and field mapping behavior clear when importing.
   - Show localized validation, success, and error states.
 
-- [ ] T85. Move destructive data operations into a Data Management page
+- [x] T85. Move destructive data operations into a Data Management page
   - Change the page title to Data Management instead of the generic Settings title.
   - Add a Data Management-specific page description that explains destructive and maintenance data actions.
   - Use Data Management as the page label instead of Danger Zone.

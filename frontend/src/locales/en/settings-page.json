@@ -14,6 +14,10 @@
       "exportImport": {
         "title": "Export / Import",
         "description": "Move data in and out of NoteStack with JSON backups or XLSX imports while keeping existing notes intact."
+      },
+      "dataManagement": {
+        "title": "Data Management",
+        "description": "Review destructive and maintenance data actions for your local notes, with guarded controls for anything permanent."
       }
     },
     "sections": {
