@@ -441,6 +441,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo
   - Source logo is located in `frontend/*/assets/logo.png` and `frontend/*/assets/favicon.png`
+
 - [x] TMSC-11. Rename the app to "NoteStack"
 
 - [x] TMSC-12. Refactor note field value components
@@ -452,6 +453,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Reuse the note card image styling through a shared preview component.
   - Cap detail image previews at 520px while preserving card image sizing.
   - Add a generic image overlay with backdrop, close action, and viewport-constrained centered image.
+
 - [x] TMSC-14. Align detail titles and image borders
   - Add a theme-derived light border to note image preview containers.
   - Match note detail field title styling to the note card list title styling.
@@ -463,6 +465,8 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - For duplicate XLSX image headers mapped to a single-image field, import only the first image value.
   - Render multi-image previews as 128px square tiles; in card lists show the first image plus a `+N` overflow tile.
   - Keep existing single-image notes and imports compatible.
+
+- [x] TMSC-16. Improve responsiveness of the notes page and mansonry layout
 
 ## Sub-Agent Execution Plan
 

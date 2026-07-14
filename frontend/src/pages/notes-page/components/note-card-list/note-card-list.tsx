@@ -49,7 +49,7 @@ export const NoteCardList = ({
   }
 
   return (
-    <Masonry columns={{ xs: 1, sm: 2, md: 3 }} gap={16}>
+    <Masonry columns={{ xs: 1, sm: 1, md: 2, lg: 3 }} gap={16}>
       {notes.map((note) => (
         <NoteCard
           key={note.id}
