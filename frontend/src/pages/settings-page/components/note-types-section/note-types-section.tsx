@@ -300,10 +300,7 @@ export const NoteTypesSection = () => {
 
   return (
     <>
-      <SettingsSection
-        description={t('settings.sections.noteTypes.description')}
-        title={t('settings.sections.noteTypes.title')}
-      >
+      <SettingsSection>
         <Stack spacing={2}>
           <Stack
             alignItems={{ sm: 'center', xs: 'stretch' }}

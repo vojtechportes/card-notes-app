@@ -56,6 +56,11 @@ describe('DangerZoneSection', () => {
       )
     ).toBeTruthy()
     expect(
+      screen.queryByText(
+        'Destructive actions stay guarded behind confirmation.'
+      )
+    ).toBeNull()
+    expect(
       screen.getByRole('button', { name: 'Delete all notes' })
     ).toBeTruthy()
   })
