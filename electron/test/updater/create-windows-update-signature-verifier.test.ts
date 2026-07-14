@@ -67,6 +67,44 @@ test('accepts a self-signed update when it uses the same certificate as the runn
   assert.equal(warnings.length, 1)
 })
 
+test('accepts a trusted update with a publisher mismatch when it uses the same certificate as the running app', async () => {
+  const warnings: string[] = []
+  const upstreamError = 'publisherNames: Open Source Developer Vojtech Portes, raw info: publisher mismatch'
+  const verifySignature = createWindowsUpdateSignatureVerifier({
+    currentFilePath: 'current.exe',
+    logger: {
+      warn: (message) => {
+        warnings.push(message)
+      },
+    },
+    readSignatureInfo: createSignatureReader({
+      'current.exe': {
+        path: 'current.exe',
+        signerSubject: 'CN=Open Source Developer Vojtěch Porteš, O=Open Source Developer, L=Praha, S=Hlavní město Praha, C=CZ',
+        signerThumbprint: '8DD81E3FB7965C02A94C8F870F9491AF58192E9C',
+        status: 0,
+        statusMessage: 'Signature verified.',
+      },
+      'update.exe': {
+        path: 'update.exe',
+        signerSubject: 'CN=Open Source Developer Vojtěch Porteš, O=Open Source Developer, L=Praha, S=Hlavní město Praha, C=CZ',
+        signerThumbprint: '8dd81e3fb7965c02a94c8f870f9491af58192e9c',
+        status: 0,
+        statusMessage: 'Signature verified.',
+      },
+    }),
+    verifySignature: async () => upstreamError,
+  })
+
+  const result = await verifySignature(
+    ['Open Source Developer Vojtech Portes'],
+    'update.exe'
+  )
+
+  assert.equal(result, null)
+  assert.equal(warnings.length, 1)
+})
+
 test('returns the upstream verifier error when the certificate thumbprint changes', async () => {
   const upstreamError = 'publisherNames: NoteStack, raw info: invalid signature'
   const verifySignature = createWindowsUpdateSignatureVerifier({
