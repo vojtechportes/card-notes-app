@@ -30,12 +30,12 @@
         "description": "Check for newer app versions and install them when they are ready."
       },
       "noteTypes": {
-        "title": "Note types",
-        "description": "Create note types, open their details, and manage fields per type."
+        "title": "Note templates",
+        "description": "Create note templates, open their details, and manage fields per template."
       }
     },
     "general": {
-      "summary": "These preferences stay shared across every note type and affect how note cards are summarized on the Notes page.",
+      "summary": "These preferences stay shared across every note template and affect how note cards are summarized on the Notes page.",
       "fields": {
         "textTruncationLength": "Text truncation character count",
         "cardFieldDisplayCount": "Fields displayed on cards",
@@ -63,17 +63,17 @@
       }
     },
     "exportImport": {
-      "summary": "Download a full JSON backup or import data from a JSON export or an XLSX worksheet. JSON imports can preserve exported note type relationships or target one selected note type. XLSX imports always append notes into the selected target note type and skip unmatched headers.",
+      "summary": "Download a full JSON backup or import data from a JSON export or an XLSX worksheet. JSON imports can preserve exported note template relationships or target one selected note template. XLSX imports always append notes into the selected target note template and skip unmatched headers.",
       "fields": {
         "fileInput": "Import file",
-        "targetNoteType": "Import target note type",
-        "targetNoteTypePlaceholder": "Preserve exported note types"
+        "targetNoteType": "Import target note template",
+        "targetNoteTypePlaceholder": "Preserve exported note templates"
       },
       "hints": {
         "selectFile": "Select a JSON export or XLSX file to import. Existing notes stay in place and imported notes are appended.",
         "noFile": "Choose a JSON or XLSX file before starting an import.",
-        "targetOptional": "Optional for JSON: leave the target empty to preserve exported note type relationships, or choose one target type to remap imported notes into it.",
-        "targetRequired": "Required for XLSX: choose which note type should receive imported rows before starting the import."
+        "targetOptional": "Optional for JSON: leave the target empty to preserve exported note template relationships, or choose one target template to remap imported notes into it.",
+        "targetRequired": "Required for XLSX: choose which note template should receive imported rows before starting the import."
       },
       "actions": {
         "export": "Export JSON",
@@ -89,26 +89,26 @@
         "imported": "Import completed. Processed {{importedColumns}} fields and appended {{importedNotes}} notes. General settings {{generalSettingsStatus}}.",
         "generalSettingsUpdated": "were updated",
         "generalSettingsUnchanged": "were left unchanged",
-        "loadingNoteTypes": "Loading note types..."
+        "loadingNoteTypes": "Loading note templates..."
       },
       "errors": {
         "export": "App data could not be exported right now.",
         "invalidJson": "The selected file is not valid JSON.",
         "invalidShape": "The selected file does not match the expected NoteStack export format.",
         "import": "The selected data could not be imported right now.",
-        "noteTypes": "Note types could not be loaded right now.",
-        "targetRequired": "Choose a target note type before importing an XLSX file."
+        "noteTypes": "Note templates could not be loaded right now.",
+        "targetRequired": "Choose a target note template before importing an XLSX file."
       },
       "unmatchedFields": {
         "summary": "Some imported fields could not be matched and were skipped:",
         "itemDetailed": "{{noteTypeTitle}} / {{title}} ({{name}}, {{type}})",
         "itemSimple": "{{name}}",
-        "unknownType": "Imported note type",
+        "unknownType": "Imported note template",
         "unknownFieldType": "Unknown field type"
       }
     },
     "dangerZone": {
-      "summary": "Permanently remove every note across every note type from your local database.",
+      "summary": "Permanently remove every note across every note template from your local database.",
       "warning": "This action deletes all note content at once and cannot be undone.",
       "hint": "Use this only when you want to clear the entire note collection.",
       "actions": {
@@ -153,7 +153,7 @@
       "status": {
         "loading": "Loading fields...",
         "error": "Fields could not be loaded right now.",
-        "empty": "No fields are configured for this note type yet. Add your first custom field to get started.",
+        "empty": "No fields are configured for this note template yet. Add your first custom field to get started.",
         "default": "Default",
         "hidden": "Hidden"
       },
@@ -240,8 +240,8 @@
       }
     },
     "noteTypes": {
-      "summary_one": "{{count}} note type configured.",
-      "summary_other": "{{count}} note types configured.",
+      "summary_one": "{{count}} note template configured.",
+      "summary_other": "{{count}} note templates configured.",
       "fields": {
         "title": "Name",
         "titleHint": "This name is shown across settings and note creation."
@@ -255,64 +255,64 @@
         }
       },
       "drawer": {
-        "title": "Note type details",
+        "title": "Note template details",
         "status": {
-          "loading": "Loading note type details...",
-          "error": "Note type details could not be loaded right now."
+          "loading": "Loading note template details...",
+          "error": "Note template details could not be loaded right now."
         }
       },
       "actions": {
-        "add": "Add note type",
-        "create": "Create note type",
-        "save": "Save note type",
-        "edit": "Edit note type",
-        "delete": "Delete note type",
+        "add": "Add note template",
+        "create": "Create note template",
+        "save": "Save note template",
+        "edit": "Edit note template",
+        "delete": "Delete note template",
         "cancel": "Cancel"
       },
       "dialog": {
-        "createTitle": "Add note type",
-        "editTitle": "Edit note type"
+        "createTitle": "Add note template",
+        "editTitle": "Edit note template"
       },
       "status": {
-        "loading": "Loading note types...",
-        "error": "Note types could not be loaded right now.",
-        "empty": "No note types are configured yet."
+        "loading": "Loading note templates...",
+        "error": "Note templates could not be loaded right now.",
+        "empty": "No note templates are configured yet."
       },
       "validation": {
-        "titleRequired": "Note type name is required."
+        "titleRequired": "Note template name is required."
       },
       "delete": {
-        "title": "Delete note type",
+        "title": "Delete note template",
         "summary": "Choose what should happen to notes that belong to \"{{title}}\".",
-        "confirm": "Delete note type",
-        "submitting": "Deleting note type...",
-        "lastTypeHint": "Deleting the last remaining note type together with its notes will recreate Default so the app always keeps one note type available.",
+        "confirm": "Delete note template",
+        "submitting": "Deleting note template...",
+        "lastTypeHint": "Deleting the last remaining note template together with its notes will recreate Default so the app always keeps one note template available.",
         "targetLabel": "Move notes to",
-        "newTargetTitle": "New note type name",
-        "createTargetHint": "A new note type will be created first, then notes will move into it.",
+        "newTargetTitle": "New note template name",
+        "createTargetHint": "A new note template will be created first, then notes will move into it.",
         "modes": {
-          "deleteNotes": "Delete this note type and all of its notes",
-          "moveNotes": "Delete this note type and move its notes to another note type"
+          "deleteNotes": "Delete this note template and all of its notes",
+          "moveNotes": "Delete this note template and move its notes to another note template"
         },
         "mapping": {
           "title": "Field mapping",
-          "loading": "Loading target note type fields...",
+          "loading": "Loading target note template fields...",
           "summary": "{{mappedCount}} mapped, {{orphanedCount}} left orphaned.",
-          "emptySource": "This note type has no custom fields to map.",
-          "emptyTarget": "The selected target note type has no compatible custom fields yet. Unmapped values will remain orphaned.",
-          "emptyTargetForNewType": "A newly created note type starts with default fields only, so existing custom values will remain orphaned until matching fields are added later.",
+          "emptySource": "This note template has no custom fields to map.",
+          "emptyTarget": "The selected target note template has no compatible custom fields yet. Unmapped values will remain orphaned.",
+          "emptyTargetForNewType": "A newly created note template starts with default fields only, so existing custom values will remain orphaned until matching fields are added later.",
           "rowLabel": "{{sourceTitle}} ({{sourceType}})",
           "targetField": "Target field",
           "unmapped": "Leave unmapped"
         },
         "validation": {
-          "targetRequired": "Choose a target note type before moving notes.",
-          "newTargetTitleRequired": "Enter a name for the new target note type."
+          "targetRequired": "Choose a target note template before moving notes.",
+          "newTargetTitleRequired": "Enter a name for the new target note template."
         }
       },
       "errors": {
-        "submit": "The note type could not be saved. Try again.",
-        "delete": "The note type could not be deleted. Try again."
+        "submit": "The note template could not be saved. Try again.",
+        "delete": "The note template could not be deleted. Try again."
       }
     }
   }

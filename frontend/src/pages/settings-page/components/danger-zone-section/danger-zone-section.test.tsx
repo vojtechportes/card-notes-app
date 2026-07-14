@@ -47,7 +47,7 @@ describe('DangerZoneSection', () => {
 
     expect(
       screen.getByText(
-        'Permanently remove every note across every note type from your local database.'
+        'Permanently remove every note across every note template from your local database.'
       )
     ).toBeTruthy()
     expect(

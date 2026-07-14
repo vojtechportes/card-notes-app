@@ -387,7 +387,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep future global defaults, such as default sort or view behavior, scoped to this page.
   - Localize all labels, headings, actions, validation, empty states, and status copy.
 
-- [ ] T82. Rename Note types copy to Note templates
+- [x] T82. Rename Note types copy to Note templates
   - Change user-facing copy from Note types to Note templates where it describes the configurable note structure.
   - Prefer copy-only changes if possible; avoid noisy route, API, database, or internal type renames unless implementation context proves they are worthwhile.
   - Keep existing domain names such as note types internally when renaming them would add risk without user-visible benefit.

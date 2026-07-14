@@ -157,7 +157,7 @@ describe('ExportImportSection', () => {
     expect(await screen.findByText('JSON export was downloaded.')).toBeTruthy()
   })
 
-  it('imports a selected JSON file without forcing a target note type', async () => {
+  it('imports a selected JSON file without forcing a target note template', async () => {
     renderExportImportSection()
     const file = new File(
       [JSON.stringify(exportData)],
@@ -189,7 +189,7 @@ describe('ExportImportSection', () => {
     ).toBeTruthy()
   })
 
-  it('imports a JSON file into the selected target note type when one is chosen', async () => {
+  it('imports a JSON file into the selected target note template when one is chosen', async () => {
     renderExportImportSection()
     const file = new File(
       [JSON.stringify(exportData)],
@@ -205,7 +205,7 @@ describe('ExportImportSection', () => {
       },
     })
     fireEvent.mouseDown(
-      screen.getByRole('combobox', { name: 'Import target note type' })
+      screen.getByRole('combobox', { name: 'Import target note template' })
     )
     fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
     fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
@@ -217,7 +217,7 @@ describe('ExportImportSection', () => {
       })
     })
   })
-  it('requires a target note type before importing an xlsx file', async () => {
+  it('requires a target note template before importing an xlsx file', async () => {
     renderExportImportSection()
     const file = new File(['xlsx-content'], 'notestack.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -236,7 +236,7 @@ describe('ExportImportSection', () => {
     ).toBe(true)
 
     fireEvent.mouseDown(
-      screen.getByRole('combobox', { name: 'Import target note type' })
+      screen.getByRole('combobox', { name: 'Import target note template' })
     )
     fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
 
@@ -256,7 +256,7 @@ describe('ExportImportSection', () => {
     })
   })
 
-  it('clears the selected target note type when the user switches files', async () => {
+  it('clears the selected target note template when the user switches files', async () => {
     renderExportImportSection()
 
     fireEvent.change(screen.getByLabelText('Import file'), {
@@ -270,7 +270,7 @@ describe('ExportImportSection', () => {
     })
 
     fireEvent.mouseDown(
-      screen.getByRole('combobox', { name: 'Import target note type' })
+      screen.getByRole('combobox', { name: 'Import target note template' })
     )
     fireEvent.click(await screen.findByRole('option', { name: 'Recipes' }))
 
