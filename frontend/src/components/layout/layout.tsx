@@ -28,10 +28,32 @@ import {
 } from 'react-router-dom'
 import { NotesPage } from '../../pages/notes-page/notes-page'
 import { SettingsPage } from '../../pages/settings-page/settings-page'
+import { settingsSubPageRoutes } from '../../pages/settings-page/constants/settings-sub-page-routes'
 import appLogoUrl from '../../assets/logo.png'
 import { SideDrawer } from '../side-drawer'
 
 const drawerWidth = 248
+const settingsPath = '/settings'
+const settingsGeneralPath = `${settingsPath}/${settingsSubPageRoutes.general}`
+
+const settingsNavItems = [
+  {
+    path: settingsGeneralPath,
+    labelKey: 'navigation.settingsPages.general',
+  },
+  {
+    path: `${settingsPath}/${settingsSubPageRoutes.noteTemplates}`,
+    labelKey: 'navigation.settingsPages.noteTemplates',
+  },
+  {
+    path: `${settingsPath}/${settingsSubPageRoutes.exportImport}`,
+    labelKey: 'navigation.settingsPages.exportImport',
+  },
+  {
+    path: `${settingsPath}/${settingsSubPageRoutes.dataManagement}`,
+    labelKey: 'navigation.settingsPages.dataManagement',
+  },
+]
 
 const navItems = [
   {
@@ -43,11 +65,12 @@ const navItems = [
       pathname === '/' || pathname.startsWith('/notes'),
   },
   {
-    path: '/settings',
+    path: settingsGeneralPath,
     icon: SettingsOutlinedIcon,
     labelKey: 'navigation.settings',
     summaryKey: 'navigation.settingsSummary',
-    isActive: (pathname: string) => pathname.startsWith('/settings'),
+    isActive: (pathname: string) => pathname.startsWith(settingsPath),
+    children: settingsNavItems,
   },
 ]
 
@@ -99,27 +122,51 @@ export const Layout: FC = () => {
       </Toolbar>
       <List sx={{ px: 1, py: 1.5 }}>
         {navItems.map(
-          ({ path, icon: Icon, labelKey, summaryKey, isActive }) => {
+          ({ path, icon: Icon, labelKey, summaryKey, isActive, children }) => {
             const active = isActive(location.pathname)
 
             return (
-              <ListItemButton
-                key={path}
-                selected={active}
-                component={RouterLink}
-                to={path}
-                onClick={handleMobileNavigationClose}
-                sx={{ borderRadius: 1, mb: 0.5 }}
-              >
-                <ListItemIcon sx={{ minWidth: 38 }}>
-                  <Icon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={t(labelKey)}
-                  secondary={t(summaryKey)}
-                  slotProps={{ primary: { sx: { fontWeight: 700 } } }}
-                />
-              </ListItemButton>
+              <Box key={path}>
+                <ListItemButton
+                  selected={active}
+                  component={RouterLink}
+                  to={path}
+                  onClick={handleMobileNavigationClose}
+                  sx={{ borderRadius: 1, mb: 0.5 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 38 }}>
+                    <Icon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={t(labelKey)}
+                    secondary={t(summaryKey)}
+                    slotProps={{ primary: { sx: { fontWeight: 700 } } }}
+                  />
+                </ListItemButton>
+
+                {active && children ? (
+                  <List component="div" disablePadding sx={{ pb: 0.5, pl: 5 }}>
+                    {children.map((child) => {
+                      const childActive =
+                        location.pathname === child.path ||
+                        location.pathname.startsWith(`${child.path}/`)
+
+                      return (
+                        <ListItemButton
+                          key={child.path}
+                          selected={childActive}
+                          component={RouterLink}
+                          to={child.path}
+                          onClick={handleMobileNavigationClose}
+                          sx={{ borderRadius: 1, mb: 0.25, py: 0.75 }}
+                        >
+                          <ListItemText primary={t(child.labelKey)} />
+                        </ListItemButton>
+                      )
+                    })}
+                  </List>
+                ) : null}
+              </Box>
             )
           }
         )}
@@ -214,8 +261,7 @@ export const Layout: FC = () => {
             <Route path="/" element={<Navigate to="/notes" replace />} />
             <Route path="/notes" element={<NotesPage />} />
             <Route path="/notes/:noteId" element={<NotesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/:noteTypeId" element={<SettingsPage />} />
+            <Route path="/settings/*" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Container>

@@ -370,6 +370,66 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep the query builder integration separate from the initial note type migration unless the implementation naturally needs a reusable filter model.
   - Ensure any future filter UI remains localized and works with mixed note type search results.
 
+## Phase 8: Settings Sub-Pages
+
+- [x] T80. Split Settings into sub-pages
+  - Replace the long single Settings page with routed Settings sub-pages linked under the main Settings navigation item.
+  - Left menu should show compact labels without descriptions for Settings sub-page links; keep parent Notes and Settings descriptions visible.
+  - Use this navigation shape: General, Note templates, Export / Import, Data Management.
+  - Keep Settings as the parent navigation item and show the sub-page links underneath it.
+  - Ensure the Settings landing/default route opens General or redirects there consistently.
+
+- [ ] T81. Move General settings into a dedicated page
+  - Change the page title to General instead of the generic Settings title.
+  - Add a General-specific page description that explains app-wide display preferences.
+  - Keep app-wide display preferences here, including optional text truncation character count.
+  - Keep optional number of fields displayed on cards here while it remains a global setting.
+  - Keep future global defaults, such as default sort or view behavior, scoped to this page.
+  - Localize all labels, headings, actions, validation, empty states, and status copy.
+
+- [ ] T82. Rename Note types copy to Note templates
+  - Change user-facing copy from Note types to Note templates where it describes the configurable note structure.
+  - Prefer copy-only changes if possible; avoid noisy route, API, database, or internal type renames unless implementation context proves they are worthwhile.
+  - Keep existing domain names such as note types internally when renaming them would add risk without user-visible benefit.
+  - Localize all renamed copy.
+
+- [ ] T83. Move note template and field management into a dedicated Note templates page
+  - Change the page title to Note templates instead of the generic Settings title.
+  - Add a Note templates-specific page description that explains templates and their nested fields.
+  - The Note templates page owns template list/create/rename/delete flows.
+  - Fields must stay nested under the selected note template; do not add Fields as a top-level Settings sub-page.
+  - Keep per-template field management here: add, edit, reorder, hide, delete, and configure field type/settings.
+  - Preserve the current field deletion confirmation behavior: remove only the field definition or remove the field definition plus associated note data.
+  - Keep non-removable per-template default fields such as `createdAt` and `updatedAt` visible and protected.
+  - Keep note template deletion confirmation and note-moving/mapping behavior in this page.
+
+- [ ] T84. Move Export / Import into a dedicated page
+  - Change the page title to Export / Import instead of the generic Settings title.
+  - Add an Export / Import-specific page description that explains moving data in and out of the app.
+  - Keep JSON export/import flows here.
+  - Keep XLSX import here if it remains part of the import workflow.
+  - Preserve append-only import behavior; imports must not delete existing notes.
+  - Keep target note template selection and field mapping behavior clear when importing.
+  - Show localized validation, success, and error states.
+
+- [ ] T85. Move destructive data operations into a Data Management page
+  - Change the page title to Data Management instead of the generic Settings title.
+  - Add a Data Management-specific page description that explains destructive and maintenance data actions.
+  - Use Data Management as the page label instead of Danger Zone.
+  - Keep Danger Zone as an internal section title inside this page for destructive controls.
+  - Move Delete all notes here and continue requiring confirmation before calling the API.
+  - Leave room for future reset/cleanup/backup-adjacent actions without making the navigation feel alarming.
+  - Localize all copy and confirmation text.
+
+- [ ] T86. Verify Settings sub-page behavior
+  - Frontend tests cover navigation between Settings sub-pages.
+  - Tests verify each Settings sub-page renders its own localized page title and page description.
+  - Tests verify Fields are only reachable within the selected Note templates flow, not as a separate Settings page.
+  - Tests verify Note templates copy appears in the UI instead of Note types where applicable.
+  - Tests verify Data Management page contains the destructive Delete all notes flow and still uses confirmation.
+  - Existing Settings workflows for general settings, template/field management, export/import, and destructive actions still pass.
+  - Frontend build passes.
+
 ## Misc tasks
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo

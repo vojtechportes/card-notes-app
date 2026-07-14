@@ -37,43 +37,62 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/notes'))
   })
 
-  it('renders settings from the settings route', async () => {
+  it('redirects the settings route to general settings', async () => {
     window.location.hash = '#/settings'
 
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Settings' })
+      await screen.findByRole('heading', { name: /Settings/ })
+    ).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'General' })).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
+  })
+
+  it('renders settings from a note template detail route', async () => {
+    window.location.hash = '#/settings/note-templates/note-type-1'
+
+    render(<App />)
+
+    expect(
+      await screen.findByRole('heading', { name: /Settings/ })
+    ).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { name: 'Note types' })
     ).toBeTruthy()
   })
 
-  it('renders settings from a note type detail route', async () => {
+  it('redirects legacy note type detail routes to note templates', async () => {
     window.location.hash = '#/settings/note-type-1'
 
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'Settings' })
+      await screen.findByRole('heading', { name: /Settings/ })
     ).toBeTruthy()
+    await waitFor(() =>
+      expect(window.location.hash).toBe('#/settings/note-templates/note-type-1')
+    )
   })
+
   it('renders notes from a note detail route and still allows navigation to settings', async () => {
     window.location.hash = '#/notes/note-1'
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Settings' })
+      await screen.findByRole('heading', { name: /Settings/ })
     ).toBeTruthy()
-    expect(window.location.hash).toBe('#/settings')
+    await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
   })
 
   it('updates the route when navigation links are clicked', async () => {
@@ -86,14 +105,22 @@ describe('App routing', () => {
     fireEvent.click(screen.getByRole('link', { name: /Settings/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Settings' })
+      await screen.findByRole('heading', { name: /Settings/ })
     ).toBeTruthy()
-    expect(window.location.hash).toBe('#/settings')
+    await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Export / Import' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Export / Import' })
+    ).toBeTruthy()
+    expect(window.location.hash).toBe('#/settings/export-import')
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
     fireEvent.click(screen.getByRole('link', { name: /Notes/ }))
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
     expect(window.location.hash).toBe('#/notes')
   })
 
@@ -102,7 +129,7 @@ describe('App routing', () => {
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Notes' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/notes'))
   })
 })

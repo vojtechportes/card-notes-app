@@ -275,7 +275,7 @@ const LocationProbe = () => {
   return <span data-testid="location-path">{location.pathname}</span>
 }
 
-const renderNoteTypesSection = (route = '/settings') => {
+const renderNoteTypesSection = (route = '/settings/note-templates') => {
   window.location.hash = `#${route}`
 
   return render(
@@ -283,7 +283,7 @@ const renderNoteTypesSection = (route = '/settings') => {
       <SideDrawerProvider>
         <Routes>
           <Route
-            path="/settings"
+            path="/settings/note-templates"
             element={
               <>
                 <NoteTypesSection />
@@ -292,7 +292,7 @@ const renderNoteTypesSection = (route = '/settings') => {
             }
           />
           <Route
-            path="/settings/:noteTypeId"
+            path="/settings/note-templates/:noteTypeId"
             element={
               <>
                 <NoteTypesSection />
@@ -318,7 +318,7 @@ describe('NoteTypesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('location-path').textContent).toBe(
-        '/settings/note-type-1'
+        '/settings/note-templates/note-type-1'
       )
     })
     expect(
@@ -329,18 +329,18 @@ describe('NoteTypesSection', () => {
   })
 
   it('opens the shared detail drawer from a note type detail route', async () => {
-    renderNoteTypesSection('/settings/note-type-2')
+    renderNoteTypesSection('/settings/note-templates/note-type-2')
 
     expect(
       await screen.findByText('Fields section for note-type-2 (embedded)')
     ).toBeTruthy()
     expect(screen.getByTestId('location-path').textContent).toBe(
-      '/settings/note-type-2'
+      '/settings/note-templates/note-type-2'
     )
   })
 
   it('returns to settings when the note type detail drawer is closed', async () => {
-    renderNoteTypesSection('/settings/note-type-1')
+    renderNoteTypesSection('/settings/note-templates/note-type-1')
 
     expect(
       await screen.findByText('Fields section for note-type-1 (embedded)')
@@ -349,15 +349,19 @@ describe('NoteTypesSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close detail' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('location-path').textContent).toBe('/settings')
+      expect(screen.getByTestId('location-path').textContent).toBe(
+        '/settings/note-templates'
+      )
     })
   })
 
   it('redirects an unknown note type detail route back to settings', async () => {
-    renderNoteTypesSection('/settings/missing-note-type')
+    renderNoteTypesSection('/settings/note-templates/missing-note-type')
 
     await waitFor(() => {
-      expect(screen.getByTestId('location-path').textContent).toBe('/settings')
+      expect(screen.getByTestId('location-path').textContent).toBe(
+        '/settings/note-templates'
+      )
     })
   })
 
@@ -378,7 +382,7 @@ describe('NoteTypesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('location-path').textContent).toBe(
-        '/settings/note-type-3'
+        '/settings/note-templates/note-type-3'
       )
     })
     expect(
