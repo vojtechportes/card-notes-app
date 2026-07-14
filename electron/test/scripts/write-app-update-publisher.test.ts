@@ -1,10 +1,30 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import YAML from "yaml";
 import { writeAppUpdatePublisher } from "../../scripts/write-app-update-publisher.mjs";
+
+const createBuilderConfig = async (directory: string): Promise<string> => {
+  const builderConfigPath = path.join(directory, "electron-builder.json");
+
+  await writeFile(
+    builderConfigPath,
+    JSON.stringify({
+      publish: [
+        {
+          provider: "github",
+          owner: "vojtechportes",
+          repo: "card-notes-app",
+          releaseType: "release",
+        },
+      ],
+    }),
+  );
+
+  return builderConfigPath;
+};
 
 test("writes the Certum publisher name to app-update.yml", async () => {
   const appOutDir = await mkdtemp(path.join(tmpdir(), "notestack-app-out-"));
@@ -12,6 +32,7 @@ test("writes the Certum publisher name to app-update.yml", async () => {
   try {
     const resourcesDir = path.join(appOutDir, "resources");
     const appUpdatePath = path.join(resourcesDir, "app-update.yml");
+    const builderConfigPath = await createBuilderConfig(appOutDir);
 
     await mkdir(resourcesDir, { recursive: true });
     await writeFile(
@@ -25,10 +46,14 @@ test("writes the Certum publisher name to app-update.yml", async () => {
       ].join("\n"),
     );
 
-    await writeAppUpdatePublisher(appOutDir);
+    await writeAppUpdatePublisher(appOutDir, builderConfigPath);
 
     const appUpdate = YAML.parse(await readFile(appUpdatePath, "utf8"));
 
+    assert.equal(appUpdate.owner, "vojtechportes");
+    assert.equal(appUpdate.repo, "card-notes-app");
+    assert.equal(appUpdate.provider, "github");
+    assert.equal(appUpdate.releaseType, "release");
     assert.equal(
       appUpdate.publisherName,
       "Open Source Developer Vojtech Porte\u0161",
@@ -38,13 +63,24 @@ test("writes the Certum publisher name to app-update.yml", async () => {
   }
 });
 
-test("skips publisher metadata when app-update.yml is not generated", async () => {
+test("creates app-update.yml from publish config when it is not generated", async () => {
   const appOutDir = await mkdtemp(path.join(tmpdir(), "notestack-app-out-"));
 
   try {
-    await mkdir(path.join(appOutDir, "resources"), { recursive: true });
+    const appUpdatePath = path.join(appOutDir, "resources", "app-update.yml");
+    const builderConfigPath = await createBuilderConfig(appOutDir);
 
-    await assert.doesNotReject(writeAppUpdatePublisher(appOutDir));
+    await writeAppUpdatePublisher(appOutDir, builderConfigPath);
+
+    const appUpdate = YAML.parse(await readFile(appUpdatePath, "utf8"));
+
+    assert.deepEqual(appUpdate, {
+      owner: "vojtechportes",
+      provider: "github",
+      publisherName: "Open Source Developer Vojtech Porte\u0161",
+      releaseType: "release",
+      repo: "card-notes-app",
+    });
   } finally {
     await rm(appOutDir, { force: true, recursive: true });
   }

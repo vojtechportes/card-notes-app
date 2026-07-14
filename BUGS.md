@@ -13,3 +13,4 @@
 - [x] B103. GitHub workflow "Sign installer with Certum SimplySign" is failing at "osslsigncode is required to verify signed Windows artifacts"
 - [x] B104. Fix mojibake in Windows publisher metadata
 - [x] B105. GitHub workflow is failing at "Build unsigned Electron app directory"
+- [x] B106. Checking for updates on the NoteStack's Settings page results in `ENOENT: no such file or directory, open 'C:\Users\vojta\AppData\Local\Programs\NoteStack\resources\app-update.yml'`
