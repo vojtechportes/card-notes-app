@@ -10,6 +10,10 @@
       "noteTemplates": {
         "title": "Note templates",
         "description": "Create and organize note templates, then open a template to manage its nested fields and field settings."
+      },
+      "exportImport": {
+        "title": "Export / Import",
+        "description": "Move data in and out of NoteStack with JSON backups or XLSX imports while keeping existing notes intact."
       }
     },
     "sections": {

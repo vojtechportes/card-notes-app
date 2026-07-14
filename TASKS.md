@@ -403,7 +403,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep non-removable per-template default fields such as `createdAt` and `updatedAt` visible and protected.
   - Keep note template deletion confirmation and note-moving/mapping behavior in this page.
 
-- [ ] T84. Move Export / Import into a dedicated page
+- [x] T84. Move Export / Import into a dedicated page
   - Change the page title to Export / Import instead of the generic Settings title.
   - Add an Export / Import-specific page description that explains moving data in and out of the app.
   - Keep JSON export/import flows here.
