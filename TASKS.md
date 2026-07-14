@@ -421,7 +421,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Leave room for future reset/cleanup/backup-adjacent actions without making the navigation feel alarming.
   - Localize all copy and confirmation text.
 
-- [ ] T86. Verify Settings sub-page behavior
+- [x] T86. Verify Settings sub-page behavior
   - Frontend tests cover navigation between Settings sub-pages.
   - Tests verify each Settings sub-page renders its own localized page title and page description.
   - Tests verify Fields are only reachable within the selected Note templates flow, not as a separate Settings page.

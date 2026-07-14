@@ -69,18 +69,21 @@ describe('getNoteCardFields', () => {
     expect(fields).toEqual([
       {
         columnId: 'created-column',
+        config: null,
         title: 'Created at',
         type: 'date',
         value: '2026-07-07T10:00:00.000Z',
       },
       {
         columnId: 'updated-column',
+        config: null,
         title: 'Updated at',
         type: 'date',
         value: '2026-07-07T12:00:00.000Z',
       },
       {
         columnId: 'text-column',
+        config: null,
         title: 'Title',
         type: 'text',
         value: 'Alpha note',
@@ -129,6 +132,7 @@ describe('getNoteCardFields', () => {
       },
       {
         columnId: 'text-column',
+        config: null,
         title: 'Title',
         type: 'text',
         value: 'Alpha note',
@@ -184,6 +188,7 @@ describe('getNoteCardFields', () => {
     expect(fields).toEqual([
       {
         columnId: 'text-column',
+        config: null,
         title: 'Title',
         type: 'text',
         value: 'Alpha note',
