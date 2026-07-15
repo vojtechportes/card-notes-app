@@ -14,10 +14,24 @@
     }
   ],
   "files": ["dist/**/*", "package.json"],
+  "npmRebuild": false,
   "extraResources": [
     {
-      "from": ".backend-runtime",
-      "to": "backend"
+      "from": ".backend-runtime/dist",
+      "to": "backend/dist"
+    },
+    {
+      "from": ".backend-runtime/node_modules",
+      "to": "backend/node_modules",
+      "filter": ["**/*"]
+    },
+    {
+      "from": ".backend-runtime/package.json",
+      "to": "backend/package.json"
+    },
+    {
+      "from": ".backend-runtime/runtime-metadata.json",
+      "to": "backend/runtime-metadata.json"
     },
     {
       "from": "../frontend/dist",

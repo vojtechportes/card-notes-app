@@ -7,6 +7,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
+import { rebuild } from '@electron/rebuild'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,6 +18,8 @@ const workspaceRoot = path.resolve(electronRoot, '..')
 const backendRoot = path.join(workspaceRoot, 'backend')
 const backendDistPath = path.join(backendRoot, 'dist')
 const backendPackagePath = path.join(backendRoot, 'package.json')
+const backendNodeModulesPath = path.join(backendRoot, 'node_modules')
+const electronPackagePath = path.join(electronRoot, 'package.json')
 const rootNodeModulesPath = path.join(workspaceRoot, 'node_modules')
 const stagedBackendRoot = path.join(electronRoot, '.backend-runtime')
 const stagedBackendDistPath = path.join(stagedBackendRoot, 'dist')
@@ -26,7 +30,9 @@ if (!existsSync(backendDistPath)) {
 }
 
 if (!existsSync(rootNodeModulesPath)) {
-  throw new Error('Root node_modules directory was not found. Install dependencies before packaging Electron.')
+  throw new Error(
+    'Root node_modules directory was not found. Install dependencies before packaging Electron.'
+  )
 }
 
 rmSync(stagedBackendRoot, { recursive: true, force: true })
@@ -36,66 +42,142 @@ copyFileSync(backendPackagePath, path.join(stagedBackendRoot, 'package.json'))
 mkdirSync(stagedBackendNodeModulesPath, { recursive: true })
 
 const backendPackageJson = JSON.parse(readFileSync(backendPackagePath, 'utf8'))
-const copiedPackages = new Set()
+const copiedPackagePaths = new Set()
 
-const getPackagePath = (packageName) => {
-  return path.join(rootNodeModulesPath, ...packageName.split('/'))
+const resolveInstalledPackagePath = (packageName, resolveFromPath) => {
+  const packageRequire = createRequire(path.join(resolveFromPath, 'package.json'))
+
+  try {
+    return path.dirname(packageRequire.resolve(`${packageName}/package.json`))
+  } catch (packageJsonError) {
+    try {
+      let candidatePath = path.dirname(packageRequire.resolve(packageName))
+
+      while (candidatePath !== path.dirname(candidatePath)) {
+        const candidatePackageJsonPath = path.join(candidatePath, 'package.json')
+
+        if (existsSync(candidatePackageJsonPath)) {
+          const candidatePackageJson = JSON.parse(readFileSync(candidatePackageJsonPath, 'utf8'))
+
+          if (candidatePackageJson.name === packageName) {
+            return candidatePath
+          }
+        }
+
+        candidatePath = path.dirname(candidatePath)
+      }
+    } catch {
+      // The caller decides whether a missing dependency is optional.
+    }
+
+    throw packageJsonError
+  }
 }
 
-const readInstalledPackageJson = (packageName) => {
-  const packagePath = getPackagePath(packageName)
-  const packageJsonPath = path.join(packagePath, 'package.json')
+const getStagedPackagePath = (installedPackagePath) => {
+  const nodeModulesRoots = [backendNodeModulesPath, rootNodeModulesPath]
 
-  if (!existsSync(packageJsonPath)) {
-    throw new Error(`Resolved dependency ${packageName} was not found at ${packageJsonPath}.`)
-  }
+  for (const nodeModulesRoot of nodeModulesRoots) {
+    const relativePath = path.relative(nodeModulesRoot, installedPackagePath)
 
-  return {
-    packageJson: JSON.parse(readFileSync(packageJsonPath, 'utf8')),
-    packagePath,
-  }
-}
-
-const getDependencyNames = (packageJson) => {
-  const dependencyNames = new Set(Object.keys(packageJson.dependencies ?? {}))
-
-  for (const dependencyName of Object.keys(packageJson.optionalDependencies ?? {})) {
-    dependencyNames.add(dependencyName)
-  }
-
-  for (const dependencyName of Object.keys(packageJson.peerDependencies ?? {})) {
-    const peerDependencyPath = path.join(rootNodeModulesPath, ...dependencyName.split('/'))
-
-    if (existsSync(peerDependencyPath)) {
-      dependencyNames.add(dependencyName)
+    if (
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath)
+    ) {
+      return path.join(stagedBackendNodeModulesPath, relativePath)
     }
   }
 
-  return [...dependencyNames]
+  throw new Error(
+    `Resolved backend dependency is outside known node_modules roots: ${installedPackagePath}`
+  )
 }
 
-const copyDependencyClosure = (packageName) => {
-  if (copiedPackages.has(packageName)) {
+const getDependencyEntries = (packageJson) => {
+  const dependencyEntries = new Map()
+
+  for (const dependencyName of Object.keys(packageJson.dependencies ?? {})) {
+    dependencyEntries.set(dependencyName, true)
+  }
+
+  for (const dependencyName of Object.keys(packageJson.optionalDependencies ?? {})) {
+    dependencyEntries.set(dependencyName, dependencyEntries.get(dependencyName) ?? false)
+  }
+
+  for (const dependencyName of Object.keys(packageJson.peerDependencies ?? {})) {
+    dependencyEntries.set(dependencyName, dependencyEntries.get(dependencyName) ?? false)
+  }
+
+  return [...dependencyEntries.entries()].map(([name, isRequired]) => ({
+    name,
+    isRequired,
+  }))
+}
+
+const copyDependencyClosure = (packageName, resolveFromPath, isRequired = true) => {
+  let installedPackagePath
+
+  try {
+    installedPackagePath = resolveInstalledPackagePath(packageName, resolveFromPath)
+  } catch (error) {
+    if (!isRequired) {
+      return
+    }
+
+    throw new Error(
+      `Could not resolve required backend dependency ${packageName} from ${resolveFromPath}.`,
+      { cause: error }
+    )
+  }
+
+  if (copiedPackagePaths.has(installedPackagePath)) {
     return
   }
 
-  const { packageJson, packagePath } = readInstalledPackageJson(packageName)
-  const destinationPath = path.join(stagedBackendNodeModulesPath, ...packageName.split('/'))
+  const packageJsonPath = path.join(installedPackagePath, 'package.json')
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+  const destinationPath = getStagedPackagePath(installedPackagePath)
 
   mkdirSync(path.dirname(destinationPath), { recursive: true })
-  cpSync(packagePath, destinationPath, { recursive: true })
-  copiedPackages.add(packageName)
+  cpSync(installedPackagePath, destinationPath, {
+    recursive: true,
+    filter: (sourcePath) => {
+      const relativePath = path.relative(installedPackagePath, sourcePath)
 
-  for (const dependencyName of getDependencyNames(packageJson)) {
-    copyDependencyClosure(dependencyName)
+      return !relativePath.split(path.sep).includes('node_modules')
+    },
+  })
+  copiedPackagePaths.add(installedPackagePath)
+
+  for (const dependency of getDependencyEntries(packageJson)) {
+    copyDependencyClosure(dependency.name, installedPackagePath, dependency.isRequired)
   }
 }
 
 for (const dependencyName of Object.keys(backendPackageJson.dependencies ?? {})) {
-  copyDependencyClosure(dependencyName)
+  copyDependencyClosure(dependencyName, backendRoot)
 }
 
-const stagedPackageJson = JSON.parse(readFileSync(path.join(stagedBackendRoot, 'package.json'), 'utf8'))
+const electronPackageJson = JSON.parse(readFileSync(electronPackagePath, 'utf8'))
+const electronVersion = electronPackageJson.devDependencies?.electron
+
+if (typeof electronVersion !== 'string' || !/^\d+\.\d+\.\d+$/.test(electronVersion)) {
+  throw new Error('An exact Electron version is required to rebuild backend native dependencies.')
+}
+
+await rebuild({
+  buildPath: stagedBackendRoot,
+  projectRootPath: stagedBackendRoot,
+  electronVersion,
+  arch: process.env.npm_config_arch ?? process.arch,
+  onlyModules: ['better-sqlite3'],
+  force: true,
+})
+
+const stagedPackageJson = JSON.parse(
+  readFileSync(path.join(stagedBackendRoot, 'package.json'), 'utf8')
+)
 delete stagedPackageJson.devDependencies
 delete stagedPackageJson.scripts
 writeFileSync(
@@ -104,7 +186,7 @@ writeFileSync(
 )
 
 const metadata = {
-  copiedDependencyCount: copiedPackages.size,
+  copiedDependencyCount: copiedPackagePaths.size,
   directDependencyCount: Object.keys(backendPackageJson.dependencies ?? {}).length,
 }
 

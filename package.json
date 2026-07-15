@@ -28,6 +28,6 @@
     "package:dir": "npm run build && npm run package:dir --workspace electron"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   }
 }

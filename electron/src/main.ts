@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import electronUpdater from 'electron-updater'
@@ -14,6 +14,7 @@ import { createWindowsUpdateSignatureVerifier } from './updater/create-windows-u
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
+import { appendBoundedOutput } from './backend/utils/append-bounded-output.util.js'
 
 const { autoUpdater } = electronUpdater
 const windowsAutoUpdater = autoUpdater as AppUpdater & {
@@ -42,10 +43,13 @@ const backendPort = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? '3000
 const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
 const backendStartupTimeoutMs = 15000
 const backendPollIntervalMs = 250
+const backendStartupOutputLimit = 4000
+const backendLogFileName = 'backend.log'
 const frontendDevServerUrl = process.env.FRONTEND_DEV_SERVER_URL
 const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
 let backendProcess: ChildProcess | null = null
+let backendStartupErrorOutput = ''
 let mainWindow: BrowserWindow | null = null
 let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
 let updaterService: UpdaterService | null = null
@@ -234,11 +238,14 @@ async function ensureBackendAvailable(): Promise<void> {
   }
 
   backendProcess = startBackendProcess()
-  await waitForBackend()
+  await waitForBackend(backendProcess)
 }
 
 function startBackendProcess(): ChildProcess {
   const args = getBackendProcessArgs()
+
+  backendStartupErrorOutput = ''
+
   const childProcess = spawn(process.execPath, args, {
     cwd: workspaceRoot,
     env: {
@@ -253,11 +260,22 @@ function startBackendProcess(): ChildProcess {
   })
 
   childProcess.stdout?.on('data', (chunk: Buffer) => {
-    console.log(`[backend] ${chunk.toString().trimEnd()}`)
+    const output = chunk.toString()
+
+    console.log(`[backend] ${output.trimEnd()}`)
+    writeBackendLog('stdout', output)
   })
 
   childProcess.stderr?.on('data', (chunk: Buffer) => {
-    console.error(`[backend] ${chunk.toString().trimEnd()}`)
+    const output = chunk.toString()
+
+    backendStartupErrorOutput = appendBoundedOutput(
+      backendStartupErrorOutput,
+      output,
+      backendStartupOutputLimit
+    )
+    console.error(`[backend] ${output.trimEnd()}`)
+    writeBackendLog('stderr', output)
   })
 
   childProcess.on('exit', () => {
@@ -267,7 +285,15 @@ function startBackendProcess(): ChildProcess {
   })
 
   childProcess.on('error', (error) => {
+    const output = `Failed to start backend process: ${error.message}`
+
+    backendStartupErrorOutput = appendBoundedOutput(
+      backendStartupErrorOutput,
+      output,
+      backendStartupOutputLimit
+    )
     console.error('[backend] failed to start', error)
+    writeBackendLog('error', output)
   })
 
   return childProcess
@@ -294,7 +320,7 @@ function getBackendProcessArgs(): string[] {
   )
 }
 
-async function waitForBackend(): Promise<void> {
+async function waitForBackend(childProcess: ChildProcess): Promise<void> {
   const timeoutAt = Date.now() + backendStartupTimeoutMs
 
   while (Date.now() < timeoutAt) {
@@ -302,14 +328,47 @@ async function waitForBackend(): Promise<void> {
       return
     }
 
-    if (backendProcess?.exitCode !== null) {
-      throw new Error('The local backend exited before it became ready.')
+    if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
+      throw new Error(createBackendExitMessage(childProcess))
     }
 
     await delay(backendPollIntervalMs)
   }
 
-  throw new Error('Timed out while waiting for the local backend to become ready.')
+  throw new Error(
+    createBackendDiagnosticMessage('Timed out while waiting for the local backend to become ready.')
+  )
+}
+
+function createBackendExitMessage(childProcess: ChildProcess): string {
+  const exitReason = childProcess.signalCode
+    ? `signal ${childProcess.signalCode}`
+    : `exit code ${childProcess.exitCode ?? 'unknown'}`
+  return createBackendDiagnosticMessage(
+    `The local backend exited before it became ready (${exitReason}).`
+  )
+}
+
+function createBackendDiagnosticMessage(summary: string): string {
+  const errorOutput = backendStartupErrorOutput.trim()
+  const errorDetails = errorOutput ? `\n\nBackend error:\n${errorOutput}` : ''
+
+  return `${summary}${errorDetails}\n\nBackend log: ${getBackendLogPath()}`
+}
+
+function writeBackendLog(stream: string, output: string): void {
+  try {
+    const logEntry = `[${new Date().toISOString()}] [${stream}] ${output}`
+
+    mkdirSync(app.getPath('logs'), { recursive: true })
+    appendFileSync(getBackendLogPath(), logEntry)
+  } catch (error) {
+    console.error('[backend] failed to write backend log', error)
+  }
+}
+
+function getBackendLogPath(): string {
+  return path.join(app.getPath('logs'), backendLogFileName)
 }
 
 async function isBackendHealthy(): Promise<boolean> {
