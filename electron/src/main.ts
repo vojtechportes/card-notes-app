@@ -62,7 +62,7 @@ const backendPort = Number(
   process.env.PORT ?? process.env.BACKEND_PORT ?? '3000'
 )
 const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
-const backendStartupSoftThresholdMs = 15_000
+const backendStartupSoftThresholdMs = 30_000
 const backendPollIntervalMs = 250
 const backendHealthRequestTimeoutMs = 2_000
 const backendLogFileName = 'backend.log'

@@ -86,8 +86,10 @@ describe('StartupGate', () => {
 
     expect(screen.getByRole('img', { name: 'NoteStack logo' })).toBeTruthy()
     expect(
-      screen.getByRole('heading', { name: 'Getting your notes ready' })
+      screen.getByRole('heading', { name: 'NoteStack is starting' })
     ).toBeTruthy()
+    expect(screen.getByText('Please wait a moment.')).toBeTruthy()
+    expect(screen.queryByText(/local data service/i)).toBeNull()
     expect(
       screen.getByRole('progressbar', { name: 'Starting NoteStack' })
     ).toBeTruthy()
@@ -111,12 +113,18 @@ describe('StartupGate', () => {
       screen.getByRole('progressbar', { name: 'Starting NoteStack' })
     ).toBeTruthy()
 
+    expect(
+      screen.getByText('You can keep waiting, try again, or exit NoteStack.')
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Open backend log' })
+    ).toBeNull()
+
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open backend log' }))
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }))
 
     expect(harness.bridge.retry).toHaveBeenCalledOnce()
-    expect(harness.bridge.openBackendLog).toHaveBeenCalledOnce()
+    expect(harness.bridge.openBackendLog).not.toHaveBeenCalled()
     expect(harness.bridge.exit).toHaveBeenCalledOnce()
   })
 
@@ -169,7 +177,7 @@ describe('StartupGate', () => {
 
     expect(screen.getByRole('heading', { name: /Notes/ })).toBeTruthy()
     expect(
-      screen.queryByRole('heading', { name: 'Getting your notes ready' })
+      screen.queryByRole('heading', { name: 'NoteStack is starting' })
     ).toBeNull()
   })
 
