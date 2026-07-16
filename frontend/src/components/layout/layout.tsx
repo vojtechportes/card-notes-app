@@ -50,6 +50,10 @@ const settingsNavItems = [
     labelKey: 'navigation.settingsPages.exportImport',
   },
   {
+    path: `${settingsPath}/${settingsSubPageRoutes.updates}`,
+    labelKey: 'navigation.settingsPages.updates',
+  },
+  {
     path: `${settingsPath}/${settingsSubPageRoutes.dataManagement}`,
     labelKey: 'navigation.settingsPages.dataManagement',
   },

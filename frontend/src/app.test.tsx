@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { App } from './app'
@@ -122,6 +123,21 @@ describe('App routing', () => {
     expect(screen.getByRole('link', { name: 'Note templates' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Fields' })).toBeNull()
     expect(screen.queryByText('Note types')).toBeNull()
+    const navigation = screen.getByRole('navigation', {
+      name: 'Main navigation',
+    })
+    expect(
+      within(navigation)
+        .getAllByRole('link')
+        .slice(-5)
+        .map((link) => link.textContent)
+    ).toEqual([
+      'General',
+      'Note templates',
+      'Export / Import',
+      'Updates',
+      'Data Management',
+    ])
     fireEvent.click(screen.getByRole('link', { name: 'Note templates' }))
 
     expect(
@@ -150,6 +166,19 @@ describe('App routing', () => {
     await waitFor(() =>
       expect(window.location.hash).toBe('#/settings/export-import')
     )
+
+    openNavigation()
+    fireEvent.click(screen.getByRole('link', { name: 'Updates' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Updates' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Check for NoteStack updates, download new versions, and install them when they are ready.'
+      )
+    ).toBeTruthy()
+    await waitFor(() => expect(window.location.hash).toBe('#/settings/updates'))
 
     openNavigation()
     fireEvent.click(screen.getByRole('link', { name: 'Data Management' }))

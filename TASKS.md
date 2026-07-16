@@ -437,6 +437,12 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Rewrite the Data Management page subtitle in plain user-facing language.
   - Update frontend tests for the adjusted visible copy and removed duplicate card headings.
 
+- [x] T88. Move Updates into a dedicated Settings page
+  - Remove the updater section from the General settings page.
+  - Add a dedicated Updates settings page with localized page copy.
+  - Add Updates to the Settings submenu immediately before Data Management.
+  - Preserve the existing updater behavior and verify the new route and navigation.
+
 ## Misc tasks
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo

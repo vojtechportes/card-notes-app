@@ -5,6 +5,7 @@ import { ExportImportSettingsPage } from './components/export-import-settings-pa
 import { GeneralSettingsPage } from './components/general-settings-page/general-settings-page'
 import { LegacyNoteTypeSettingsRedirect } from './components/legacy-note-type-settings-redirect/legacy-note-type-settings-redirect'
 import { NoteTemplatesSettingsPage } from './components/note-templates-settings-page/note-templates-settings-page'
+import { UpdatesSettingsPage } from './components/updates-settings-page/updates-settings-page'
 import { settingsSubPageRoutes } from './constants/settings-sub-page-routes'
 
 const settingsGeneralPath = `/settings/${settingsSubPageRoutes.general}`
@@ -32,6 +33,10 @@ export const SettingsPage = () => {
         <Route
           path={settingsSubPageRoutes.exportImport}
           element={<ExportImportSettingsPage />}
+        />
+        <Route
+          path={settingsSubPageRoutes.updates}
+          element={<UpdatesSettingsPage />}
         />
         <Route
           path={settingsSubPageRoutes.dataManagement}
