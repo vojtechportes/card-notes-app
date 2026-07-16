@@ -78,13 +78,14 @@ describe('StartupGate', () => {
     expect(screen.queryByRole('heading', { name: /Notes/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
-  it('shows branded accessible progress and keeps the app layout unmounted', () => {
+  it('shows centered accessible progress and keeps the app layout unmounted', () => {
     const harness = createBridgeHarness(new Promise(() => undefined))
     window.noteStackStartup = harness.bridge
 
     render(<App />)
 
-    expect(screen.getByRole('img', { name: 'NoteStack logo' })).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'NoteStack logo' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'NoteStack' })).toBeNull()
     expect(
       screen.getByRole('heading', { name: 'NoteStack is starting' })
     ).toBeTruthy()

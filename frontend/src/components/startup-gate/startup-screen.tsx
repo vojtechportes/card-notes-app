@@ -7,7 +7,6 @@ import {
   Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import appLogo from '../../assets/app-logo.svg'
 import type { StartupState } from '../../types/startup-state'
 import { StartupRecoveryActions } from './startup-recovery-actions'
 
@@ -60,17 +59,8 @@ export const StartupScreen = ({
         }}
       >
         <Stack alignItems="center" role="status" spacing={3} aria-live="polite">
-          <Box
-            alt={t('app.logoAlt')}
-            component="img"
-            src={appLogo}
-            sx={{ height: 72, width: 72 }}
-          />
           <Stack spacing={1}>
             <Typography component="h1" variant="h4">
-              {t('app.brand')}
-            </Typography>
-            <Typography component="h2" variant="h5">
               {title}
             </Typography>
             <Typography color="text.secondary">{description}</Typography>

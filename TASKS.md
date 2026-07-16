@@ -507,6 +507,12 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Keep the startup screen centered within the visible application viewport.
   - Update startup-screen tests and verify the frontend and Electron changes.
 
+- [x] TMSC-20. Polish user-facing notes and startup copy
+  - Replace technical layout terminology in the Notes empty state with plain user-facing wording.
+  - Remove invisible reserved logo space so visible startup content is vertically centered.
+  - Remove the redundant standalone app-name heading from the startup screen.
+  - Update focused frontend coverage while preserving internal masonry implementation names.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

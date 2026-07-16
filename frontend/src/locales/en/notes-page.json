@@ -52,7 +52,7 @@
     },
     "empty": {
       "title": "No notes to show",
-      "description": "Add a note or adjust your filters to populate the masonry list."
+      "description": "Add a note or adjust your filters to see notes here."
     },
     "fields": {
       "lastUpdatedAt": "Last updated at"
