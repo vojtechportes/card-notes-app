@@ -9,23 +9,37 @@ import {
   createUpdaterBackgroundSchedule,
   type UpdaterBackgroundSchedule,
 } from './updater/create-updater-background-schedule/create-updater-background-schedule.js'
-import { createUpdaterService, type UpdaterService } from './updater/create-updater-service.js'
+import {
+  createUpdaterService,
+  type UpdaterService,
+} from './updater/create-updater-service.js'
 import { createWindowsUpdateSignatureVerifier } from './updater/create-windows-update-signature-verifier.js'
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
-import { appendBoundedOutput } from './backend/utils/append-bounded-output.util.js'
+import { BackendEntrypointMissingError } from './startup/backend-entrypoint-missing-error.js'
+import { createBackendStartupController } from './startup/create-backend-startup-controller.js'
+import { registerStartupIpc } from './startup/register-startup-ipc.js'
+import { startupIpcChannels } from './startup/startup-ipc-channels.js'
+import type { BackendStartupController } from './startup/types/backend-startup-controller.js'
+import type { StartupState } from './startup/types/startup-state.js'
+import { fetchBackendHealth } from './startup/utils/fetch-backend-health.util.js'
+import { openBackendLog } from './startup/utils/open-backend-log.util.js'
 
 const { autoUpdater } = electronUpdater
 const windowsAutoUpdater = autoUpdater as AppUpdater & {
-  verifyUpdateCodeSignature?: (publisherNames: string[], updateFilePath: string) => Promise<string | null>
+  verifyUpdateCodeSignature?: (
+    publisherNames: string[],
+    updateFilePath: string
+  ) => Promise<string | null>
 }
 
 if (process.platform === 'win32') {
-  windowsAutoUpdater.verifyUpdateCodeSignature = createWindowsUpdateSignatureVerifier({
-    currentFilePath: process.execPath,
-    logger: autoUpdater.logger ?? undefined,
-  })
+  windowsAutoUpdater.verifyUpdateCodeSignature =
+    createWindowsUpdateSignatureVerifier({
+      currentFilePath: process.execPath,
+      logger: autoUpdater.logger ?? undefined,
+    })
 }
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -37,19 +51,25 @@ const packagedFrontendEntryPath = path.join(
   'dist',
   'index.html'
 )
-const applicationIconPath = path.join(workspaceRoot, 'electron', 'build', 'icon.png')
+const applicationIconPath = path.join(
+  workspaceRoot,
+  'electron',
+  'build',
+  'icon.png'
+)
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
-const backendPort = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? '3000')
+const backendPort = Number(
+  process.env.PORT ?? process.env.BACKEND_PORT ?? '3000'
+)
 const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
-const backendStartupTimeoutMs = 15000
+const backendStartupSoftThresholdMs = 15_000
 const backendPollIntervalMs = 250
-const backendStartupOutputLimit = 4000
+const backendHealthRequestTimeoutMs = 2_000
 const backendLogFileName = 'backend.log'
 const frontendDevServerUrl = process.env.FRONTEND_DEV_SERVER_URL
 const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
-let backendProcess: ChildProcess | null = null
-let backendStartupErrorOutput = ''
+let backendStartupController: BackendStartupController | null = null
 let mainWindow: BrowserWindow | null = null
 let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
 let updaterService: UpdaterService | null = null
@@ -88,9 +108,8 @@ app.on('before-quit', () => {
   updaterBackgroundSchedule?.dispose()
   updaterBackgroundSchedule = null
 
-  if (backendProcess && backendProcess.exitCode === null) {
-    backendProcess.kill()
-  }
+  backendStartupController?.dispose()
+  backendStartupController = null
 })
 
 async function startApplication(): Promise<void> {
@@ -104,8 +123,25 @@ async function startApplication(): Promise<void> {
     updaterBackgroundSchedule = createUpdaterBackgroundSchedule({
       updaterService,
     })
+    backendStartupController = createBackendStartupController({
+      emitState: emitStartupState,
+      isHealthy: isBackendHealthy,
+      log: (message) => writeBackendLog('lifecycle', message + '\n'),
+      pollIntervalMs: backendPollIntervalMs,
+      softThresholdMs: backendStartupSoftThresholdMs,
+      spawnBackend: startBackendProcess,
+    })
+
     registerUpdaterIpc(updaterService)
-    await ensureBackendAvailable()
+    registerStartupIpc(backendStartupController, {
+      exit: () => app.quit(),
+      openBackendLog: () =>
+        openBackendLog(getBackendLogPath(), (logPath) => {
+          shell.showItemInFolder(logPath)
+        }),
+    })
+
+    backendStartupController.start()
     await createMainWindow()
 
     app.on('activate', () => {
@@ -114,6 +150,7 @@ async function startApplication(): Promise<void> {
       }
     })
   } catch (error) {
+    backendStartupController?.dispose()
     dialog.showErrorBox(
       'Unable to start NoteStack',
       error instanceof Error ? error.message : 'Unknown startup error.'
@@ -124,7 +161,11 @@ async function startApplication(): Promise<void> {
 }
 
 function isUpdaterEnabled(): boolean {
-  return app.isPackaged && !process.defaultApp && process.env.NODE_ENV !== 'development'
+  return (
+    app.isPackaged &&
+    !process.defaultApp &&
+    process.env.NODE_ENV !== 'development'
+  )
 }
 
 async function createMainWindow(): Promise<void> {
@@ -147,14 +188,23 @@ async function createMainWindow(): Promise<void> {
   })
 
   mainWindow.webContents.on('did-finish-load', () => {
-    if (!mainWindow || !updaterService) {
+    if (!mainWindow) {
       return
     }
 
-    mainWindow.webContents.send(
-      updaterIpcChannels.stateChanged,
-      updaterService.getState()
-    )
+    if (updaterService) {
+      mainWindow.webContents.send(
+        updaterIpcChannels.stateChanged,
+        updaterService.getState()
+      )
+    }
+
+    if (backendStartupController) {
+      mainWindow.webContents.send(
+        startupIpcChannels.stateChanged,
+        backendStartupController.getState()
+      )
+    }
   })
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -190,6 +240,15 @@ function emitUpdaterState(state: UpdaterState): void {
   }
 }
 
+function emitStartupState(state: StartupState): void {
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    if (browserWindow.isDestroyed()) {
+      continue
+    }
+
+    browserWindow.webContents.send(startupIpcChannels.stateChanged, state)
+  }
+}
 function isAllowedApplicationUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url)
@@ -202,7 +261,9 @@ function isAllowedApplicationUrl(url: string): boolean {
       return false
     }
 
-    return path.normalize(fileURLToPath(parsedUrl)) === packagedFrontendEntryPath
+    return (
+      path.normalize(fileURLToPath(parsedUrl)) === packagedFrontendEntryPath
+    )
   } catch {
     return false
   }
@@ -232,19 +293,8 @@ function getSafeExternalUrl(url: string): string | null {
   }
 }
 
-async function ensureBackendAvailable(): Promise<void> {
-  if (await isBackendHealthy()) {
-    return
-  }
-
-  backendProcess = startBackendProcess()
-  await waitForBackend(backendProcess)
-}
-
 function startBackendProcess(): ChildProcess {
   const args = getBackendProcessArgs()
-
-  backendStartupErrorOutput = ''
 
   const childProcess = spawn(process.execPath, args, {
     cwd: workspaceRoot,
@@ -269,29 +319,13 @@ function startBackendProcess(): ChildProcess {
   childProcess.stderr?.on('data', (chunk: Buffer) => {
     const output = chunk.toString()
 
-    backendStartupErrorOutput = appendBoundedOutput(
-      backendStartupErrorOutput,
-      output,
-      backendStartupOutputLimit
-    )
     console.error(`[backend] ${output.trimEnd()}`)
     writeBackendLog('stderr', output)
-  })
-
-  childProcess.on('exit', () => {
-    if (backendProcess?.pid === childProcess.pid) {
-      backendProcess = null
-    }
   })
 
   childProcess.on('error', (error) => {
     const output = `Failed to start backend process: ${error.message}`
 
-    backendStartupErrorOutput = appendBoundedOutput(
-      backendStartupErrorOutput,
-      output,
-      backendStartupOutputLimit
-    )
     console.error('[backend] failed to start', error)
     writeBackendLog('error', output)
   })
@@ -301,8 +335,19 @@ function startBackendProcess(): ChildProcess {
 
 function getBackendProcessArgs(): string[] {
   if (!app.isPackaged) {
-    const tsxCliPath = path.join(workspaceRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs')
-    const backendSourcePath = path.join(workspaceRoot, 'backend', 'src', 'main.ts')
+    const tsxCliPath = path.join(
+      workspaceRoot,
+      'node_modules',
+      'tsx',
+      'dist',
+      'cli.mjs'
+    )
+    const backendSourcePath = path.join(
+      workspaceRoot,
+      'backend',
+      'src',
+      'main.ts'
+    )
 
     if (existsSync(tsxCliPath) && existsSync(backendSourcePath)) {
       return [tsxCliPath, backendSourcePath]
@@ -315,45 +360,9 @@ function getBackendProcessArgs(): string[] {
     return [backendDistPath]
   }
 
-  throw new Error(
+  throw new BackendEntrypointMissingError(
     'Backend entrypoint was not found. Build the backend before launching Electron.'
   )
-}
-
-async function waitForBackend(childProcess: ChildProcess): Promise<void> {
-  const timeoutAt = Date.now() + backendStartupTimeoutMs
-
-  while (Date.now() < timeoutAt) {
-    if (await isBackendHealthy()) {
-      return
-    }
-
-    if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
-      throw new Error(createBackendExitMessage(childProcess))
-    }
-
-    await delay(backendPollIntervalMs)
-  }
-
-  throw new Error(
-    createBackendDiagnosticMessage('Timed out while waiting for the local backend to become ready.')
-  )
-}
-
-function createBackendExitMessage(childProcess: ChildProcess): string {
-  const exitReason = childProcess.signalCode
-    ? `signal ${childProcess.signalCode}`
-    : `exit code ${childProcess.exitCode ?? 'unknown'}`
-  return createBackendDiagnosticMessage(
-    `The local backend exited before it became ready (${exitReason}).`
-  )
-}
-
-function createBackendDiagnosticMessage(summary: string): string {
-  const errorOutput = backendStartupErrorOutput.trim()
-  const errorDetails = errorOutput ? `\n\nBackend error:\n${errorOutput}` : ''
-
-  return `${summary}${errorDetails}\n\nBackend log: ${getBackendLogPath()}`
 }
 
 function writeBackendLog(stream: string, output: string): void {
@@ -371,18 +380,10 @@ function getBackendLogPath(): string {
   return path.join(app.getPath('logs'), backendLogFileName)
 }
 
-async function isBackendHealthy(): Promise<boolean> {
-  try {
-    const response = await fetch(backendHealthUrl)
-
-    return response.ok
-  } catch {
-    return false
-  }
-}
-
-function delay(timeoutMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, timeoutMs)
-  })
+function isBackendHealthy(signal: AbortSignal): Promise<boolean> {
+  return fetchBackendHealth(
+    backendHealthUrl,
+    signal,
+    backendHealthRequestTimeoutMs
+  )
 }

@@ -468,6 +468,27 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
 - [x] TMSC-16. Improve responsiveness of the notes page and mansonry layout
 
+- [x] TMSC-17. Add backend startup loading screen and recovery flow
+  - Create and display the normal Electron application window immediately instead of waiting for backend readiness before rendering the frontend.
+  - Add a localized MUI startup gate that renders before the existing layout and prevents notes/settings pages and their API queries from mounting until the backend is healthy.
+  - Reuse the NoteStack logo and theme, and show accessible visible progress copy with an indeterminate loading indicator.
+  - Add a narrow Electron/preload startup bridge with current-state retrieval, state subscription, retry, open-log, and exit actions.
+  - Model startup as `starting`, `starting` with a `taking-longer` phase, `ready`, or `failed` for concrete launch/process failures.
+  - Replace the terminal arbitrary startup timeout with a soft 15-20 second `taking-longer` threshold while continuing bounded `/api/health` polling until the backend is ready, exits, retry is requested, or the app closes.
+  - Keep each health request independently bounded so a stalled request cannot stop subsequent polling.
+  - During the `taking-longer` phase, keep the spinner active and offer Retry, Open backend log, and Exit without presenting the state as a terminal error.
+  - Treat backend entrypoint/spawn errors and child-process exit before readiness as terminal recoverable failures with localized reason-specific copy.
+  - Make retry single-flight and cancellation-safe; terminate only the backend child owned by the active attempt before starting a replacement attempt.
+  - Use an attempt generation token or `AbortController` so late results from an older attempt cannot overwrite the state of a newer retry.
+  - Reuse an already healthy backend without claiming ownership, and never terminate a pre-existing backend during retry or application shutdown.
+  - Open or reveal only the fixed NoteStack backend log path from the main process; handle the log not existing yet without crashing the renderer.
+  - Preserve updater initialization/state delivery and existing navigation behavior while the startup gate is introduced.
+  - In standalone Vite/browser environments where the Electron startup bridge is unavailable, default to `ready` so current frontend development and tests continue to work.
+  - Add lifecycle logging for startup attempt creation, prolonged startup, retry/cancellation, readiness, concrete failure, and owned-child termination.
+  - Add Electron tests for polling beyond the soft threshold, concrete process failures, retry cancellation, stale-attempt protection, backend ownership, log actions, and cleanup on exit.
+  - Add frontend tests for branded loading/prolonged/failure states, localized recovery actions, bridge subscription/current-state behavior, browser fallback, and mounting the existing app only after `ready`.
+  - Verify Electron and frontend lint/tests/build, packaged backend smoke checks, and a manual packaged cold-start plus failure/retry flow.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
