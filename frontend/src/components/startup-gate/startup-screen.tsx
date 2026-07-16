@@ -26,6 +26,7 @@ export const StartupScreen = ({
 }: StartupScreenProps) => {
   const { t } = useTranslation()
   const isFailed = state.status === 'failed'
+  const isBridgeUnavailable = isFailed && state.reason === 'bridge-unavailable'
   const isTakingLonger =
     state.status === 'starting' && state.phase === 'taking-longer'
   const title = isFailed
@@ -33,6 +34,9 @@ export const StartupScreen = ({
     : isTakingLonger
       ? t('startup.takingLonger.title')
       : t('startup.starting.title')
+  const help = isBridgeUnavailable
+    ? t('startup.failed.bridgeHelp')
+    : t('startup.failed.help')
   const description = isFailed
     ? t('startup.failed.reasons.' + state.reason)
     : isTakingLonger
@@ -74,12 +78,12 @@ export const StartupScreen = ({
           </Stack>
           {isFailed ? (
             <Alert severity="error" sx={{ textAlign: 'left', width: '100%' }}>
-              {t('startup.failed.help')}
+              {help}
             </Alert>
           ) : (
             <CircularProgress aria-label={t('startup.progressLabel')} />
           )}
-          {(isTakingLonger || isFailed) && (
+          {(isTakingLonger || (isFailed && !isBridgeUnavailable)) && (
             <StartupRecoveryActions
               onExit={onExit}
               onOpenBackendLog={onOpenBackendLog}

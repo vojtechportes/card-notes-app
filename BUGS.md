@@ -16,3 +16,4 @@
 - [x] B106. Checking for updates on the NoteStack's Settings page results in `ENOENT: no such file or directory, open 'C:\Users\vojta\AppData\Local\Programs\NoteStack\resources\app-update.yml'`
 - [x] B107. Windows auto-update rejects Certum-signed update when publisher metadata differs by diacritics
 - [x] B108. Packaged app fails after restart with `The local backend exited before it became ready` because backend dependencies were omitted and packaged runtime dependencies were incompatible
+- [x] B109. Fix sandboxed preload failure bypassing the startup gate

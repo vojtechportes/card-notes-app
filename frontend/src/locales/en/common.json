@@ -32,7 +32,9 @@
     },
     "failed": {
       "title": "NoteStack could not start",
+      "bridgeHelp": "Restart NoteStack. If the problem continues, reinstall or contact support.",
       "reasons": {
+        "bridge-unavailable": "NoteStack could not initialize its secure startup connection.",
         "entrypoint-missing": "The local data service could not be found.",
         "spawn-error": "The local data service could not be launched.",
         "process-exited": "The local data service stopped before it was ready.",

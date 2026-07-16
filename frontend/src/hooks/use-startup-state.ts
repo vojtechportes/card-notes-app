@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { StartupState } from '../types/startup-state'
+import { getMissingStartupBridgeState } from './utils/get-missing-startup-bridge-state.util'
 
 interface StartupStateController {
   exit: () => void
@@ -8,7 +9,6 @@ interface StartupStateController {
   state: StartupState
 }
 
-const browserReadyState: StartupState = { status: 'ready' }
 const electronInitialState: StartupState = {
   status: 'starting',
   phase: 'initial',
@@ -16,7 +16,9 @@ const electronInitialState: StartupState = {
 
 export const useStartupState = (): StartupStateController => {
   const [state, setState] = useState<StartupState>(() =>
-    window.noteStackStartup ? electronInitialState : browserReadyState
+    window.noteStackStartup
+      ? electronInitialState
+      : getMissingStartupBridgeState(navigator.userAgent)
   )
 
   const retry = useCallback(() => {
@@ -35,7 +37,7 @@ export const useStartupState = (): StartupStateController => {
     const bridge = window.noteStackStartup
 
     if (!bridge) {
-      setState(browserReadyState)
+      setState(getMissingStartupBridgeState(navigator.userAgent))
       return
     }
 
