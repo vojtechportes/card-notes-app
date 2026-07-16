@@ -1,5 +1,6 @@
 import type { IpcRenderer } from 'electron'
-import { createStartupBridge } from './startup/create-startup-bridge.js'
+import type { NoteStackStartupBridge } from './startup/types/notestack-startup-bridge.js'
+import type { StartupState } from './startup/types/startup-state.js'
 import type {
   NoteStackUpdaterBridge,
   UpdaterState,
@@ -12,6 +13,14 @@ const { contextBridge, ipcRenderer } = require('electron') as {
   ipcRenderer: Pick<IpcRenderer, 'invoke' | 'on' | 'removeListener'>
 }
 
+const startupIpcChannels = {
+  exit: 'startup:exit',
+  getState: 'startup:get-state',
+  openBackendLog: 'startup:open-backend-log',
+  retry: 'startup:retry',
+  stateChanged: 'startup:state-changed',
+} as const
+
 const updaterIpcChannels = {
   checkForUpdates: 'updater:check-for-updates',
   downloadUpdate: 'updater:download-update',
@@ -19,6 +28,27 @@ const updaterIpcChannels = {
   installUpdate: 'updater:install-update',
   stateChanged: 'updater:state-changed',
 } as const
+
+const startupBridge: NoteStackStartupBridge = {
+  exit: () => ipcRenderer.invoke(startupIpcChannels.exit),
+  getState: () => ipcRenderer.invoke(startupIpcChannels.getState),
+  openBackendLog: () => ipcRenderer.invoke(startupIpcChannels.openBackendLog),
+  retry: () => ipcRenderer.invoke(startupIpcChannels.retry),
+  subscribe: (listener: (state: StartupState) => void) => {
+    const handleStateChange = (_event: unknown, state: StartupState) => {
+      listener(state)
+    }
+
+    ipcRenderer.on(startupIpcChannels.stateChanged, handleStateChange)
+
+    return () => {
+      ipcRenderer.removeListener(
+        startupIpcChannels.stateChanged,
+        handleStateChange
+      )
+    }
+  },
+}
 
 const updaterBridge: NoteStackUpdaterBridge = {
   checkForUpdates: () => {
@@ -49,8 +79,5 @@ const updaterBridge: NoteStackUpdaterBridge = {
   },
 }
 
-contextBridge.exposeInMainWorld(
-  'noteStackStartup',
-  createStartupBridge(ipcRenderer)
-)
+contextBridge.exposeInMainWorld('noteStackStartup', startupBridge)
 contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)

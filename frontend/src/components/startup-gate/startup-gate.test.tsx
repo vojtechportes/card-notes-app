@@ -12,6 +12,8 @@ import type { StartupState } from '../../types/startup-state'
 import { App } from '../../app'
 import '../../i18n'
 
+const originalUserAgent = navigator.userAgent
+
 interface BridgeHarness {
   bridge: NoteStackStartupBridge
   emit: (state: StartupState) => void
@@ -44,6 +46,10 @@ describe('StartupGate', () => {
   afterEach(() => {
     cleanup()
     delete window.noteStackStartup
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: originalUserAgent,
+    })
     window.location.hash = ''
   })
 
@@ -56,6 +62,22 @@ describe('StartupGate', () => {
     ).toBeNull()
   })
 
+  it('blocks the app when an Electron preload fails to expose the bridge', async () => {
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 NoteStack Electron/32.0.0',
+    })
+
+    render(<App />)
+
+    expect(
+      await screen.findByText(
+        'NoteStack could not initialize its secure startup connection.'
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /Notes/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
   it('shows branded accessible progress and keeps the app layout unmounted', () => {
     const harness = createBridgeHarness(new Promise(() => undefined))
     window.noteStackStartup = harness.bridge

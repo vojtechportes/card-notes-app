@@ -1,2 +1,6 @@
 export type StartupFailureReason =
-  'entrypoint-missing' | 'spawn-error' | 'process-exited' | 'termination-failed'
+  | 'bridge-unavailable'
+  | 'entrypoint-missing'
+  | 'spawn-error'
+  | 'process-exited'
+  | 'termination-failed'
