@@ -483,9 +483,7 @@ describe('NoteCardList', () => {
       screen.getByRole('heading', { name: 'No notes to show' })
     ).toBeTruthy()
     expect(
-      screen.getByText(
-        'Add a note or adjust your filters to populate the masonry list.'
-      )
+      screen.getByText('Add a note or adjust your filters to see notes here.')
     ).toBeTruthy()
   })
 })
