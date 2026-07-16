@@ -24,12 +24,12 @@
   "startup": {
     "progressLabel": "Starting NoteStack",
     "starting": {
-      "title": "Getting your notes ready",
-      "description": "NoteStack is starting its local data service."
+      "title": "NoteStack is starting",
+      "description": "Please wait a moment."
     },
     "takingLonger": {
       "title": "Startup is taking longer than usual",
-      "description": "NoteStack is still trying to start. You can keep waiting, retry, inspect the backend log, or exit."
+      "description": "You can keep waiting, try again, or exit NoteStack."
     },
     "failed": {
       "title": "NoteStack could not start",

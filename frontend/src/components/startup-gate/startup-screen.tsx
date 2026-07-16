@@ -48,8 +48,7 @@ export const StartupScreen = ({
       alignItems="center"
       display="flex"
       justifyContent="center"
-      minHeight="100vh"
-      p={3}
+      sx={{ inset: 0, overflow: 'auto', p: 3, position: 'fixed' }}
     >
       <Paper
         elevation={3}
@@ -86,7 +85,7 @@ export const StartupScreen = ({
           {(isTakingLonger || (isFailed && !isBridgeUnavailable)) && (
             <StartupRecoveryActions
               onExit={onExit}
-              onOpenBackendLog={onOpenBackendLog}
+              onOpenBackendLog={isFailed ? onOpenBackendLog : undefined}
               onRetry={onRetry}
             />
           )}

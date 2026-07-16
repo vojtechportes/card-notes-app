@@ -500,6 +500,13 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Preserve submenu selection, routing, spacing, and responsive drawer behavior.
   - Verify the existing frontend navigation coverage and frontend build.
 
+- [x] TMSC-19. Simplify startup messaging
+  - Show only plain user-facing information that NoteStack is starting on the initial startup screen.
+  - Remove backend-log wording and access from the prolonged startup screen while preserving appropriate recovery actions.
+  - Double the prolonged-start threshold from 15 seconds to 30 seconds.
+  - Keep the startup screen centered within the visible application viewport.
+  - Update startup-screen tests and verify the frontend and Electron changes.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
