@@ -15,6 +15,10 @@
         "title": "Export / Import",
         "description": "Move data in and out of NoteStack with JSON backups or XLSX imports while keeping existing notes intact."
       },
+      "updates": {
+        "title": "Updates",
+        "description": "Check for NoteStack updates, download new versions, and install them when they are ready."
+      },
       "dataManagement": {
         "title": "Data Management",
         "description": "Manage actions that affect your saved notes, including clearing your note collection."

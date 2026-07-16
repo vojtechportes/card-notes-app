@@ -7,10 +7,6 @@ vi.mock('../general-section/general-section', () => ({
   GeneralSection: () => <section aria-label="Display preferences form" />,
 }))
 
-vi.mock('../updater-section/updater-section', () => ({
-  UpdaterSection: () => <section aria-label="Updates section" />,
-}))
-
 afterEach(() => {
   cleanup()
 })
@@ -29,10 +25,12 @@ describe('GeneralSettingsPage', () => {
     ).toBeTruthy()
   })
 
-  it('keeps display preferences and updater content on the general page', () => {
+  it('keeps only display preferences on the general page', () => {
     render(<GeneralSettingsPage />)
 
     expect(screen.getByLabelText('Display preferences form')).toBeTruthy()
-    expect(screen.getByLabelText('Updates section')).toBeTruthy()
+    expect(
+      screen.queryByRole('heading', { level: 2, name: 'Updates' })
+    ).toBeNull()
   })
 })

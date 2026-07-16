@@ -22,6 +22,10 @@ vi.mock(
   })
 )
 
+vi.mock('./components/updates-settings-page/updates-settings-page', () => ({
+  UpdatesSettingsPage: () => <h3>Updates page</h3>,
+}))
+
 vi.mock(
   './components/data-management-settings-page/data-management-settings-page',
   () => ({
@@ -79,6 +83,14 @@ describe('SettingsPage', () => {
     ).toBeTruthy()
   })
 
+  it('renders the updates sub-page', () => {
+    renderSettingsRoute('/settings/updates')
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Updates page' })
+    ).toBeTruthy()
+  })
+
   it('renders the data management sub-page', () => {
     renderSettingsRoute('/settings/data-management')
 
@@ -97,6 +109,7 @@ describe('SettingsPage', () => {
       })
     ).toBeTruthy()
   })
+
   it('redirects unknown settings sub-routes to general settings', async () => {
     renderSettingsRoute('/settings/missing/deep-route')
 
