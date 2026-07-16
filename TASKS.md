@@ -489,6 +489,11 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Add frontend tests for branded loading/prolonged/failure states, localized recovery actions, bridge subscription/current-state behavior, browser fallback, and mounting the existing app only after `ready`.
   - Verify Electron and frontend lint/tests/build, packaged backend smoke checks, and a manual packaged cold-start plus failure/retry flow.
 
+- [x] TMSC-18. Rework side menu subitem width
+  - Remove the Settings submenu container indentation so subitems match the parent item width.
+  - Preserve submenu selection, routing, spacing, and responsive drawer behavior.
+  - Verify the existing frontend navigation coverage and frontend build.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

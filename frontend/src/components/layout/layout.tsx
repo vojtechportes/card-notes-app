@@ -145,7 +145,7 @@ export const Layout: FC = () => {
                 </ListItemButton>
 
                 {active && children ? (
-                  <List component="div" disablePadding sx={{ pb: 0.5, pl: 5 }}>
+                  <List component="div" disablePadding sx={{ pb: 0.5 }}>
                     {children.map((child) => {
                       const childActive =
                         location.pathname === child.path ||
