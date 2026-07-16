@@ -20,6 +20,32 @@
       "dataManagement": "Data Management"
     }
   },
+  "startup": {
+    "progressLabel": "Starting NoteStack",
+    "starting": {
+      "title": "Getting your notes ready",
+      "description": "NoteStack is starting its local data service."
+    },
+    "takingLonger": {
+      "title": "Startup is taking longer than usual",
+      "description": "NoteStack is still trying to start. You can keep waiting, retry, inspect the backend log, or exit."
+    },
+    "failed": {
+      "title": "NoteStack could not start",
+      "reasons": {
+        "entrypoint-missing": "The local data service could not be found.",
+        "spawn-error": "The local data service could not be launched.",
+        "process-exited": "The local data service stopped before it was ready.",
+        "termination-failed": "The previous local data service could not be stopped safely."
+      },
+      "help": "Try starting again. If the problem continues, open the backend log for more details."
+    },
+    "actions": {
+      "retry": "Retry",
+      "openBackendLog": "Open backend log",
+      "exit": "Exit"
+    }
+  },
   "detail": {
     "actions": {
       "close": "Close detail",

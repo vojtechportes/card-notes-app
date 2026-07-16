@@ -1,13 +1,16 @@
+import { AppProviders } from './components/app-providers/app-providers'
 import { Layout } from './components/layout/layout'
 import { SideDrawerProvider } from './components/side-drawer'
-import { AppProviders } from './components/app-providers/app-providers'
+import { StartupGate } from './components/startup-gate/startup-gate'
 
 export const App = () => {
   return (
     <AppProviders>
-      <SideDrawerProvider>
-        <Layout />
-      </SideDrawerProvider>
+      <StartupGate>
+        <SideDrawerProvider>
+          <Layout />
+        </SideDrawerProvider>
+      </StartupGate>
     </AppProviders>
   )
 }

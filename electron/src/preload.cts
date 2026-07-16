@@ -1,5 +1,9 @@
 import type { IpcRenderer } from 'electron'
-import type { NoteStackUpdaterBridge, UpdaterState } from './updater/updater-contract.js'
+import { createStartupBridge } from './startup/create-startup-bridge.js'
+import type {
+  NoteStackUpdaterBridge,
+  UpdaterState,
+} from './updater/updater-contract.js'
 
 const { contextBridge, ipcRenderer } = require('electron') as {
   contextBridge: {
@@ -45,4 +49,8 @@ const updaterBridge: NoteStackUpdaterBridge = {
   },
 }
 
+contextBridge.exposeInMainWorld(
+  'noteStackStartup',
+  createStartupBridge(ipcRenderer)
+)
 contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)
