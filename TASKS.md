@@ -513,6 +513,10 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Remove the redundant standalone app-name heading from the startup screen.
   - Update focused frontend coverage while preserving internal masonry implementation names.
 
+- [x] TMSC-21. Hide the top Electron menu
+  - Remove the native application menu from the Electron window.
+  - Verify the Electron shell still builds and passes its automated tests.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

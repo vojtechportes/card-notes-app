@@ -182,6 +182,7 @@ async function createMainWindow(): Promise<void> {
       sandbox: true,
     },
   })
+  mainWindow.removeMenu()
 
   mainWindow.on('closed', () => {
     mainWindow = null
