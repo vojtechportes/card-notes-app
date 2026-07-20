@@ -18,3 +18,4 @@
 - [x] B108. Packaged app fails after restart with `The local backend exited before it became ready` because backend dependencies were omitted and packaged runtime dependencies were incompatible
 - [x] B109. Fix sandboxed preload failure bypassing the startup gate
 - [x] B110. Packaged app reports "Automatic updates are unavailable in this environment." after startup preload changes
+- [x] B111. Fix notes toolbar sticky offset below the window title bar
