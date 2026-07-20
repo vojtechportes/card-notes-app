@@ -29,6 +29,7 @@ import {
 import { NotesPage } from '../../pages/notes-page/notes-page'
 import { SettingsPage } from '../../pages/settings-page/settings-page'
 import { settingsSubPageRoutes } from '../../pages/settings-page/constants/settings-sub-page-routes'
+import { windowTitleBarHeight } from '../../constants/window-title-bar'
 import appLogoUrl from '../../assets/logo.png'
 import { SideDrawer } from '../side-drawer'
 
@@ -179,9 +180,16 @@ export const Layout: FC = () => {
   )
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        height: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
       <AppBar
-        position="fixed"
+        position="absolute"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
@@ -236,6 +244,8 @@ export const Layout: FC = () => {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
+              height: '100%',
+              position: 'absolute',
             },
           }}
         >
@@ -251,6 +261,8 @@ export const Layout: FC = () => {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
+              height: `calc(100% - ${windowTitleBarHeight}px)`,
+              top: `${windowTitleBarHeight}px`,
             },
           }}
         >
@@ -258,7 +270,10 @@ export const Layout: FC = () => {
         </Drawer>
       )}
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, height: '100%', minWidth: 0, overflow: 'auto' }}
+      >
         <Toolbar />
         <Container maxWidth="xl" sx={{ py: 3 }}>
           <Routes>

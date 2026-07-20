@@ -25,6 +25,8 @@ import type { BackendStartupController } from './startup/types/backend-startup-c
 import type { StartupState } from './startup/types/startup-state.js'
 import { fetchBackendHealth } from './startup/utils/fetch-backend-health.util.js'
 import { openBackendLog } from './startup/utils/open-backend-log.util.js'
+import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
+import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
 
 const { autoUpdater } = electronUpdater
 const windowsAutoUpdater = autoUpdater as AppUpdater & {
@@ -133,6 +135,7 @@ async function startApplication(): Promise<void> {
     })
 
     registerUpdaterIpc(updaterService)
+    registerWindowControlsIpc()
     registerStartupIpc(backendStartupController, {
       exit: () => app.quit(),
       openBackendLog: () =>
@@ -174,6 +177,7 @@ async function createMainWindow(): Promise<void> {
     height: 800,
     minWidth: 960,
     minHeight: 640,
+    frame: false,
     icon: existsSync(applicationIconPath) ? applicationIconPath : undefined,
     webPreferences: {
       contextIsolation: true,
@@ -183,6 +187,7 @@ async function createMainWindow(): Promise<void> {
     },
   })
   mainWindow.removeMenu()
+  registerWindowControlsStateEvents(mainWindow)
 
   mainWindow.on('closed', () => {
     mainWindow = null

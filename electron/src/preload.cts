@@ -2,6 +2,10 @@ import type { IpcRenderer } from 'electron'
 import type { NoteStackStartupBridge } from './startup/types/notestack-startup-bridge.js'
 import type { StartupState } from './startup/types/startup-state.js'
 import type {
+  NoteStackWindowControlsBridge,
+  WindowControlsState,
+} from './window-controls/types/notestack-window-controls-bridge.js'
+import type {
   NoteStackUpdaterBridge,
   UpdaterState,
 } from './updater/updater-contract.js'
@@ -27,6 +31,14 @@ const updaterIpcChannels = {
   getState: 'updater:get-state',
   installUpdate: 'updater:install-update',
   stateChanged: 'updater:state-changed',
+} as const
+
+const windowControlsIpcChannels = {
+  close: 'window-controls:close',
+  getState: 'window-controls:get-state',
+  minimize: 'window-controls:minimize',
+  stateChanged: 'window-controls:state-changed',
+  toggleMaximize: 'window-controls:toggle-maximize',
 } as const
 
 const startupBridge: NoteStackStartupBridge = {
@@ -79,5 +91,28 @@ const updaterBridge: NoteStackUpdaterBridge = {
   },
 }
 
+const windowControlsBridge: NoteStackWindowControlsBridge = {
+  close: () => ipcRenderer.invoke(windowControlsIpcChannels.close),
+  getState: () => ipcRenderer.invoke(windowControlsIpcChannels.getState),
+  minimize: () => ipcRenderer.invoke(windowControlsIpcChannels.minimize),
+  subscribe: (listener: (state: WindowControlsState) => void) => {
+    const handleStateChange = (_event: unknown, state: WindowControlsState) => {
+      listener(state)
+    }
+
+    ipcRenderer.on(windowControlsIpcChannels.stateChanged, handleStateChange)
+
+    return () => {
+      ipcRenderer.removeListener(
+        windowControlsIpcChannels.stateChanged,
+        handleStateChange
+      )
+    }
+  },
+  toggleMaximize: () =>
+    ipcRenderer.invoke(windowControlsIpcChannels.toggleMaximize),
+}
+
 contextBridge.exposeInMainWorld('noteStackStartup', startupBridge)
 contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)
+contextBridge.exposeInMainWorld('noteStackWindowControls', windowControlsBridge)

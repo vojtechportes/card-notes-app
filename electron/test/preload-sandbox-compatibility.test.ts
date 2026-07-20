@@ -8,6 +8,7 @@ import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import type { NoteStackStartupBridge } from '../src/startup/types/notestack-startup-bridge'
 import type { NoteStackUpdaterBridge } from '../src/updater/updater-contract'
+import type { NoteStackWindowControlsBridge } from '../src/window-controls/types/notestack-window-controls-bridge'
 
 class IpcRendererMock extends EventEmitter {
   invocations: string[] = []
@@ -23,11 +24,15 @@ class IpcRendererMock extends EventEmitter {
       return Promise.resolve('opened')
     }
 
+    if (channel === 'window-controls:get-state') {
+      return Promise.resolve({ isMaximized: false })
+    }
+
     return Promise.resolve()
   }
 }
 
-test('sandboxed preload exposes both bridges without local runtime imports', async () => {
+test('sandboxed preload exposes narrow bridges without local runtime imports', async () => {
   const dirname = path.dirname(fileURLToPath(import.meta.url))
   const preloadPath = path.resolve(dirname, '../src/preload.cts')
   const source = readFileSync(preloadPath, 'utf8')
@@ -63,9 +68,13 @@ test('sandboxed preload exposes both bridges without local runtime imports', asy
   const updaterBridge = exposed.get(
     'noteStackUpdater'
   ) as NoteStackUpdaterBridge
+  const windowControlsBridge = exposed.get(
+    'noteStackWindowControls'
+  ) as NoteStackWindowControlsBridge
 
   assert.ok(startupBridge)
   assert.ok(updaterBridge)
+  assert.ok(windowControlsBridge)
   assert.deepEqual(await startupBridge.getState(), {
     status: 'starting',
     phase: 'initial',
@@ -90,11 +99,32 @@ test('sandboxed preload exposes both bridges without local runtime imports', asy
   assert.deepEqual(receivedStates, [
     { status: 'starting', phase: 'taking-longer' },
   ])
+  assert.deepEqual(await windowControlsBridge.getState(), {
+    isMaximized: false,
+  })
+  await windowControlsBridge.minimize()
+  await windowControlsBridge.toggleMaximize()
+  await windowControlsBridge.close()
+
+  const receivedWindowStates: unknown[] = []
+  const unsubscribeWindowControls = windowControlsBridge.subscribe((state) => {
+    receivedWindowStates.push(state)
+  })
+
+  ipcRenderer.emit('window-controls:state-changed', {}, { isMaximized: true })
+  unsubscribeWindowControls()
+  ipcRenderer.emit('window-controls:state-changed', {}, { isMaximized: false })
+
+  assert.deepEqual(receivedWindowStates, [{ isMaximized: true }])
   assert.deepEqual(ipcRenderer.invocations, [
     'startup:get-state',
     'startup:open-backend-log',
     'startup:retry',
     'startup:exit',
+    'window-controls:get-state',
+    'window-controls:minimize',
+    'window-controls:toggle-maximize',
+    'window-controls:close',
   ])
   assert.doesNotMatch(output, /require\(["']\.\//)
 })

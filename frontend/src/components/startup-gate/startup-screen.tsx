@@ -47,7 +47,7 @@ export const StartupScreen = ({
       alignItems="center"
       display="flex"
       justifyContent="center"
-      sx={{ inset: 0, overflow: 'auto', p: 3, position: 'fixed' }}
+      sx={{ inset: 0, overflow: 'auto', p: 3, position: 'absolute' }}
     >
       <Paper
         elevation={3}
