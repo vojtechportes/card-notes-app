@@ -1,10 +1,17 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
 import '../../../../i18n'
 import { NotesToolbar } from './notes-toolbar'
 import type { NoteSortBy, NoteSortDirection } from './notes-toolbar'
 
+let intersectionObserverCallback: IntersectionObserverCallback
+
 class IntersectionObserverMock {
+  constructor(callback: IntersectionObserverCallback) {
+    intersectionObserverCallback = callback
+  }
+
   observe() {
     return undefined
   }
@@ -75,6 +82,33 @@ describe('NotesToolbar', () => {
     expect(screen.getByRole('button', { name: 'Add note' })).toBeTruthy()
   })
 
+  it('positions the sticky toolbar below the title bar and app bar', () => {
+    render(<NotesToolbar {...createProps()} />)
+
+    act(() => {
+      intersectionObserverCallback(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      )
+    })
+
+    const stickyToolbarClass = screen
+      .getByTestId('notes-toolbar-shell')
+      .className.split(' ')
+      .find((className) => className.startsWith('css-'))
+    const generatedCss = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .map((rule) => rule.cssText)
+      .join(' ')
+
+    expect(stickyToolbarClass).toBeTruthy()
+    expect(generatedCss).toContain(
+      `.${stickyToolbarClass} { top: calc(${56 + windowTitleBarHeight}px)`
+    )
+    expect(generatedCss).toContain(
+      `.${stickyToolbarClass} { top: calc(${64 + windowTitleBarHeight}px)`
+    )
+  })
   it('notifies when the search query changes', () => {
     const props = createProps()
     render(<NotesToolbar {...props} />)

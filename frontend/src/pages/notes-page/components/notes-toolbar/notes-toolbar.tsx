@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
 import type { ListNotesQueryDto, NoteTypeDto } from '../../../../types/api'
 import { NoteTypeFilterPopover } from './components/note-type-filter-popover'
 
@@ -74,7 +75,7 @@ export const NotesToolbar = ({
   const [toolbarMetrics, setToolbarMetrics] = useState<ToolbarMetrics>(
     defaultToolbarMetrics
   )
-  
+
   const filterButtonLabel =
     selectedNoteTypeIds.length > 0
       ? t('notes.toolbar.filters.buttonWithCount', {
@@ -159,10 +160,16 @@ export const NotesToolbar = ({
         }}
       >
         <Box
+          data-testid="notes-toolbar-shell"
           ref={shellRef}
           sx={{
             position: isSticky ? 'fixed' : 'relative',
-            top: isSticky ? { xs: '56px', sm: '64px' } : 'auto',
+            top: isSticky
+              ? {
+                  xs: `calc(56px + ${windowTitleBarHeight}px)`,
+                  sm: `calc(64px + ${windowTitleBarHeight}px)`,
+                }
+              : 'auto',
             left: isSticky ? `${toolbarMetrics.mainLeft}px` : 'auto',
             width:
               isSticky && toolbarMetrics.mainWidth
