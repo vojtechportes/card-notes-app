@@ -31,6 +31,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
+import { windowTitleBarHeight } from '../constants/window-title-bar'
 import type { DetailContentContainerProps as DetailContentContainerOptions } from './detail-content'
 
 export type SideDrawerInfo = {
@@ -176,8 +177,14 @@ export const SideDrawer: FC = () => {
       sx={{
         position: 'fixed',
         right: 0,
-        top: { xs: 56, sm: 64 },
-        height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
+        top: {
+          xs: `calc(56px + ${windowTitleBarHeight}px)`,
+          sm: `calc(64px + ${windowTitleBarHeight}px)`,
+        },
+        height: {
+          xs: `calc(100vh - 56px - ${windowTitleBarHeight}px)`,
+          sm: `calc(100vh - 64px - ${windowTitleBarHeight}px)`,
+        },
         width: { xs: '100vw', lg: resolvedWidth },
         maxWidth: { xs: '100vw', lg: 'calc(100vw - 248px)' },
         minWidth: { lg: 520 },

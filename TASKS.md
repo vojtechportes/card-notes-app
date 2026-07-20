@@ -517,6 +517,13 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Remove the native application menu from the Electron window.
   - Verify the Electron shell still builds and passes its automated tests.
 
+- [x] TMSC-22. Add custom window title bar
+  - Replace the native Electron frame with a shared 30px custom title bar that remains visible during startup and normal app use.
+  - Keep the left side empty and draggable, with minimize, maximize/restore, and close controls aligned on the right.
+  - Use the supplied SVG paths with 14px white icons at 90% opacity and theme-owned colors.
+  - Expose narrow sandboxed IPC window controls and keep maximize/restore state synchronized.
+  - Add automated coverage for the renderer controls and Electron bridge, then verify frontend and Electron builds/tests.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

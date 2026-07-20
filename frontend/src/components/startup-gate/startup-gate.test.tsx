@@ -60,6 +60,7 @@ describe('StartupGate', () => {
     expect(
       screen.queryByRole('progressbar', { name: 'Starting NoteStack' })
     ).toBeNull()
+    expect(screen.getByRole('button', { name: 'Minimize' })).toBeTruthy()
   })
 
   it('blocks the app when an Electron preload fails to expose the bridge', async () => {
@@ -95,6 +96,7 @@ describe('StartupGate', () => {
       screen.getByRole('progressbar', { name: 'Starting NoteStack' })
     ).toBeTruthy()
     expect(screen.queryByRole('heading', { name: /Notes/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Minimize' })).toBeTruthy()
   })
 
   it('offers recovery actions while startup keeps polling', async () => {

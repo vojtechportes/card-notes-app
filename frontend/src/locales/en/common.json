@@ -4,6 +4,12 @@
     "brand": "NoteStack",
     "logoAlt": "NoteStack logo"
   },
+  "windowControls": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
+  },
   "navigation": {
     "open": "Open navigation",
     "close": "Close navigation",
