@@ -19,10 +19,14 @@ import {
 } from '@mui/material'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ColumnDto, DeleteNoteTypeDto, NoteTypeDto } from '../../../../types/api'
+import type {
+  ColumnDto,
+  DeleteNoteTypeDto,
+  NoteTypeDto,
+} from '../../../../types/api'
 import { useNoteTypeDetailQuery } from '../../hooks/use-note-type-detail-query'
 import { createDefaultFieldMappings } from './utils/create-default-field-mappings.util'
-import { formatSettingsDate } from './utils/format-settings-date.util'
+import { formatSettingsDate } from '../../utils/format-settings-date.util'
 import { getCompatibleTargetColumns } from './utils/get-compatible-target-columns.util'
 import { isSystemNoteTypeColumn } from './utils/is-system-note-type-column.util'
 
@@ -135,7 +139,9 @@ export const DeleteNoteTypeDialog = ({
       const normalizedTitle = newTargetTitle.trim()
 
       if (!normalizedTitle) {
-        setValidationError(t('settings.noteTypes.delete.validation.newTargetTitleRequired'))
+        setValidationError(
+          t('settings.noteTypes.delete.validation.newTargetTitleRequired')
+        )
         return
       }
 
@@ -155,7 +161,9 @@ export const DeleteNoteTypeDialog = ({
     }
 
     if (!selectedTargetNoteTypeId) {
-      setValidationError(t('settings.noteTypes.delete.validation.targetRequired'))
+      setValidationError(
+        t('settings.noteTypes.delete.validation.targetRequired')
+      )
       return
     }
 
@@ -169,7 +177,16 @@ export const DeleteNoteTypeDialog = ({
       mode: 'move-notes',
       targetNoteTypeId: selectedTargetNoteTypeId,
     })
-  }, [fieldMappings, mode, newTargetTitle, noteType, onSubmit, selectedTargetNoteTypeId, shouldCreateTargetNoteType, t])
+  }, [
+    fieldMappings,
+    mode,
+    newTargetTitle,
+    noteType,
+    onSubmit,
+    selectedTargetNoteTypeId,
+    shouldCreateTargetNoteType,
+    t,
+  ])
 
   const handleFieldMappingChange = useCallback(
     (sourceColumnId: string, targetColumnId: string) => {
@@ -211,7 +228,9 @@ export const DeleteNoteTypeDialog = ({
           </Stack>
 
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-          {validationError ? <Alert severity="error">{validationError}</Alert> : null}
+          {validationError ? (
+            <Alert severity="error">{validationError}</Alert>
+          ) : null}
 
           <FormControl>
             <RadioGroup
@@ -268,7 +287,10 @@ export const DeleteNoteTypeDialog = ({
                     value={selectedTargetNoteTypeId}
                   >
                     {availableTargetNoteTypes.map((targetNoteType) => (
-                      <MenuItem key={targetNoteType.id} value={targetNoteType.id}>
+                      <MenuItem
+                        key={targetNoteType.id}
+                        value={targetNoteType.id}
+                      >
                         {targetNoteType.title}
                       </MenuItem>
                     ))}
@@ -276,7 +298,8 @@ export const DeleteNoteTypeDialog = ({
                 </FormControl>
               )}
 
-              {targetNoteTypeDetailQuery.isLoading && !shouldCreateTargetNoteType ? (
+              {targetNoteTypeDetailQuery.isLoading &&
+              !shouldCreateTargetNoteType ? (
                 <Stack alignItems="center" direction="row" spacing={1.5}>
                   <CircularProgress size={20} />
                   <Typography color="text.secondary">
@@ -302,7 +325,9 @@ export const DeleteNoteTypeDialog = ({
                   </Alert>
                 ) : shouldCreateTargetNoteType ? (
                   <Alert severity="info">
-                    {t('settings.noteTypes.delete.mapping.emptyTargetForNewType')}
+                    {t(
+                      'settings.noteTypes.delete.mapping.emptyTargetForNewType'
+                    )}
                   </Alert>
                 ) : targetColumns.length === 0 ? (
                   <Alert severity="info">
@@ -321,7 +346,9 @@ export const DeleteNoteTypeDialog = ({
                       <Typography variant="body2">
                         {t('settings.noteTypes.delete.mapping.rowLabel', {
                           sourceTitle: sourceColumn.title,
-                          sourceType: t(`settings.columns.types.${sourceColumn.type}`),
+                          sourceType: t(
+                            `settings.columns.types.${sourceColumn.type}`
+                          ),
                         })}
                       </Typography>
                       <FormControl fullWidth>
@@ -329,7 +356,9 @@ export const DeleteNoteTypeDialog = ({
                           {t('settings.noteTypes.delete.mapping.targetField')}
                         </InputLabel>
                         <Select
-                          label={t('settings.noteTypes.delete.mapping.targetField')}
+                          label={t(
+                            'settings.noteTypes.delete.mapping.targetField'
+                          )}
                           labelId={`mapping-${sourceColumn.id}`}
                           onChange={(event) => {
                             handleFieldMappingChange(
@@ -343,7 +372,10 @@ export const DeleteNoteTypeDialog = ({
                             {t('settings.noteTypes.delete.mapping.unmapped')}
                           </MenuItem>
                           {compatibleTargetColumns.map((targetColumn) => (
-                            <MenuItem key={targetColumn.id} value={targetColumn.id}>
+                            <MenuItem
+                              key={targetColumn.id}
+                              value={targetColumn.id}
+                            >
                               {targetColumn.title}
                             </MenuItem>
                           ))}
@@ -369,7 +401,9 @@ export const DeleteNoteTypeDialog = ({
           }}
           variant="contained"
         >
-          {isPending ? t('settings.noteTypes.delete.submitting') : t('settings.noteTypes.delete.confirm')}
+          {isPending
+            ? t('settings.noteTypes.delete.submitting')
+            : t('settings.noteTypes.delete.confirm')}
         </Button>
       </DialogActions>
     </Dialog>

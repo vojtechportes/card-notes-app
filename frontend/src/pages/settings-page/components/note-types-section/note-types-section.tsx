@@ -29,7 +29,7 @@ import { SettingsSection } from '../settings-section'
 import { DeleteNoteTypeDialog } from './delete-note-type-dialog'
 import { NoteTypeDetailPanel } from './note-type-detail-panel'
 import { NoteTypeDialog } from './note-type-dialog'
-import { formatSettingsDate } from './utils/format-settings-date.util'
+import { formatSettingsDate } from '../../utils/format-settings-date.util'
 
 const noteTemplatesSettingsPath = `/settings/${settingsSubPageRoutes.noteTemplates}`
 

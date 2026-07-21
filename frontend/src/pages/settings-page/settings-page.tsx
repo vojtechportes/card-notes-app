@@ -4,6 +4,7 @@ import { DataManagementSettingsPage } from './components/data-management-setting
 import { ExportImportSettingsPage } from './components/export-import-settings-page/export-import-settings-page'
 import { GeneralSettingsPage } from './components/general-settings-page/general-settings-page'
 import { LegacyNoteTypeSettingsRedirect } from './components/legacy-note-type-settings-redirect/legacy-note-type-settings-redirect'
+import { NoteLabelsSettingsPage } from './components/note-labels-settings-page/note-labels-settings-page'
 import { NoteTemplatesSettingsPage } from './components/note-templates-settings-page/note-templates-settings-page'
 import { UpdatesSettingsPage } from './components/updates-settings-page/updates-settings-page'
 import { settingsSubPageRoutes } from './constants/settings-sub-page-routes'
@@ -29,6 +30,10 @@ export const SettingsPage = () => {
         <Route
           path={`${settingsSubPageRoutes.noteTemplates}/:noteTypeId`}
           element={<NoteTemplatesSettingsPage />}
+        />
+        <Route
+          path={settingsSubPageRoutes.noteLabels}
+          element={<NoteLabelsSettingsPage />}
         />
         <Route
           path={settingsSubPageRoutes.exportImport}

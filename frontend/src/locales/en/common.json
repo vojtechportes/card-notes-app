@@ -22,6 +22,7 @@
     "settingsPages": {
       "general": "General",
       "noteTemplates": "Note templates",
+      "noteLabels": "Note labels",
       "exportImport": "Export / Import",
       "updates": "Updates",
       "dataManagement": "Data Management"

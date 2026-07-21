@@ -129,11 +129,12 @@ describe('App routing', () => {
     expect(
       within(navigation)
         .getAllByRole('link')
-        .slice(-5)
+        .slice(-6)
         .map((link) => link.textContent)
     ).toEqual([
       'General',
       'Note templates',
+      'Note labels',
       'Export / Import',
       'Updates',
       'Data Management',
@@ -152,6 +153,20 @@ describe('App routing', () => {
       expect(window.location.hash).toBe('#/settings/note-templates')
     )
 
+    openNavigation()
+    fireEvent.click(screen.getByRole('link', { name: 'Note labels' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Note labels' })
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Create reusable shared or note-template-specific labels for organizing your notes.'
+      )
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(window.location.hash).toBe('#/settings/note-labels')
+    )
     openNavigation()
     fireEvent.click(screen.getByRole('link', { name: 'Export / Import' }))
 
@@ -195,7 +210,7 @@ describe('App routing', () => {
     await waitFor(() =>
       expect(window.location.hash).toBe('#/settings/data-management')
     )
-  })
+  }, 10000)
 
   it('updates the route when navigation links are clicked', async () => {
     render(<App />)

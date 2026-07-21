@@ -459,7 +459,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Treat empty source selection as all sources and validate explicit shared/note-template sources.
   - Store label field note values as label ID arrays and validate existence, allowed sources, uniqueness, and selection cardinality.
 
-- [ ] T92. Add the Settings > Note labels page
+- [x] T92. Add the Settings > Note labels page
   - Add the routed Settings sub-page and navigation entry after Note templates.
   - Render a data grid with Label title, Label name, Note template, Created at, Updated at, and row actions.
   - Render label titles with MUI Chip using the default filled variant and small size.

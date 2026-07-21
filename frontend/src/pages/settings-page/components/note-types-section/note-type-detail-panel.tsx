@@ -1,9 +1,15 @@
-import { Alert, CircularProgress, Divider, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  CircularProgress,
+  Divider,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import type { NoteTypeDetailDto } from '../../../../types/api'
 import { ColumnsSection } from '../columns-section/columns-section'
 import { NoteTypeMetadataItem } from './note-type-metadata-item'
-import { formatSettingsDate } from './utils/format-settings-date.util'
+import { formatSettingsDate } from '../../utils/format-settings-date.util'
 
 interface NoteTypeDetailPanelProps {
   noteType?: NoteTypeDetailDto
@@ -34,7 +40,9 @@ export const NoteTypeDetailPanel = ({
   if (isError || !noteType) {
     return (
       <Stack sx={{ p: 3 }}>
-        <Alert severity="error">{t('settings.noteTypes.drawer.status.error')}</Alert>
+        <Alert severity="error">
+          {t('settings.noteTypes.drawer.status.error')}
+        </Alert>
       </Stack>
     )
   }
