@@ -443,6 +443,59 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
   - Add Updates to the Settings submenu immediately before Data Management.
   - Preserve the existing updater behavior and verify the new route and navigation.
 
+## Phase 9: Note Labels
+
+Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
+
+- [ ] T90. Add the labels domain and persistence
+  - Add shared and note-template-specific labels with `id`, `title`, source-scoped unique `name`, color, nullable `noteTypeId`, `createdAt`, and `updatedAt`.
+  - Add an idempotent SQLite migration with separate uniqueness enforcement for shared and template-owned label names.
+  - Use `uuid/v4` for generated label IDs and keep persistence/services owned by the Settings domain.
+  - Define transactional label and note-template deletion behavior so note values never retain dangling label IDs.
+
+- [ ] T91. Add backend label APIs and label field contracts
+  - Expose Swagger-backed CRUD endpoints for labels, including stable validation, conflict, and not-found responses.
+  - Add `labels` to `ColumnTypeEnum` and add Settings-owned configuration for single/multiple selection and allowed label sources.
+  - Treat empty source selection as all sources and validate explicit shared/note-template sources.
+  - Store label field note values as label ID arrays and validate existence, allowed sources, uniqueness, and selection cardinality.
+
+- [ ] T92. Add the Settings > Note labels page
+  - Add the routed Settings sub-page and navigation entry after Note templates.
+  - Render a data grid with Label title, Label name, Note template, Created at, Updated at, and row actions.
+  - Render label titles with MUI Chip using the default filled variant and small size.
+  - Add localized create/update dialogs with title, name, shared/template source, color selection, and live Chip preview.
+  - Require confirmation before label deletion and refresh affected label/note queries.
+
+- [ ] T93. Add Labels field configuration to Note templates
+  - Add Labels to the field type selector.
+  - Let users choose single or multiple labels and select zero or more shared/note-template sources.
+  - Explain that no selected source means all sources are available.
+  - Keep the configuration UI in a focused component and keep validation/mapping utilities one function per file.
+
+- [ ] T94. Add label assignment and rendering to notes
+  - Add source-filtered single/multiple label controls to note create/edit forms.
+  - Render assigned labels as small filled colored Chips on note cards and in note details.
+  - Index current label titles/names in MiniSearch and handle missing label references without crashing.
+  - Keep components slim and extract distinct input, Chip, list, and configuration responsibilities where useful.
+
+- [ ] T95. Add label JSON export/import and XLSX exclusion
+  - Increment the JSON export format, include label definitions/configuration/assignments, and keep the immediately previous JSON format importable as label-free data.
+  - Import note templates and labels in dependency order, remap IDs, reuse source/name matches, and keep imports append-only.
+  - Validate and report conflicting/invalid label data without deleting existing data.
+  - Exclude Labels fields from XLSX mapping and never infer or create labels from XLSX cells.
+
+- [ ] T96. Add advanced label filters
+  - Extend the existing Notes advanced filters with label selection and an explicit AND/OR match mode.
+  - Define AND across all selected labels and OR across any selected label, evaluated across all Labels fields on a note.
+  - Combine note-template and label filters with AND while preserving text search and sorting.
+  - Render filter choices/summaries as small filled Chips and add focused matching utility tests.
+
+- [ ] T97. Verify note labels end to end
+  - Cover migration, uniqueness, CRUD, deletion cleanup, source/cardinality validation, template moves, and import/export on the backend.
+  - Cover Settings navigation/grid/dialogs, Labels field configuration, note form/rendering/search, and AND/OR filtering on the frontend.
+  - Regenerate Swagger types, run Prettier on all modified files, run affected lint/tests/builds, and verify the root build.
+  - Mark T90-T97 done only after their behavior and verification checklist have landed.
+
 ## Misc tasks
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo
