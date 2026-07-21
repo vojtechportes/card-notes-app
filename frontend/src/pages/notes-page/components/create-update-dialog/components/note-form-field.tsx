@@ -81,6 +81,7 @@ export const NoteFormField = ({
       name={fieldName}
       render={({ field, fieldState }) => (
         <TextField
+          size="small"
           autoFocus={autoFocus}
           error={!!fieldState.error}
           fullWidth

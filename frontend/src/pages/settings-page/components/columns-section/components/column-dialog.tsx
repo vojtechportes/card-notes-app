@@ -150,6 +150,7 @@ export const ColumnDialog = ({
               name="title"
               render={({ field }) => (
                 <TextField
+                  size="small"
                   autoFocus
                   error={!!errors.title}
                   fullWidth
@@ -166,6 +167,7 @@ export const ColumnDialog = ({
               name="name"
               render={({ field }) => (
                 <TextField
+                  size="small"
                   disabled={isDefaultColumn}
                   error={!!errors.name}
                   fullWidth
@@ -185,11 +187,12 @@ export const ColumnDialog = ({
               control={control}
               name="type"
               render={({ field }) => (
-                <FormControl error={!!errors.type} fullWidth>
+                <FormControl size="small" error={!!errors.type} fullWidth>
                   <InputLabel id={`${formId}-type-label`}>
                     {t('settings.columns.fields.type')}
                   </InputLabel>
                   <Select
+                    size="small"
                     disabled={isDefaultColumn}
                     label={t('settings.columns.fields.type')}
                     labelId={`${formId}-type-label`}
@@ -219,6 +222,7 @@ export const ColumnDialog = ({
                   <FormControlLabel
                     control={
                       <Switch
+                        size="small"
                         checked={field.value}
                         onChange={(_, checked) => field.onChange(checked)}
                       />
@@ -240,6 +244,7 @@ export const ColumnDialog = ({
                 <FormControlLabel
                   control={
                     <Switch
+                      size="small"
                       checked={field.value}
                       onChange={(_, checked) => field.onChange(checked)}
                     />

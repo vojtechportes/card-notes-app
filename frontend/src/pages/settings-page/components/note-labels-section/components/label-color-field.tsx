@@ -29,6 +29,7 @@ export const LabelColorField = ({
   return (
     <Stack alignItems="flex-start" direction="row" spacing={1.5}>
       <TextField
+        size="small"
         {...field}
         error={Boolean(error)}
         fullWidth

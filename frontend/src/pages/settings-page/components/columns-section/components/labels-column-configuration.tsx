@@ -37,7 +37,7 @@ export const LabelsColumnConfiguration = ({
 
   return (
     <Stack spacing={2}>
-      <FormControl error={Boolean(errors.allowMultipleLabels)}>
+      <FormControl size="small" error={Boolean(errors.allowMultipleLabels)}>
         <Typography component="span" variant="body2">
           {t('settings.columns.labelsConfiguration.selectionMode')}
         </Typography>
@@ -51,14 +51,14 @@ export const LabelsColumnConfiguration = ({
               value={field.value ? 'multiple' : 'single'}
             >
               <FormControlLabel
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={t(
                   'settings.columns.labelsConfiguration.selection.single'
                 )}
                 value="single"
               />
               <FormControlLabel
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={t(
                   'settings.columns.labelsConfiguration.selection.multiple'
                 )}
@@ -77,6 +77,7 @@ export const LabelsColumnConfiguration = ({
         name="labelSourceIds"
         render={({ field }) => (
           <FormControl
+            size="small"
             disabled={noteTypesQuery.isLoading || noteTypesQuery.isError}
             error={Boolean(errors.labelSourceIds)}
             fullWidth
@@ -85,6 +86,7 @@ export const LabelsColumnConfiguration = ({
               {t('settings.columns.labelsConfiguration.sources')}
             </InputLabel>
             <Select
+              size="small"
               displayEmpty
               label={t('settings.columns.labelsConfiguration.sources')}
               labelId="label-field-sources-label"
@@ -114,6 +116,7 @@ export const LabelsColumnConfiguration = ({
             >
               <MenuItem value={sharedLabelSourceValue}>
                 <Checkbox
+                  size="small"
                   checked={field.value.includes(sharedLabelSourceValue)}
                 />
                 <ListItemText
@@ -122,7 +125,10 @@ export const LabelsColumnConfiguration = ({
               </MenuItem>
               {noteTypes.map((noteType) => (
                 <MenuItem key={noteType.id} value={noteType.id}>
-                  <Checkbox checked={field.value.includes(noteType.id)} />
+                  <Checkbox
+                    size="small"
+                    checked={field.value.includes(noteType.id)}
+                  />
                   <ListItemText primary={noteType.title} />
                 </MenuItem>
               ))}

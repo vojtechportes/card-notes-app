@@ -28,6 +28,7 @@ export const NoteTypeSelectField = ({
         {t('notes.createUpdateDialog.noteType.label')}
       </InputLabel>
       <Select
+        size="small"
         disabled={disabled}
         id={selectId}
         label={t('notes.createUpdateDialog.noteType.label')}

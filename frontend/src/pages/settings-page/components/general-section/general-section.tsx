@@ -140,6 +140,7 @@ export const GeneralSection = () => {
             name="textTruncationLength"
             render={({ field }) => (
               <TextField
+                size="small"
                 error={!!errors.textTruncationLength}
                 fullWidth
                 helperText={
@@ -170,6 +171,7 @@ export const GeneralSection = () => {
             name="cardFieldDisplayCount"
             render={({ field }) => (
               <TextField
+                size="small"
                 error={!!errors.cardFieldDisplayCount}
                 fullWidth
                 helperText={
@@ -207,7 +209,7 @@ export const GeneralSection = () => {
                   setIsSaved(false)
                   field.onChange(event)
                 }}
-                control={<Switch checked={field.value} />}
+                control={<Switch size="small" checked={field.value} />}
                 label={t('settings.general.fields.mergeDateTimeFields')}
               />
             )}
