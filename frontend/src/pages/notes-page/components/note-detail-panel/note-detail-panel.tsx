@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type {
   ColumnDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteDto,
 } from '../../../../types/api'
 import { getNoteDetailFields } from '../../utils/get-note-detail-fields.util'
@@ -12,6 +13,7 @@ import { NoteFieldValue } from '../note-field-value/note-field-value'
 interface NoteDetailPanelProps {
   columns: ColumnDto[]
   generalSettings: GeneralSettingsDto
+  labels: LabelDto[]
   note: NoteDto
   noteTypeColumnsById?: Record<string, ColumnDto[]>
   noteTypeTitle?: string
@@ -20,6 +22,7 @@ interface NoteDetailPanelProps {
 export const NoteDetailPanel = ({
   columns,
   generalSettings,
+  labels,
   note,
   noteTypeColumnsById,
   noteTypeTitle,
@@ -63,6 +66,7 @@ export const NoteDetailPanel = ({
               enableImageOverlay
               field={field}
               imagePreviewMaxWidth={520}
+              labels={labels}
               textTruncationLength={generalSettings.textTruncationLength}
             />
           </NoteDetailItem>
@@ -71,4 +75,3 @@ export const NoteDetailPanel = ({
     </Stack>
   )
 }
-

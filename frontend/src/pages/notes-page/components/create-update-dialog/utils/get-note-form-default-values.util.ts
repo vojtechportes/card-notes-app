@@ -12,6 +12,15 @@ export const getNoteFormDefaultValues = (
   const values = columns.reduce<FormValues['values']>((accumulator, column) => {
     const value = note?.values[column.id]
 
+    if (column.type === 'labels') {
+      accumulator[column.id] = Array.isArray(value)
+        ? value.filter(
+            (labelId): labelId is string => typeof labelId === 'string'
+          )
+        : []
+      return accumulator
+    }
+
     if (column.type === 'image') {
       if (isMultiImageColumn(column)) {
         accumulator[column.id] = isNoteImageValueList(value)

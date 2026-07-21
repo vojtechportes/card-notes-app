@@ -17,6 +17,10 @@ export const hasRenderableNoteCardValue = (
     return Number.isFinite(value)
   }
 
+  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+    return value.length > 0
+  }
+
   if (isNoteImageValueList(value)) {
     return value.some(hasRenderableNoteCardValue)
   }

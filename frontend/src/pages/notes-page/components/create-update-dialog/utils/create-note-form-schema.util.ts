@@ -11,6 +11,27 @@ export const createNoteFormSchema = (
   const valueShape = columns.reduce<Record<string, yup.Schema<unknown>>>(
     (accumulator, column) => {
       switch (column.type) {
+        case 'labels':
+          accumulator[column.id] = yup
+            .array()
+            .of(yup.string().defined())
+            .defined()
+            .test(
+              'has-unique-labels',
+              t('notes.createUpdateDialog.errors.duplicateLabels'),
+              (value) => new Set(value).size === value.length
+            )
+            .test(
+              'has-valid-cardinality',
+              t('notes.createUpdateDialog.errors.tooManyLabels'),
+              (value) =>
+                column.config &&
+                typeof column.config === 'object' &&
+                column.config.allowMultiple === true
+                  ? true
+                  : value.length <= 1
+            )
+          break
         case 'number':
           accumulator[column.id] = yup
             .string()

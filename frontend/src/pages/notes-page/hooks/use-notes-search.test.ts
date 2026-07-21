@@ -57,4 +57,44 @@ describe('useNotesSearch', () => {
 
     expect(result.current).toEqual([])
   })
+
+  it('rebuilds search results when assigned label metadata changes', () => {
+    const notes = [
+      {
+        ...createNote('note-1', 'note-type-1', 'Plain note'),
+        values: { labels: ['label-1'] },
+      },
+    ]
+    const initialLabels = [
+      {
+        color: '#0070F2',
+        createdAt: '2026-07-21T10:00:00.000Z',
+        id: 'label-1',
+        name: 'priority',
+        noteTypeId: null,
+        title: 'Priority',
+        updatedAt: '2026-07-21T10:00:00.000Z',
+      },
+    ]
+
+    const { result, rerender } = renderHook(
+      ({ labels, searchQuery }) =>
+        useNotesSearch(notes, searchQuery, {}, labels),
+      {
+        initialProps: {
+          labels: initialLabels,
+          searchQuery: 'priority',
+        },
+      }
+    )
+
+    expect(result.current).toEqual(notes)
+
+    rerender({
+      labels: [{ ...initialLabels[0], name: 'urgent', title: 'Urgent' }],
+      searchQuery: 'priority',
+    })
+
+    expect(result.current).toEqual([])
+  })
 })

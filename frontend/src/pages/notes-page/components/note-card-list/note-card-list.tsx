@@ -4,6 +4,7 @@ import { Masonry } from '../../../../components/masonry/masonry'
 import type {
   ColumnDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteDto,
 } from '../../../../types/api'
 import { NoteCard } from '../note-card/note-card'
@@ -11,6 +12,7 @@ import { NoteCard } from '../note-card/note-card'
 interface NoteCardListProps {
   columns: ColumnDto[]
   generalSettings: GeneralSettingsDto
+  labels?: LabelDto[]
   noteTypeColumnsById?: Record<string, ColumnDto[]>
   notes: NoteDto[]
   onDeleteNote?: (note: NoteDto) => void
@@ -22,6 +24,7 @@ interface NoteCardListProps {
 export const NoteCardList = ({
   columns,
   generalSettings,
+  labels = [],
   noteTypeColumnsById,
   notes,
   onDeleteNote,
@@ -56,6 +59,7 @@ export const NoteCardList = ({
           columns={noteTypeColumnsById?.[note.noteTypeId] ?? columns}
           generalSettings={generalSettings}
           isSelected={note.id === selectedNoteId}
+          labels={labels}
           note={note}
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}

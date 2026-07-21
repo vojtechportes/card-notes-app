@@ -10,6 +10,20 @@ export const mapFormValuesToCreateNoteDto = (
     (accumulator, column) => {
       const value = formValues.values[column.id]
 
+      if (column.type === 'labels') {
+        if (Array.isArray(value) && value.length > 0) {
+          accumulator[column.id] = [
+            ...new Set(
+              value.filter(
+                (labelId): labelId is string => typeof labelId === 'string'
+              )
+            ),
+          ]
+        }
+
+        return accumulator
+      }
+
       if (column.type === 'image') {
         if (value) {
           accumulator[column.id] = value

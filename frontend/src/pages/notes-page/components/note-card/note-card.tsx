@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import type {
   ColumnDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteDto,
 } from '../../../../types/api'
 import { getNoteCardFields } from '../../utils/get-note-card-fields.util'
@@ -27,6 +28,7 @@ interface NoteCardProps {
   columns: ColumnDto[]
   generalSettings: GeneralSettingsDto
   isSelected?: boolean
+  labels: LabelDto[]
   note: NoteDto
   onDeleteNote?: (note: NoteDto) => void
   onEditNote?: (note: NoteDto) => void
@@ -67,6 +69,7 @@ export const NoteCard = ({
   columns,
   generalSettings,
   isSelected = false,
+  labels,
   note,
   onDeleteNote,
   onEditNote,
@@ -233,6 +236,7 @@ export const NoteCard = ({
                 <NoteCardFieldValue
                   emptyImageLabel={t('notes.card.imagePreviewUnavailable')}
                   field={field}
+                  labels={labels}
                   textTruncationLength={generalSettings.textTruncationLength}
                 />
               </Stack>

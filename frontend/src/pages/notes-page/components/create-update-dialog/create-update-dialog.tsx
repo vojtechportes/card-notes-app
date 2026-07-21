@@ -13,6 +13,7 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { NoteDto } from '../../../../types/api'
 import { createFormResolver } from '../../../../utils/create-form-resolver.util'
+import { useLabelsQuery } from '../../../settings-page/hooks/use-labels-query'
 import { useNoteTypesQuery } from '../../../settings-page/hooks/use-note-types-query'
 import { useNoteColumnsQuery } from '../../hooks/use-note-columns-query'
 import {
@@ -51,6 +52,7 @@ export const CreateUpdateDialog = ({
   const formId = useId().replace(/:/g, '-')
   const initializationKeyRef = useRef<string | null>(null)
   const noteTypesQuery = useNoteTypesQuery()
+  const labelsQuery = useLabelsQuery()
   const activeNoteTypeId =
     mode === 'update' ? note?.noteTypeId : selectedCreateNoteTypeId
   const noteColumnsQuery = useNoteColumnsQuery(activeNoteTypeId)
@@ -87,6 +89,11 @@ export const CreateUpdateDialog = ({
     createNoteMutation.isPending ||
     updateNoteMutation.isPending
   const hasColumnsError = noteColumnsQuery.isError
+  const hasLabelsColumn = editableColumns.some(
+    (column) => column.type === 'labels'
+  )
+  const hasLabelsError = hasLabelsColumn && labelsQuery.isError
+  const isLabelsLoading = hasLabelsColumn && labelsQuery.isLoading
   const hasMissingNote = mode === 'update' && !note
   const hasMissingNoteType = mode === 'create' && !activeNoteTypeId
   const hasNoteTypesError = mode === 'create' && noteTypesQuery.isError
@@ -246,6 +253,14 @@ export const CreateUpdateDialog = ({
                 <Alert severity="error">
                   {t('notes.createUpdateDialog.status.columnsError')}
                 </Alert>
+              ) : isLabelsLoading ? (
+                <Typography color="text.secondary">
+                  {t('notes.createUpdateDialog.status.loadingLabels')}
+                </Typography>
+              ) : hasLabelsError ? (
+                <Alert severity="error">
+                  {t('notes.createUpdateDialog.status.labelsError')}
+                </Alert>
               ) : editableColumns.length === 0 ? (
                 <Typography color="text.secondary">
                   {t('notes.createUpdateDialog.emptyEditableColumns')}
@@ -255,6 +270,7 @@ export const CreateUpdateDialog = ({
                   clearErrors={clearErrors}
                   columns={editableColumns}
                   control={control}
+                  labels={labelsQuery.data ?? []}
                   setError={setError}
                 />
               )}
@@ -274,6 +290,8 @@ export const CreateUpdateDialog = ({
             hasNoteTypesError ||
             noteColumnsQuery.isLoading ||
             hasColumnsError ||
+            isLabelsLoading ||
+            hasLabelsError ||
             hasMissingNote ||
             hasMissingNoteType
           }
