@@ -12,11 +12,15 @@ import {
 import type { SelectChangeEvent } from '@mui/material/Select'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ImportUnmatchedFieldDto } from '../../../../types/api'
+import type {
+  ImportLabelIssueDto,
+  ImportUnmatchedFieldDto,
+} from '../../../../types/api'
 import { useExportDataMutation } from '../../hooks/use-export-data-mutation'
 import { useImportDataMutation } from '../../hooks/use-import-data-mutation'
 import { useNoteTypesQuery } from '../../hooks/use-note-types-query'
 import { SettingsSection } from '../settings-section'
+import { LabelImportIssuesAlert } from './components/label-import-issues-alert/label-import-issues-alert'
 import { createExportFileName } from './utils/create-export-file-name.util'
 import { createImportSuccessMessage } from './utils/create-import-success-message.util'
 import { formatUnmatchedFieldLabel } from './utils/format-unmatched-field-label.util'
@@ -33,6 +37,7 @@ export const ExportImportSection = () => {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedTargetNoteTypeId, setSelectedTargetNoteTypeId] = useState('')
+  const [labelIssues, setLabelIssues] = useState<ImportLabelIssueDto[]>([])
   const [unmatchedFields, setUnmatchedFields] = useState<
     ImportUnmatchedFieldDto[]
   >([])
@@ -74,6 +79,7 @@ export const ExportImportSection = () => {
 
   const handleExport = useCallback(async () => {
     setFeedback(null)
+    setLabelIssues([])
     setUnmatchedFields([])
 
     try {
@@ -108,6 +114,7 @@ export const ExportImportSection = () => {
       const nextFile = event.target.files?.[0] ?? null
 
       setFeedback(null)
+      setLabelIssues([])
       setSelectedFile(nextFile)
       setSelectedTargetNoteTypeId('')
       setUnmatchedFields([])
@@ -140,6 +147,7 @@ export const ExportImportSection = () => {
     }
 
     setFeedback(null)
+    setLabelIssues([])
     setUnmatchedFields([])
 
     try {
@@ -152,6 +160,7 @@ export const ExportImportSection = () => {
         message: createImportSuccessMessage(t, importResult),
         severity: 'success',
       })
+      setLabelIssues(importResult.labelIssues)
       setUnmatchedFields(importResult.unmatchedFields)
       resetFileSelection()
     } catch {
@@ -179,6 +188,8 @@ export const ExportImportSection = () => {
         {feedback ? (
           <Alert severity={feedback.severity}>{feedback.message}</Alert>
         ) : null}
+
+        <LabelImportIssuesAlert issues={labelIssues} />
 
         {unmatchedFields.length > 0 ? (
           <Alert severity="warning">

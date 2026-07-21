@@ -12,6 +12,8 @@ export const createImportSuccessMessage = (
   return t('settings.exportImport.status.imported', {
     generalSettingsStatus,
     importedColumns: result.importedColumns,
+    importedLabels: result.importedLabels,
+    reusedLabels: result.reusedLabels,
     importedNotes: result.importedNotes,
   })
 }

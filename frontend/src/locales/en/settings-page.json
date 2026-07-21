@@ -106,7 +106,7 @@
       "status": {
         "fileSelected": "Selected file: {{fileName}}",
         "exported": "JSON export was downloaded.",
-        "imported": "Import completed. Processed {{importedColumns}} fields and appended {{importedNotes}} notes. General settings {{generalSettingsStatus}}.",
+        "imported": "Import completed. Processed {{importedColumns}} fields, created {{importedLabels}} labels, reused {{reusedLabels}} labels, and appended {{importedNotes}} notes. General settings {{generalSettingsStatus}}.",
         "generalSettingsUpdated": "were updated",
         "generalSettingsUnchanged": "were left unchanged",
         "loadingNoteTypes": "Loading note templates..."
@@ -118,6 +118,17 @@
         "import": "The selected data could not be imported right now.",
         "noteTypes": "Note templates could not be loaded right now.",
         "targetRequired": "Choose a target note template before importing an XLSX file."
+      },
+      "labelIssues": {
+        "summary": "Some label data could not be imported and was skipped:",
+        "unknownLabel": "Unknown label",
+        "codes": {
+          "duplicate-id": "{{label}} uses a duplicate label ID.",
+          "duplicate-source-name": "{{label}} duplicates another label name in the same source.",
+          "invalid-definition": "{{label}} has an invalid definition.",
+          "invalid-reference": "{{label}} references a missing or disallowed label.",
+          "unknown-source": "{{label}} references an unknown note template."
+        }
       },
       "unmatchedFields": {
         "summary": "Some imported fields could not be matched and were skipped:",

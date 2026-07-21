@@ -7,6 +7,9 @@ import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { NotesService } from '../../../src/modules/notes/notes.service'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
 import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
+import { LabelsRepository } from '../../../src/modules/settings/labels.repository'
+import { LabelsService } from '../../../src/modules/settings/labels.service'
+import { NoteTypesRepository } from '../../../src/modules/settings/note-types.repository'
 import { SettingsService } from '../../../src/modules/settings/settings.service'
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum'
 
@@ -17,6 +20,15 @@ let exportImportService: ExportImportService
 
 const getDefaultNoteTypeId = (): string =>
   settingsService.getDefaultNoteType().id
+
+const createLabelsService = (
+  targetDatabaseService: DatabaseService
+): LabelsService => {
+  return new LabelsService(
+    new LabelsRepository(targetDatabaseService),
+    new NoteTypesRepository(targetDatabaseService)
+  )
+}
 
 const createSpreadsheetBuffer = async (
   configure: (workbook: Workbook) => void
@@ -61,7 +73,8 @@ const createServices = () => {
 
   const sourceNotesService = new NotesService(
     new NotesRepository(sourceDatabaseService),
-    sourceSettingsService
+    sourceSettingsService,
+    createLabelsService(sourceDatabaseService)
   )
 
   const sourceExportImportService = new ExportImportService(
@@ -89,7 +102,8 @@ beforeEach(() => {
   settingsService.onModuleInit()
   notesService = new NotesService(
     new NotesRepository(databaseService),
-    settingsService
+    settingsService,
+    createLabelsService(databaseService)
   )
   exportImportService = new ExportImportService(
     databaseService,
@@ -103,7 +117,7 @@ afterEach(() => {
 })
 
 describe(ExportImportService.name, () => {
-  it('exports a Phase 7 payload with note types, scoped columns, settings, and notes', () => {
+  it('exports a version 3 payload with note types, scoped columns, settings, and notes', () => {
     const books = settingsService.createNoteType({ title: 'Books' })
     const defaultSummaryColumn = settingsService.createColumn({
       name: 'summary',
@@ -133,7 +147,7 @@ describe(ExportImportService.name, () => {
 
     const exportedData = exportImportService.exportData()
 
-    expect(exportedData.version).toBe(2)
+    expect(exportedData.version).toBe(3)
     expect(
       exportedData.noteTypes.map((noteType) => noteType.title).sort()
     ).toEqual(['Books', 'Default'])
@@ -194,7 +208,10 @@ describe(ExportImportService.name, () => {
 
       expect(result).toEqual({
         importedColumns: exportData.columns.length,
+        importedLabels: 0,
+        reusedLabels: 0,
         importedNotes: 2,
+        labelIssues: [],
         unmatchedFields: [],
         updatedGeneralSettings: true,
       })
@@ -306,7 +323,10 @@ describe(ExportImportService.name, () => {
 
     expect(result).toEqual({
       importedColumns: 1,
+      importedLabels: 0,
+      reusedLabels: 0,
       importedNotes: 1,
+      labelIssues: [],
       unmatchedFields: [
         {
           name: 'missingHeader',
@@ -429,7 +449,10 @@ describe(ExportImportService.name, () => {
 
       expect(result).toEqual({
         importedColumns: 4,
+        importedLabels: 0,
+        reusedLabels: 0,
         importedNotes: 0,
+        labelIssues: [],
         unmatchedFields: [
           {
             name: 'rating',
@@ -595,5 +618,346 @@ describe(ExportImportService.name, () => {
         ],
       })
     ).toThrow(BadRequestException)
+  })
+  it('round-trips label definitions, field sources, and note assignments', () => {
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const sourceLabelsService = createLabelsService(sourceDatabaseService)
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const sharedLabel = sourceLabelsService.createLabel({
+        title: 'Important',
+        name: 'important',
+        color: '#AA0000',
+        noteTypeId: null,
+      })
+      const bookLabel = sourceLabelsService.createLabel({
+        title: 'Fiction',
+        name: 'fiction',
+        color: '#0000AA',
+        noteTypeId: books.id,
+      })
+      const labelsColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'labels',
+        title: 'Labels',
+        type: ColumnTypeEnum.Labels,
+        config: {
+          allowMultiple: true,
+          sources: {
+            includeShared: true,
+            noteTypeIds: [books.id],
+          },
+        },
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: { [labelsColumn.id]: [sharedLabel.id, bookLabel.id] },
+      })
+
+      const exportedData = sourceExportImportService.exportData()
+      const result = exportImportService.importData(exportedData)
+      const importedBooks = settingsService
+        .listNoteTypes()
+        .find((noteType) => noteType.title === 'Books')
+      const importedLabels = createLabelsService(databaseService).listLabels()
+      const importedColumn = importedBooks
+        ? settingsService
+            .listColumns(importedBooks.id)
+            .find((column) => column.name === 'labels')
+        : undefined
+      const importedNote = notesService
+        .listNotes()
+        .find((note) => note.noteTypeId === importedBooks?.id)
+
+      expect(exportedData.version).toBe(3)
+      expect(exportedData.labels).toHaveLength(2)
+      expect(result.importedLabels).toBe(2)
+      expect(result.reusedLabels).toBe(0)
+      expect(result.labelIssues).toEqual([])
+      expect(importedLabels).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'important', noteTypeId: null }),
+          expect.objectContaining({
+            name: 'fiction',
+            noteTypeId: importedBooks?.id,
+          }),
+        ])
+      )
+      expect(importedColumn?.config).toEqual({
+        allowMultiple: true,
+        sources: {
+          includeShared: true,
+          noteTypeIds: [importedBooks?.id],
+        },
+      })
+      expect(importedNote?.values[importedColumn?.id ?? 'missing']).toEqual(
+        expect.arrayContaining(importedLabels.map((label) => label.id))
+      )
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
+
+  it('reuses existing labels by mapped source and name without overwriting metadata', () => {
+    const existingLabel = createLabelsService(databaseService).createLabel({
+      title: 'Local title',
+      name: 'important',
+      color: '#123456',
+      noteTypeId: null,
+    })
+    const payload = exportImportService.exportData()
+
+    payload.labels = [
+      {
+        ...existingLabel,
+        id: 'imported-label-id',
+        title: 'Imported title',
+        color: '#ABCDEF',
+      },
+    ]
+
+    const result = exportImportService.importData(payload)
+    const labels = createLabelsService(databaseService).listLabels()
+
+    expect(result.importedLabels).toBe(0)
+    expect(result.reusedLabels).toBe(1)
+    expect(labels).toHaveLength(1)
+    expect(labels[0]).toMatchObject({
+      id: existingLabel.id,
+      title: 'Local title',
+      color: '#123456',
+    })
+  })
+
+  it('imports version 2 payloads as label-free data', () => {
+    const payload = exportImportService.exportData()
+    const versionTwoPayload = {
+      version: 2,
+      exportedAt: payload.exportedAt,
+      noteTypes: payload.noteTypes,
+      columns: payload.columns,
+      generalSettings: payload.generalSettings,
+      notes: payload.notes,
+    }
+
+    const result = exportImportService.importData(versionTwoPayload)
+
+    expect(result.importedLabels).toBe(0)
+    expect(result.reusedLabels).toBe(0)
+    expect(result.labelIssues).toEqual([])
+  })
+
+  it('reports invalid label definitions and references without deleting existing data', () => {
+    const existingLabel = createLabelsService(databaseService).createLabel({
+      title: 'Existing',
+      name: 'existing',
+      color: '#123456',
+      noteTypeId: null,
+    })
+    const labelsColumn = settingsService.createColumn({
+      name: 'labels',
+      title: 'Labels',
+      type: ColumnTypeEnum.Labels,
+      config: { allowMultiple: true, sources: null },
+    })
+    const payload = exportImportService.exportData()
+
+    payload.labels = [
+      {
+        id: 'invalid-label',
+        title: 'Invalid',
+        name: 'invalid',
+        color: 'red',
+        noteTypeId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]
+    payload.notes = [
+      {
+        id: 'imported-note',
+        noteTypeId: getDefaultNoteTypeId(),
+        values: { [labelsColumn.id]: ['invalid-label'] },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]
+
+    const result = exportImportService.importData(payload)
+
+    expect(result.labelIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          labelId: 'invalid-label',
+          code: 'invalid-definition',
+        }),
+        expect.objectContaining({
+          labelId: 'invalid-label',
+          code: 'invalid-reference',
+        }),
+      ])
+    )
+    expect(createLabelsService(databaseService).listLabels()).toEqual([
+      existingLabel,
+    ])
+  })
+
+  it('excludes labels fields from xlsx mapping and reports their headers', async () => {
+    const labelsColumn = settingsService.createColumn({
+      name: 'labels',
+      title: 'Labels',
+      type: ColumnTypeEnum.Labels,
+      config: { allowMultiple: true, sources: null },
+    })
+    const spreadsheetBuffer = await createSpreadsheetBuffer((workbook) => {
+      const worksheet = workbook.addWorksheet('Import')
+
+      worksheet.addRow([labelsColumn.name])
+      worksheet.addRow(['important'])
+    })
+
+    const result = await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer,
+      getDefaultNoteTypeId()
+    )
+
+    expect(result.importedColumns).toBe(0)
+    expect(result.importedNotes).toBe(0)
+    expect(result.unmatchedFields).toEqual([
+      {
+        name: 'labels',
+        noteTypeTitle: null,
+        title: null,
+        type: null,
+      },
+    ])
+    expect(createLabelsService(databaseService).listLabels()).toEqual([])
+  })
+  it('maps template-owned labels to a selected target note type', () => {
+    const targetNoteType = settingsService.createNoteType({ title: 'Library' })
+    const targetLabelsColumn = settingsService.createColumn(targetNoteType.id, {
+      name: 'labels',
+      title: 'Labels',
+      type: ColumnTypeEnum.Labels,
+      config: { allowMultiple: true, sources: null },
+    })
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const sourceLabelsService = createLabelsService(sourceDatabaseService)
+      const books = sourceSettingsService.createNoteType({ title: 'Books' })
+      const magazines = sourceSettingsService.createNoteType({
+        title: 'Magazines',
+      })
+      const fictionLabel = sourceLabelsService.createLabel({
+        title: 'Fiction',
+        name: 'fiction',
+        color: '#0000AA',
+        noteTypeId: books.id,
+      })
+      const sourceLabelsColumn = sourceSettingsService.createColumn(books.id, {
+        name: 'labels',
+        title: 'Labels',
+        type: ColumnTypeEnum.Labels,
+        config: {
+          allowMultiple: true,
+          sources: {
+            includeShared: false,
+            noteTypeIds: [books.id, magazines.id],
+          },
+        },
+      })
+
+      sourceNotesService.createNote({
+        noteTypeId: books.id,
+        values: { [sourceLabelsColumn.id]: [fictionLabel.id] },
+      })
+
+      const result = exportImportService.importData(
+        sourceExportImportService.exportData(),
+        { targetNoteTypeId: targetNoteType.id }
+      )
+      const importedLabel = createLabelsService(databaseService)
+        .listLabels()
+        .find((label) => label.name === 'fiction')
+      const importedNote = notesService
+        .listNotes()
+        .find((note) => note.noteTypeId === targetNoteType.id)
+
+      expect(result.importedLabels).toBe(1)
+      expect(importedLabel?.noteTypeId).toBe(targetNoteType.id)
+      expect(importedNote?.values[targetLabelsColumn.id]).toEqual([
+        importedLabel?.id,
+      ])
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
+  it('does not downgrade an existing labels column with multi-label values', () => {
+    const labelsService = createLabelsService(databaseService)
+    const firstLabel = labelsService.createLabel({
+      title: 'First',
+      name: 'first',
+      color: '#111111',
+      noteTypeId: null,
+    })
+    const secondLabel = labelsService.createLabel({
+      title: 'Second',
+      name: 'second',
+      color: '#222222',
+      noteTypeId: null,
+    })
+    const labelsColumn = settingsService.createColumn({
+      name: 'labels',
+      title: 'Labels',
+      type: ColumnTypeEnum.Labels,
+      config: { allowMultiple: true, sources: null },
+    })
+    const existingNote = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+      values: { [labelsColumn.id]: [firstLabel.id, secondLabel.id] },
+    })
+    const payload = exportImportService.exportData()
+    const importedLabelsColumn = payload.columns.find(
+      (column) => column.id === labelsColumn.id
+    )
+
+    if (!importedLabelsColumn) {
+      throw new Error('Expected labels column in export payload.')
+    }
+
+    importedLabelsColumn.config = {
+      allowMultiple: false,
+      sources: null,
+    }
+
+    const result = exportImportService.importData(payload)
+    const currentLabelsColumn = settingsService
+      .listColumns(getDefaultNoteTypeId())
+      .find((column) => column.id === labelsColumn.id)
+
+    expect(result.unmatchedFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: labelsColumn.name }),
+      ])
+    )
+    expect(currentLabelsColumn?.config).toEqual({
+      allowMultiple: true,
+      sources: null,
+    })
+    expect(
+      notesService.getNote(existingNote.id).values[labelsColumn.id]
+    ).toEqual([firstLabel.id, secondLabel.id])
   })
 })

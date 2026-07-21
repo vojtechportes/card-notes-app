@@ -48,14 +48,18 @@ const exportData: ExportImportDataDto = {
     textTruncationLength: 120,
     mergeDateTimeFields: false,
   },
+  labels: [],
   notes: [],
   noteTypes,
-  version: 2,
+  version: 3,
 }
 
 const importResult: ImportResultDto = {
   importedColumns: 2,
+  importedLabels: 0,
+  reusedLabels: 0,
   importedNotes: 4,
+  labelIssues: [],
   unmatchedFields: [],
   updatedGeneralSettings: true,
 }
@@ -197,7 +201,7 @@ describe('ExportImportSection', () => {
 
     expect(
       await screen.findByText(
-        'Import completed. Processed 2 fields and appended 4 notes. General settings were updated.'
+        'Import completed. Processed 2 fields, created 0 labels, reused 0 labels, and appended 4 notes. General settings were updated.'
       )
     ).toBeTruthy()
   })
@@ -339,5 +343,45 @@ describe('ExportImportSection', () => {
       )
     ).toBeTruthy()
     expect(screen.getByText('Books / Rating (rating, Number)')).toBeTruthy()
+  })
+  it('shows label issue feedback returned from the backend', async () => {
+    importMutation.mutateAsync.mockResolvedValueOnce({
+      ...importResult,
+      importedLabels: 1,
+      reusedLabels: 2,
+      labelIssues: [
+        {
+          labelId: 'missing-label',
+          name: 'missing',
+          code: 'invalid-reference',
+        },
+      ],
+    })
+
+    renderExportImportSection()
+
+    fireEvent.change(screen.getByLabelText('Import file'), {
+      target: {
+        files: [
+          new File([JSON.stringify(exportData)], 'notestack-backup.json', {
+            type: 'application/json',
+          }),
+        ],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import file' }))
+
+    expect(
+      await screen.findByText(
+        'Import completed. Processed 2 fields, created 1 labels, reused 2 labels, and appended 4 notes. General settings were updated.'
+      )
+    ).toBeTruthy()
+    expect(
+      screen.getByText('Some label data could not be imported and was skipped:')
+    ).toBeTruthy()
+    expect(
+      screen.getByText('missing references a missing or disallowed label.')
+    ).toBeTruthy()
   })
 })

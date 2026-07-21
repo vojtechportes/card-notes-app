@@ -3,6 +3,7 @@ import { NoteTypeDto } from '../../settings/types/note-type.dto'
 import { NoteDto } from '../../notes/types/note.dto'
 import { ColumnDto } from '../../settings/types/column.dto'
 import { GeneralSettingsDto } from '../../settings/types/general-settings.dto'
+import { LabelDto } from '../../settings/types/label.dto'
 
 export class ExportImportDataDto {
   @ApiProperty({ type: Number, description: 'Export format version.' })
@@ -27,6 +28,13 @@ export class ExportImportDataDto {
     isArray: true,
   })
   columns: ColumnDto[]
+
+  @ApiProperty({
+    description: 'Exported label definitions.',
+    type: () => LabelDto,
+    isArray: true,
+  })
+  labels: LabelDto[]
 
   @ApiProperty({
     description: 'Exported general settings.',
