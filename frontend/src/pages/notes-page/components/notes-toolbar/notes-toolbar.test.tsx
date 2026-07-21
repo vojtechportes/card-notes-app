@@ -39,7 +39,20 @@ class ResizeObserverMock {
   }
 }
 const createProps = () => ({
+  isLabelsLoading: false,
   isNoteTypesLoading: false,
+  labelMatchMode: 'or' as const,
+  labels: [
+    {
+      color: '#0070F2',
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'label-1',
+      name: 'favorite',
+      noteTypeId: null,
+      title: 'Favorite',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+    },
+  ],
   noteTypes: [
     {
       createdAt: '2026-07-07T10:00:00.000Z',
@@ -49,11 +62,14 @@ const createProps = () => ({
     },
   ],
   onAddNote: vi.fn(),
+  onLabelIdsChange: vi.fn<(labelIds: string[]) => void>(),
+  onLabelMatchModeChange: vi.fn(),
   onNoteTypeIdsChange: vi.fn<(noteTypeIds: string[]) => void>(),
   onSearchQueryChange: vi.fn(),
   onSortByChange: vi.fn<(sortBy: NoteSortBy) => void>(),
   onSortDirectionChange: vi.fn<(sortDirection: NoteSortDirection) => void>(),
   searchQuery: '',
+  selectedLabelIds: [],
   selectedNoteTypeIds: [],
   sortBy: 'updatedAt' as NoteSortBy,
   sortDirection: 'desc' as NoteSortDirection,
@@ -157,5 +173,45 @@ describe('NotesToolbar', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Books' }))
 
     expect(props.onNoteTypeIdsChange).toHaveBeenCalledWith(['note-type-1'])
+  })
+  it('selects labels, changes match mode, and shows the combined filter count', () => {
+    const props = createProps()
+    const { rerender } = render(<NotesToolbar {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'All selected labels (AND)' })
+    )
+
+    expect(props.onLabelIdsChange).toHaveBeenCalledWith(['label-1'])
+    expect(props.onLabelMatchModeChange).toHaveBeenCalledWith('and')
+
+    rerender(
+      <NotesToolbar
+        {...props}
+        selectedLabelIds={['label-1']}
+        selectedNoteTypeIds={['note-type-1']}
+      />
+    )
+
+    expect(screen.getByText('Active filters')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.getByRole('button', { name: 'Filters (2)' })).toBeTruthy()
+  })
+
+  it('clears note-template and label filters together', () => {
+    const props = {
+      ...createProps(),
+      selectedLabelIds: ['label-1'],
+      selectedNoteTypeIds: ['note-type-1'],
+    }
+    render(<NotesToolbar {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters (2)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+
+    expect(props.onLabelIdsChange).toHaveBeenCalledWith([])
+    expect(props.onNoteTypeIdsChange).toHaveBeenCalledWith([])
   })
 })

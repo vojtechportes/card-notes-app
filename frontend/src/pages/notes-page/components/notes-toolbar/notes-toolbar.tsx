@@ -18,20 +18,31 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
-import type { ListNotesQueryDto, NoteTypeDto } from '../../../../types/api'
-import { NoteTypeFilterPopover } from './components/note-type-filter-popover'
+import type {
+  LabelDto,
+  ListNotesQueryDto,
+  NoteTypeDto,
+} from '../../../../types/api'
+import type { LabelMatchMode } from '../../types/label-match-mode'
+import { AdvancedFilterPopover } from './components/advanced-filter-popover'
 
 export type NoteSortBy = NonNullable<ListNotesQueryDto['sortBy']>
 export type NoteSortDirection = NonNullable<ListNotesQueryDto['sortDirection']>
 
 interface NotesToolbarProps {
+  isLabelsLoading: boolean
   isNoteTypesLoading: boolean
+  labelMatchMode: LabelMatchMode
+  labels: LabelDto[]
   noteTypes: NoteTypeDto[]
   searchQuery: string
+  selectedLabelIds: string[]
   selectedNoteTypeIds: string[]
   sortBy: NoteSortBy
   sortDirection: NoteSortDirection
   onAddNote: () => void
+  onLabelIdsChange: (labelIds: string[]) => void
+  onLabelMatchModeChange: (matchMode: LabelMatchMode) => void
   onNoteTypeIdsChange: (noteTypeIds: string[]) => void
   onSearchQueryChange: (searchQuery: string) => void
   onSortByChange: (sortBy: NoteSortBy) => void
@@ -53,13 +64,19 @@ const defaultToolbarMetrics: ToolbarMetrics = {
 }
 
 export const NotesToolbar = ({
+  isLabelsLoading,
   isNoteTypesLoading,
+  labelMatchMode,
+  labels,
   noteTypes,
   searchQuery,
+  selectedLabelIds,
   selectedNoteTypeIds,
   sortBy,
   sortDirection,
   onAddNote,
+  onLabelIdsChange,
+  onLabelMatchModeChange,
   onNoteTypeIdsChange,
   onSearchQueryChange,
   onSortByChange,
@@ -76,10 +93,11 @@ export const NotesToolbar = ({
     defaultToolbarMetrics
   )
 
+  const activeFilterCount = selectedLabelIds.length + selectedNoteTypeIds.length
   const filterButtonLabel =
-    selectedNoteTypeIds.length > 0
+    activeFilterCount > 0
       ? t('notes.toolbar.filters.buttonWithCount', {
-          count: selectedNoteTypeIds.length,
+          count: activeFilterCount,
         })
       : t('notes.toolbar.filters.button')
 
@@ -312,13 +330,19 @@ export const NotesToolbar = ({
         </Box>
       </Box>
 
-      <NoteTypeFilterPopover
+      <AdvancedFilterPopover
         anchorEl={filterAnchorEl}
-        isLoading={isNoteTypesLoading}
+        isLabelsLoading={isLabelsLoading}
+        isNoteTypesLoading={isNoteTypesLoading}
+        labelMatchMode={labelMatchMode}
+        labels={labels}
         noteTypes={noteTypes}
         open={Boolean(filterAnchorEl)}
+        selectedLabelIds={selectedLabelIds}
         selectedNoteTypeIds={selectedNoteTypeIds}
         onClose={() => setFilterAnchorEl(null)}
+        onLabelIdsChange={onLabelIdsChange}
+        onLabelMatchModeChange={onLabelMatchModeChange}
         onNoteTypeIdsChange={onNoteTypeIdsChange}
       />
     </>
