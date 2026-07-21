@@ -3,6 +3,7 @@ import { NotesRepository } from '../notes/notes.repository'
 import { DatabaseModule } from '../database/database.module'
 import { ColumnsRepository } from './columns.repository'
 import { GeneralSettingsRepository } from './general-settings.repository'
+import { LabelsRepository } from './labels.repository'
 import { NoteTypesRepository } from './note-types.repository'
 import { SettingsController } from './settings.controller'
 import { SettingsService } from './settings.service'
@@ -13,6 +14,7 @@ import { SettingsService } from './settings.service'
   providers: [
     ColumnsRepository,
     GeneralSettingsRepository,
+    LabelsRepository,
     NoteTypesRepository,
     NotesRepository,
     SettingsService,

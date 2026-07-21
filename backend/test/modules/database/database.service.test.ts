@@ -165,6 +165,7 @@ describe(DatabaseService.name, () => {
         'note_columns',
         'notes',
         'note_values',
+        'labels',
         'app_settings',
       ])
     )
@@ -230,20 +231,26 @@ describe(DatabaseService.name, () => {
 
     const database = service.getConnection()
     const noteType = database
-      .prepare('SELECT id, title FROM note_types ORDER BY created_at ASC LIMIT 1')
+      .prepare(
+        'SELECT id, title FROM note_types ORDER BY created_at ASC LIMIT 1'
+      )
       .get() as { id: string; title: string }
     const migratedColumn = database
       .prepare('SELECT note_type_id, name FROM note_columns WHERE id = ?')
       .get('legacy-column-id') as { note_type_id: string; name: string }
     const migratedNote = database
-      .prepare('SELECT note_type_id, created_at, updated_at FROM notes WHERE id = ?')
+      .prepare(
+        'SELECT note_type_id, created_at, updated_at FROM notes WHERE id = ?'
+      )
       .get('legacy-note-id') as {
       note_type_id: string
       created_at: string
       updated_at: string
     }
     const migratedValue = database
-      .prepare('SELECT value_json FROM note_values WHERE note_id = ? AND column_id = ?')
+      .prepare(
+        'SELECT value_json FROM note_values WHERE note_id = ? AND column_id = ?'
+      )
       .get('legacy-note-id', 'legacy-column-id') as { value_json: string }
     const preservedSetting = database
       .prepare('SELECT value_json FROM app_settings WHERE key = ?')
@@ -363,7 +370,7 @@ describe(DatabaseService.name, () => {
     service.close()
   })
 
-  it('runs initialization idempotently across both migrations', () => {
+  it('runs initialization idempotently across all migrations', () => {
     const { service } = createService()
 
     service.initialize()
@@ -378,7 +385,7 @@ describe(DatabaseService.name, () => {
       .prepare('SELECT COUNT(*) as count FROM note_types WHERE title = ?')
       .get('Default') as CountRow
 
-    expect(migrationCount.count).toBe(2)
+    expect(migrationCount.count).toBe(3)
     expect(defaultNoteTypeCount.count).toBe(1)
     service.close()
   })

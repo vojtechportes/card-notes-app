@@ -11,6 +11,7 @@ import { NotesRepository } from '../notes/notes.repository'
 import { ColumnsRepository } from './columns.repository'
 import { defaultNoteColumns } from './constants/default-note-columns'
 import { GeneralSettingsRepository } from './general-settings.repository'
+import { LabelsRepository } from './labels.repository'
 import { NoteTypesRepository } from './note-types.repository'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import { DeleteNoteTypeModeEnum } from './types/delete-note-type-mode-enum'
@@ -63,7 +64,9 @@ export class SettingsService implements OnModuleInit {
     @Inject(NoteTypesRepository)
     private readonly noteTypesRepository?: NoteTypesRepository,
     @Inject(NotesRepository)
-    private readonly notesRepository?: NotesRepository
+    private readonly notesRepository?: NotesRepository,
+    @Inject(LabelsRepository)
+    private readonly labelsRepository?: LabelsRepository
   ) {}
 
   onModuleInit(): void {
@@ -108,19 +111,26 @@ export class SettingsService implements OnModuleInit {
     const noteTypeCountBeforeDelete = this.getNoteTypesRepository().count()
 
     if (input.mode === DeleteNoteTypeModeEnum.DeleteNotes) {
-      const deletedNotesCount = this.getNotesRepository().deleteByNoteTypeId(id)
+      return this.columnsRepository
+        .getDatabaseService()
+        .getConnection()
+        .transaction(() => {
+          const deletedNotesCount =
+            this.getNotesRepository().deleteByNoteTypeId(id)
 
-      this.getNoteTypesRepository().delete(id)
+          this.getLabelsRepository().deleteByNoteTypeIdWithValueCleanup(id)
+          this.getNoteTypesRepository().delete(id)
 
-      if (noteTypeCountBeforeDelete === 1) {
-        this.seedDefaultColumnsForAllNoteTypes()
-      }
+          if (noteTypeCountBeforeDelete === 1) {
+            this.seedDefaultColumnsForAllNoteTypes()
+          }
 
-      return {
-        deletedNoteTypeId: noteType.id,
-        deletedNotesCount,
-        movedNotesCount: 0,
-      }
+          return {
+            deletedNoteTypeId: noteType.id,
+            deletedNotesCount,
+            movedNotesCount: 0,
+          }
+        })()
     }
 
     return this.columnsRepository
@@ -146,6 +156,9 @@ export class SettingsService implements OnModuleInit {
           timestamp: this.createTimestamp(),
         })
 
+        this.getLabelsRepository().deleteByNoteTypeIdWithValueCleanup(
+          noteType.id
+        )
         this.getNoteTypesRepository().delete(noteType.id)
 
         return {
@@ -155,6 +168,10 @@ export class SettingsService implements OnModuleInit {
           targetNoteTypeId: targetNoteType.id,
         }
       })()
+  }
+
+  deleteLabel(id: string): boolean {
+    return this.getLabelsRepository().deleteWithValueCleanup(id)
   }
 
   listColumns(noteTypeId = this.getDefaultNoteTypeId()): NoteColumn[] {
@@ -515,6 +532,13 @@ export class SettingsService implements OnModuleInit {
     return (
       this.noteTypesRepository ??
       new NoteTypesRepository(this.columnsRepository.getDatabaseService())
+    )
+  }
+
+  private getLabelsRepository(): LabelsRepository {
+    return (
+      this.labelsRepository ??
+      new LabelsRepository(this.columnsRepository.getDatabaseService())
     )
   }
 

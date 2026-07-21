@@ -447,7 +447,7 @@ Detailed implementation plan: [TASK_PHASE-7.md](TASK_PHASE-7.md).
 
 Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
 
-- [ ] T90. Add the labels domain and persistence
+- [x] T90. Add the labels domain and persistence
   - Add shared and note-template-specific labels with `id`, `title`, source-scoped unique `name`, color, nullable `noteTypeId`, `createdAt`, and `updatedAt`.
   - Add an idempotent SQLite migration with separate uniqueness enforcement for shared and template-owned label names.
   - Use `uuid/v4` for generated label IDs and keep persistence/services owned by the Settings domain.
