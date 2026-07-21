@@ -11,8 +11,10 @@ export const createColumnFormSchema = (
   editedColumnId?: string
 ) => {
   return yup.object({
+    allowMultipleLabels: yup.boolean().required(),
     isHidden: yup.boolean().required(),
     isMultiImage: yup.boolean().required(),
+    labelSourceIds: yup.array().of(yup.string().required()).required(),
     name: yup
       .string()
       .transform((value) => normalizeColumnName(value ?? ''))

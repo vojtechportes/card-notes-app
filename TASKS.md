@@ -466,7 +466,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Add localized create/update dialogs with title, name, shared/template source, color selection, and live Chip preview.
   - Require confirmation before label deletion and refresh affected label/note queries.
 
-- [ ] T93. Add Labels field configuration to Note templates
+- [x] T93. Add Labels field configuration to Note templates
   - Add Labels to the field type selector.
   - Let users choose single or multiple labels and select zero or more shared/note-template sources.
   - Explain that no selected source means all sources are available.

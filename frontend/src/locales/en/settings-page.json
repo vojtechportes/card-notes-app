@@ -165,10 +165,23 @@
         "date": "Date",
         "number": "Number",
         "image": "Image",
-        "link": "Link"
+        "link": "Link",
+        "labels": "Labels"
       },
       "labels": {
         "name": "Name: {{name}}"
+      },
+      "labelsConfiguration": {
+        "selectionMode": "Label selection",
+        "selection": {
+          "single": "Single label",
+          "multiple": "Multiple labels"
+        },
+        "sources": "Allowed label sources",
+        "allSourcesValue": "All sources",
+        "sourcesHint": "Leave all sources unselected to make shared and all note-template labels available.",
+        "loadingSources": "Loading label sources...",
+        "sourcesError": "Label sources could not be loaded right now."
       },
       "status": {
         "loading": "Loading fields...",

@@ -33,6 +33,7 @@ import { SettingsSection } from '../settings-section'
 import { ColumnDialog } from './components/column-dialog'
 import { SortableColumnItem } from './components/sortable-column-item'
 import type { ColumnFormValues } from './types/column-form-values'
+import { getColumnConfig } from './utils/get-column-config.util'
 import { getReorderedColumnIds } from './utils/get-reordered-column-ids.util'
 
 type ColumnDeleteMode = NonNullable<DeleteColumnQueryDto['deleteMode']>
@@ -98,10 +99,7 @@ export const ColumnsSection = ({
         name: values.name.trim(),
         title: values.title.trim(),
         type: values.type,
-        config:
-          values.type === 'image'
-            ? { isMultiImage: values.isMultiImage }
-            : null,
+        config: getColumnConfig(values),
       }
 
       if (activeColumn) {
