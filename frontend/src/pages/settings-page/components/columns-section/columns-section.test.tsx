@@ -14,6 +14,7 @@ import { AppProviders } from '../../../../components/app-providers/app-providers
 import { ColumnsSection } from './columns-section'
 
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
+const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useCreateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateColumnMutationMock = vi.hoisted(() => vi.fn())
 const useReorderColumnsMutationMock = vi.hoisted(() => vi.fn())
@@ -21,6 +22,10 @@ const useDeleteColumnMutationMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../hooks/use-note-columns-query', () => ({
   useNoteColumnsQuery: useNoteColumnsQueryMock,
+}))
+
+vi.mock('../../hooks/use-note-types-query', () => ({
+  useNoteTypesQuery: useNoteTypesQueryMock,
 }))
 
 vi.mock('../../hooks/use-create-column-mutation', () => ({
@@ -172,6 +177,24 @@ beforeEach(() => {
   vi.clearAllMocks()
   useNoteColumnsQueryMock.mockReturnValue({
     data: columns,
+    isError: false,
+    isLoading: false,
+  })
+  useNoteTypesQueryMock.mockReturnValue({
+    data: [
+      {
+        createdAt: '2026-07-08T10:00:00.000Z',
+        id: 'note-type-1',
+        title: 'Books',
+        updatedAt: '2026-07-08T10:00:00.000Z',
+      },
+      {
+        createdAt: '2026-07-08T10:00:00.000Z',
+        id: 'note-type-2',
+        title: 'Research',
+        updatedAt: '2026-07-08T10:00:00.000Z',
+      },
+    ],
     isError: false,
     isLoading: false,
   })
@@ -467,6 +490,181 @@ describe('ColumnsSection', () => {
     renderColumnsSection()
     expect(
       screen.getByText('Fields could not be loaded right now.')
+    ).toBeTruthy()
+  })
+  it('creates a single-label field with all sources when none are selected', async () => {
+    renderColumnsSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
+    fireEvent.change(screen.getByLabelText('Column title'), {
+      target: { value: 'Topics' },
+    })
+    fireEvent.change(screen.getByLabelText('Column name'), {
+      target: { value: 'topics' },
+    })
+    fireEvent.mouseDown(screen.getByLabelText('Column type'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Labels' }))
+
+    expect(
+      (
+        screen.getByRole('radio', {
+          name: 'Single label',
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(true)
+    expect(
+      screen.getByText(
+        'Leave all sources unselected to make shared and all note-template labels available.'
+      )
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create field' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        column: {
+          config: {
+            allowMultiple: false,
+            sources: null,
+          },
+          isHidden: false,
+          name: 'topics',
+          title: 'Topics',
+          type: 'labels',
+        },
+        noteTypeId: 'note-type-1',
+      })
+    })
+  })
+
+  it('maps multiple explicit label sources into the labels config', async () => {
+    renderColumnsSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
+    fireEvent.change(screen.getByLabelText('Column title'), {
+      target: { value: 'Topics' },
+    })
+    fireEvent.change(screen.getByLabelText('Column name'), {
+      target: { value: 'topics' },
+    })
+    fireEvent.mouseDown(screen.getByLabelText('Column type'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Labels' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Multiple labels' }))
+
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: 'Allowed label sources' })
+    )
+    fireEvent.click(await screen.findByRole('option', { name: /Shared/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Research' }))
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create field' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        column: {
+          config: {
+            allowMultiple: true,
+            sources: {
+              includeShared: true,
+              noteTypeIds: ['note-type-2'],
+            },
+          },
+          isHidden: false,
+          name: 'topics',
+          title: 'Topics',
+          type: 'labels',
+        },
+        noteTypeId: 'note-type-1',
+      })
+    })
+  })
+
+  it('hydrates an existing labels field configuration for editing', async () => {
+    const labelsColumn: ColumnDto = {
+      config: {
+        allowMultiple: true,
+        sources: {
+          includeShared: true,
+          noteTypeIds: ['note-type-2'],
+        },
+      },
+      createdAt: '2026-07-08T10:00:00.000Z',
+      id: 'topics',
+      isDefault: false,
+      isHidden: false,
+      name: 'topics',
+      noteTypeId: 'note-type-1',
+      sortOrder: 3,
+      title: 'Topics',
+      type: 'labels',
+      updatedAt: '2026-07-08T10:00:00.000Z',
+    }
+
+    useNoteColumnsQueryMock.mockReturnValueOnce({
+      data: [...columns, labelsColumn],
+      isError: false,
+      isLoading: false,
+    })
+
+    renderColumnsSection()
+
+    fireEvent.click(
+      within(screen.getByText('Topics').closest('li') as HTMLElement).getByRole(
+        'button',
+        { name: 'Edit field' }
+      )
+    )
+
+    expect(
+      (
+        screen.getByRole('radio', {
+          name: 'Multiple labels',
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(true)
+    expect(
+      screen.getByRole('combobox', { name: 'Allowed label sources' })
+        .textContent
+    ).toContain('Shared, Research')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        column: {
+          config: {
+            allowMultiple: true,
+            sources: {
+              includeShared: true,
+              noteTypeIds: ['note-type-2'],
+            },
+          },
+          isHidden: false,
+          name: 'topics',
+          title: 'Topics',
+          type: 'labels',
+        },
+        id: 'topics',
+        noteTypeId: 'note-type-1',
+      })
+    })
+  })
+
+  it('shows a localized error when label sources cannot be loaded', async () => {
+    useNoteTypesQueryMock.mockReturnValue({
+      data: undefined,
+      isError: true,
+      isLoading: false,
+    })
+
+    renderColumnsSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add field' }))
+    fireEvent.mouseDown(screen.getByLabelText('Column type'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Labels' }))
+
+    expect(
+      await screen.findByText('Label sources could not be loaded right now.')
     ).toBeTruthy()
   })
 })

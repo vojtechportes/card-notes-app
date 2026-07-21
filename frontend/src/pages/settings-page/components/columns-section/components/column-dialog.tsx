@@ -24,6 +24,7 @@ import { columnTypeOptions } from '../constants/column-type-options'
 import type { ColumnFormValues } from '../types/column-form-values'
 import { createColumnFormSchema } from '../utils/create-column-form-schema.util'
 import { getColumnFormDefaultValues } from '../utils/get-column-form-default-values.util'
+import { LabelsColumnConfiguration } from './labels-column-configuration'
 
 interface ColumnDialogProps {
   columns: ColumnDto[]
@@ -226,6 +227,10 @@ export const ColumnDialog = ({
                   />
                 )}
               />
+            ) : null}
+
+            {selectedType === 'labels' ? (
+              <LabelsColumnConfiguration control={control} errors={errors} />
             ) : null}
 
             <Controller

@@ -6,4 +6,5 @@ export const columnTypeOptions: ColumnFormValues['type'][] = [
   'number',
   'image',
   'link',
+  'labels',
 ]
