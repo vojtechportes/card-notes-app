@@ -490,7 +490,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Combine note-template and label filters with AND while preserving text search and sorting.
   - Render filter choices/summaries as small filled Chips and add focused matching utility tests.
 
-- [ ] T97. Verify note labels end to end
+- [x] T97. Verify note labels end to end
   - Cover migration, uniqueness, CRUD, deletion cleanup, source/cardinality validation, template moves, and import/export on the backend.
   - Cover Settings navigation/grid/dialogs, Labels field configuration, note form/rendering/search, and AND/OR filtering on the frontend.
   - Regenerate Swagger types, run Prettier on all modified files, run affected lint/tests/builds, and verify the root build.

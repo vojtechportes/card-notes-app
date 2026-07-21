@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type CreateTargetNoteTypeDto = {
-  "title": string;
-};
+  title: string
+}

@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type UpdateNoteTypeDto = {
-  "title": string;
-};
+  title: string
+}

@@ -492,6 +492,76 @@ describe('NotesPage', () => {
       sortDirection: 'desc',
     })
   })
+  it('combines note template and label filters before applying text search', () => {
+    const labels: LabelDto[] = [
+      {
+        color: '#0070F2',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'label-1',
+        name: 'favorite',
+        noteTypeId: null,
+        title: 'Favorite',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+    ]
+    const labelColumn: ColumnDto = {
+      config: null,
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'labels-column',
+      isDefault: false,
+      isHidden: false,
+      name: 'labels',
+      noteTypeId: 'note-type-1',
+      sortOrder: 6,
+      title: 'Labels',
+      type: 'labels',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+    }
+    const filteredBook = {
+      ...notes[0],
+      values: { ...notes[0].values, 'labels-column': ['label-1'] },
+    }
+    useLabelsQueryMock.mockReturnValue({
+      data: labels,
+      isError: false,
+      isLoading: false,
+    })
+    useNotesQueryMock.mockReturnValue({
+      data: [filteredBook],
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {
+        'note-type-1': [...bookColumns, labelColumn],
+        'note-type-2': movieColumns,
+      },
+      isError: false,
+      isLoading: false,
+    })
+    useNotesSearchMock.mockImplementation((filteredNotes) => filteredNotes)
+
+    renderNotesPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Books' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }))
+
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
+      noteTypeIds: ['note-type-1'],
+      sortBy: 'updatedAt',
+      sortDirection: 'desc',
+    })
+    expect(useNotesSearchMock).toHaveBeenLastCalledWith(
+      [filteredBook],
+      '',
+      {
+        'note-type-1': 'Books',
+        'note-type-2': 'Movies',
+      },
+      labels
+    )
+  })
   it('renders mixed note cards without note template labels in the list', () => {
     renderNotesPage()
 

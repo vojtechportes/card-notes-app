@@ -2,8 +2,8 @@
 // Do not edit by hand.
 
 export type DeleteNoteTypeResultDto = {
-  "deletedNoteTypeId": string;
-  "deletedNotesCount": number;
-  "movedNotesCount": number;
-  "targetNoteTypeId"?: string;
-};
+  deletedNoteTypeId: string
+  deletedNotesCount: number
+  movedNotesCount: number
+  targetNoteTypeId?: string
+}

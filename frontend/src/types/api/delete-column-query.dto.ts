@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type DeleteColumnQueryDto = {
-  "deleteMode"?: "definitionOnly" | "definitionAndValues";
-};
+  deleteMode?: 'definitionOnly' | 'definitionAndValues'
+}
