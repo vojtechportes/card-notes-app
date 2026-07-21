@@ -10,6 +10,6 @@ export const getColumnFormDefaultValues = (
     isMultiImage: column ? isMultiImageColumn(column) : false,
     name: column?.name ?? '',
     title: column?.title ?? '',
-    type: column?.type ?? 'text',
+    type: column?.type === 'labels' ? 'text' : (column?.type ?? 'text'),
   }
 }

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common'
 import { v4 as uuidV4 } from 'uuid'
 import { NotesRepository } from '../notes/notes.repository'
+import type { NoteValue } from '../notes/types/note-value'
 import { ColumnsRepository } from './columns.repository'
 import { defaultNoteColumns } from './constants/default-note-columns'
 import { GeneralSettingsRepository } from './general-settings.repository'
@@ -25,7 +26,10 @@ import type {
   UpdateColumnInput,
 } from './types/note-column'
 import type { NoteType } from './types/note-type'
+import type { LabelsColumnConfig } from './types/labels-column-config'
 import { areColumnTypesCompatible } from './utils/are-column-types-compatible.util'
+import { filterLabelIdsForColumn } from './utils/filter-label-ids-for-column.util'
+import { resolveLabelsColumnConfig } from './utils/resolve-labels-column-config.util'
 
 interface DeleteColumnOptions {
   deleteNoteData?: boolean
@@ -201,6 +205,7 @@ export class SettingsService implements OnModuleInit {
     this.ensureValidColumnType(input.type)
     this.ensureValidSortOrder(input.sortOrder)
     this.ensureColumnNameIsAvailable(name, noteTypeId)
+    const config = this.normalizeColumnConfig(input.type, input.config)
 
     return this.columnsRepository.create({
       id: uuidV4(),
@@ -212,7 +217,7 @@ export class SettingsService implements OnModuleInit {
         input.sortOrder ?? this.columnsRepository.getNextSortOrder(noteTypeId),
       isHidden: input.isHidden ?? false,
       isDefault: false,
-      config: input.config ?? null,
+      config,
     })
   }
 
@@ -246,6 +251,11 @@ export class SettingsService implements OnModuleInit {
     this.ensureValidColumnType(type)
     this.ensureValidSortOrder(sortOrder)
     this.ensureColumnNameIsAvailable(name, existingColumn.noteTypeId, id)
+    const config = this.resolveUpdatedColumnConfig(
+      existingColumn,
+      type,
+      input.config
+    )
 
     return this.columnsRepository.update({
       ...existingColumn,
@@ -254,8 +264,18 @@ export class SettingsService implements OnModuleInit {
       type,
       sortOrder,
       isHidden: input.isHidden ?? existingColumn.isHidden,
-      config: input.config === undefined ? existingColumn.config : input.config,
+      config,
     })
+  }
+
+  getLabelsColumnConfig(column: NoteColumn): LabelsColumnConfig {
+    if (column.type !== ColumnTypeEnum.Labels) {
+      throw new BadRequestException('Column is not a labels column.')
+    }
+
+    return resolveLabelsColumnConfig(column.config, (noteTypeId) =>
+      Boolean(this.getNoteTypesRepository().findById(noteTypeId))
+    )
   }
 
   reorderColumns(
@@ -379,6 +399,66 @@ export class SettingsService implements OnModuleInit {
     return this.getGeneralSettings()
   }
 
+  private normalizeColumnConfig(
+    type: ColumnTypeEnum,
+    config: Record<string, unknown> | null | undefined
+  ): Record<string, unknown> | null {
+    if (type === ColumnTypeEnum.Labels) {
+      return resolveLabelsColumnConfig(config, (noteTypeId) =>
+        Boolean(this.getNoteTypesRepository().findById(noteTypeId))
+      ) as unknown as Record<string, unknown>
+    }
+
+    if (
+      config &&
+      (Object.prototype.hasOwnProperty.call(config, 'allowMultiple') ||
+        Object.prototype.hasOwnProperty.call(config, 'sources'))
+    ) {
+      throw new BadRequestException(
+        'Labels column config can only be used by labels columns.'
+      )
+    }
+
+    return config ?? null
+  }
+
+  private resolveUpdatedColumnConfig(
+    existingColumn: NoteColumn,
+    type: ColumnTypeEnum,
+    requestedConfig: Record<string, unknown> | null | undefined
+  ): Record<string, unknown> | null {
+    const configInput =
+      requestedConfig === undefined
+        ? existingColumn.type === ColumnTypeEnum.Labels &&
+          type !== ColumnTypeEnum.Labels
+          ? null
+          : existingColumn.config
+        : requestedConfig
+    const config = this.normalizeColumnConfig(type, configInput)
+
+    if (
+      existingColumn.type === ColumnTypeEnum.Labels &&
+      type === ColumnTypeEnum.Labels
+    ) {
+      const previousConfig = this.getLabelsColumnConfig(existingColumn)
+      const nextConfig = config as unknown as LabelsColumnConfig
+
+      if (
+        previousConfig.allowMultiple &&
+        !nextConfig.allowMultiple &&
+        this.getNotesRepository().hasMultipleLabelValuesForColumn(
+          existingColumn.id
+        )
+      ) {
+        throw new BadRequestException(
+          'Labels column cannot be changed to single selection while notes have multiple labels.'
+        )
+      }
+    }
+
+    return config
+  }
+
   private seedDefaultColumnsForAllNoteTypes(): void {
     this.getNoteTypesRepository().ensureDefaultExists()
 
@@ -435,6 +515,7 @@ export class SettingsService implements OnModuleInit {
   ): Array<{
     sourceColumnId: string
     targetColumnId: string
+    transformValue?: (value: NoteValue) => NoteValue
   }> {
     const sourceColumnsById = new Map(
       sourceColumns.map((column) => [column.id, column])
@@ -444,6 +525,12 @@ export class SettingsService implements OnModuleInit {
     )
     const sourceColumnIds = new Set<string>()
     const targetColumnIds = new Set<string>()
+    const labels = this.getLabelsRepository().findAll()
+    const resolvedFieldMappings: Array<{
+      sourceColumnId: string
+      targetColumnId: string
+      transformValue?: (value: NoteValue) => NoteValue
+    }> = []
 
     for (const fieldMapping of fieldMappings) {
       const sourceColumn = sourceColumnsById.get(fieldMapping.sourceColumnId)
@@ -490,11 +577,25 @@ export class SettingsService implements OnModuleInit {
 
       sourceColumnIds.add(sourceColumn.id)
       targetColumnIds.add(targetColumn.id)
+
+      if (
+        sourceColumn.type === ColumnTypeEnum.Labels &&
+        targetColumn.type === ColumnTypeEnum.Labels
+      ) {
+        const targetConfig = this.getLabelsColumnConfig(targetColumn)
+
+        resolvedFieldMappings.push({
+          ...fieldMapping,
+          transformValue: (value) =>
+            filterLabelIdsForColumn(value, targetConfig, labels),
+        })
+      } else {
+        resolvedFieldMappings.push(fieldMapping)
+      }
     }
 
-    return fieldMappings
+    return resolvedFieldMappings
   }
-
   private isSystemTimestampColumn(column: NoteColumn): boolean {
     return (
       column.isDefault &&

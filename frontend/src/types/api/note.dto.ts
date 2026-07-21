@@ -8,6 +8,7 @@ export type NoteDto = {
     string,
     | string
     | number
+    | Array<string>
     | {
         fileName?: string
         mimeType?: string

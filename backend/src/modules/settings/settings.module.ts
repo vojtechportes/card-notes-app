@@ -4,6 +4,7 @@ import { DatabaseModule } from '../database/database.module'
 import { ColumnsRepository } from './columns.repository'
 import { GeneralSettingsRepository } from './general-settings.repository'
 import { LabelsRepository } from './labels.repository'
+import { LabelsService } from './labels.service'
 import { NoteTypesRepository } from './note-types.repository'
 import { SettingsController } from './settings.controller'
 import { SettingsService } from './settings.service'
@@ -15,10 +16,11 @@ import { SettingsService } from './settings.service'
     ColumnsRepository,
     GeneralSettingsRepository,
     LabelsRepository,
+    LabelsService,
     NoteTypesRepository,
     NotesRepository,
     SettingsService,
   ],
-  exports: [SettingsService],
+  exports: [LabelsService, SettingsService],
 })
 export class SettingsModule {}

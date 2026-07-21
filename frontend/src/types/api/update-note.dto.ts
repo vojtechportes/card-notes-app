@@ -6,6 +6,7 @@ export type UpdateNoteDto = {
     string,
     | string
     | number
+    | Array<string>
     | null
     | {
         fileName?: string

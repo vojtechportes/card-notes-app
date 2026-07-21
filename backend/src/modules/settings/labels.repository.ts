@@ -35,6 +35,24 @@ export class LabelsRepository {
     return row ? this.mapLabelRow(row) : undefined
   }
 
+  findBySourceAndName(
+    noteTypeId: string | null,
+    name: string
+  ): Label | undefined {
+    const row =
+      noteTypeId === null
+        ? (this.getDatabase()
+            .prepare(
+              'SELECT * FROM labels WHERE note_type_id IS NULL AND name = ?'
+            )
+            .get(name) as LabelRow | undefined)
+        : (this.getDatabase()
+            .prepare('SELECT * FROM labels WHERE note_type_id = ? AND name = ?')
+            .get(noteTypeId, name) as LabelRow | undefined)
+
+    return row ? this.mapLabelRow(row) : undefined
+  }
+
   create(input: {
     title: string
     name: string
@@ -55,15 +73,50 @@ export class LabelsRepository {
     return this.findById(id) as Label
   }
 
-  deleteWithValueCleanup(id: string): boolean {
-    const deleteLabel = this.getDatabase().transaction((labelId: string) => {
-      this.pruneLabelIdsFromNoteValues([labelId])
+  update(
+    id: string,
+    input: {
+      title: string
+      name: string
+      color: string
+      noteTypeId: string | null
+    }
+  ): Label | undefined {
+    this.getDatabase()
+      .prepare(
+        `
+        UPDATE labels
+        SET title = @title,
+            name = @name,
+            color = @color,
+            note_type_id = @noteTypeId,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = @id
+      `
+      )
+      .run({ id, ...input })
 
-      return (
+    return this.findById(id)
+  }
+
+  deleteWithValueCleanup(id: string): boolean {
+    return this.deleteWithValueCleanupAndCount(id).deleted
+  }
+
+  deleteWithValueCleanupAndCount(id: string): {
+    deleted: boolean
+    affectedNoteValuesCount: number
+  } {
+    const deleteLabel = this.getDatabase().transaction((labelId: string) => {
+      const affectedNoteValuesCount = this.pruneLabelIdsFromNoteValues([
+        labelId,
+      ])
+      const deleted =
         this.getDatabase()
           .prepare('DELETE FROM labels WHERE id = ?')
           .run(labelId).changes > 0
-      )
+
+      return { deleted, affectedNoteValuesCount }
     })
 
     return deleteLabel(id)
@@ -89,9 +142,9 @@ export class LabelsRepository {
     return deleteLabels(noteTypeId)
   }
 
-  private pruneLabelIdsFromNoteValues(labelIds: string[]): void {
+  private pruneLabelIdsFromNoteValues(labelIds: string[]): number {
     if (labelIds.length === 0) {
-      return
+      return 0
     }
 
     const labelIdSet = new Set(labelIds)
@@ -117,6 +170,8 @@ export class LabelsRepository {
     `
     )
 
+    let affectedNoteValuesCount = 0
+
     for (const row of rows) {
       const value = this.parseLabelIds(row.value_json)
 
@@ -131,7 +186,10 @@ export class LabelsRepository {
       }
 
       updateValue.run(JSON.stringify(nextValue), row.note_id, row.column_id)
+      affectedNoteValuesCount += 1
     }
+
+    return affectedNoteValuesCount
   }
 
   private parseLabelIds(valueJson: string | null): string[] | undefined {

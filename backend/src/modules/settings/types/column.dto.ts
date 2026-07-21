@@ -1,5 +1,10 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger'
 import { ColumnTypeEnum } from './column-type-enum'
+import { LabelsColumnConfigDto } from './labels-column-config.dto'
 
 export class ColumnDto {
   @ApiProperty({ type: String, description: 'Stable column id.' })
@@ -37,8 +42,10 @@ export class ColumnDto {
   isDefault: boolean
 
   @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: true,
+    oneOf: [
+      { $ref: getSchemaPath(LabelsColumnConfigDto) },
+      { type: 'object', additionalProperties: true },
+    ],
     nullable: true,
     description: 'Column-specific configuration.',
   })

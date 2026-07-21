@@ -4,4 +4,5 @@ export enum ColumnTypeEnum {
   Number = 'number',
   Image = 'image',
   Link = 'link',
+  Labels = 'labels',
 }

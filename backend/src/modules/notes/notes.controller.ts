@@ -276,6 +276,10 @@ export class NotesController {
     filesByUploadKey: Map<string, NoteUploadFile>
   ): NoteValue {
     if (Array.isArray(value)) {
+      if (value.every((item) => typeof item === 'string')) {
+        return value
+      }
+
       return value.map((item) =>
         this.resolveUploadedImageValue(item, filesByUploadKey)
       )

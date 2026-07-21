@@ -20,6 +20,7 @@ const noteValuePatchSchema = {
   oneOf: [
     { type: 'string' },
     { type: 'number' },
+    { type: 'array', items: { type: 'string' } },
     { type: 'null' },
     imageValueSchema,
     {

@@ -5,6 +5,8 @@ import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
 import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
+import { LabelsRepository } from '../../../src/modules/settings/labels.repository'
+import { LabelsService } from '../../../src/modules/settings/labels.service'
 import { NoteTypesRepository } from '../../../src/modules/settings/note-types.repository'
 import { SettingsController } from '../../../src/modules/settings/settings.controller'
 import { SettingsService } from '../../../src/modules/settings/settings.service'
@@ -35,7 +37,13 @@ beforeEach(() => {
     new NotesRepository(databaseService)
   )
   settingsService.onModuleInit()
-  settingsController = new SettingsController(settingsService)
+  settingsController = new SettingsController(
+    settingsService,
+    new LabelsService(
+      new LabelsRepository(databaseService),
+      new NoteTypesRepository(databaseService)
+    )
+  )
 })
 
 afterEach(() => {
@@ -99,11 +107,15 @@ describe(SettingsController.name, () => {
       settingsController.listColumns(noteTypeId).map((column) => column.name)
     ).toEqual(['createdAt', 'updatedAt', 'summary', 'rating'])
 
-    const updatedColumn = settingsController.updateColumn(noteTypeId, summaryColumn.id, {
-      title: 'Summary text',
-      isHidden: true,
-      config: { multiline: true },
-    })
+    const updatedColumn = settingsController.updateColumn(
+      noteTypeId,
+      summaryColumn.id,
+      {
+        title: 'Summary text',
+        isHidden: true,
+        config: { multiline: true },
+      }
+    )
 
     expect(updatedColumn).toEqual(
       expect.objectContaining({
@@ -163,7 +175,12 @@ describe(SettingsController.name, () => {
       .prepare(
         'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
       )
-      .run('note-1', source.id, '2026-07-07T10:00:00.000Z', '2026-07-07T10:00:00.000Z')
+      .run(
+        'note-1',
+        source.id,
+        '2026-07-07T10:00:00.000Z',
+        '2026-07-07T10:00:00.000Z'
+      )
     databaseService
       .getConnection()
       .prepare(
@@ -245,11 +262,13 @@ describe(SettingsController.name, () => {
   it('throws when updating or deleting unknown note types or columns', () => {
     const noteTypeId = getDefaultNoteTypeId()
 
-    expect(() => settingsController.getNoteType('missing-note-type-id')).toThrow(
-      NotFoundException
-    )
     expect(() =>
-      settingsController.updateNoteType('missing-note-type-id', { title: 'Missing' })
+      settingsController.getNoteType('missing-note-type-id')
+    ).toThrow(NotFoundException)
+    expect(() =>
+      settingsController.updateNoteType('missing-note-type-id', {
+        title: 'Missing',
+      })
     ).toThrow(NotFoundException)
     expect(() =>
       settingsController.updateColumn(noteTypeId, 'missing-column-id', {
@@ -261,6 +280,40 @@ describe(SettingsController.name, () => {
     ).toThrow(NotFoundException)
   })
 
+  it('exposes label CRUD through the settings API surface', () => {
+    const noteTypeId = getDefaultNoteTypeId()
+    const label = settingsController.createLabel({
+      title: ' Important ',
+      name: ' important ',
+      color: '#0070F2',
+      noteTypeId,
+    })
+
+    expect(settingsController.listLabels()).toEqual([label])
+    expect(
+      settingsController.updateLabel(label.id, { title: 'Updated' })
+    ).toEqual(expect.objectContaining({ title: 'Updated' }))
+    expect(settingsController.deleteLabel(label.id)).toEqual({
+      deletedLabelId: label.id,
+      affectedNoteValuesCount: 0,
+    })
+    expect(() =>
+      settingsController.updateLabel('missing', { title: 'Missing' })
+    ).toThrow(NotFoundException)
+    expect(() => settingsController.updateLabel(label.id, {})).toThrow(
+      BadRequestException
+    )
+    expect(() =>
+      settingsController.updateLabel(label.id, { unexpected: true } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.createLabel({
+        title: 'Invalid',
+        name: 'invalid',
+        color: 1 as never,
+      })
+    ).toThrow(BadRequestException)
+  })
   it('does not expose the legacy unscoped /settings/columns route paths on the controller', () => {
     const prototype = SettingsController.prototype as Record<string, unknown>
     const routePaths = Object.getOwnPropertyNames(prototype)
@@ -279,4 +332,3 @@ describe(SettingsController.name, () => {
     )
   })
 })
-
