@@ -10,6 +10,12 @@ import { CreateColumnDto } from './modules/settings/types/create-column.dto'
 import { CreateNoteTypeDto } from './modules/settings/types/create-note-type.dto'
 import { DeleteColumnQueryDto } from './modules/settings/types/delete-column-query.dto'
 import { DeleteNoteTypeDto } from './modules/settings/types/delete-note-type.dto'
+import { DeleteLabelResultDto } from './modules/settings/types/delete-label-result.dto'
+import { LabelsColumnConfigDto } from './modules/settings/types/labels-column-config.dto'
+import { LabelsColumnSourcesDto } from './modules/settings/types/labels-column-sources.dto'
+import { LabelDto } from './modules/settings/types/label.dto'
+import { CreateLabelDto } from './modules/settings/types/create-label.dto'
+import { UpdateLabelDto } from './modules/settings/types/update-label.dto'
 import { DeleteNoteTypeResultDto } from './modules/settings/types/delete-note-type-result.dto'
 import { NoteTypeDetailDto } from './modules/settings/types/note-type-detail.dto'
 import { NoteTypeDto } from './modules/settings/types/note-type.dto'
@@ -20,17 +26,23 @@ import { UpdateNoteTypeDto } from './modules/settings/types/update-note-type.dto
 
 const swaggerExtraModels = [
   CreateColumnDto,
+  CreateLabelDto,
   CreateNoteDto,
   CreateNoteTypeDto,
   DeleteColumnQueryDto,
+  DeleteLabelResultDto,
   DeleteNoteTypeDto,
   DeleteNoteTypeResultDto,
+  LabelDto,
+  LabelsColumnConfigDto,
+  LabelsColumnSourcesDto,
   ListNotesQueryDto,
   NoteTypeDetailDto,
   NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
   UpdateGeneralSettingsDto,
+  UpdateLabelDto,
   UpdateNoteTypeDto,
   UpdateNoteDto,
 ]

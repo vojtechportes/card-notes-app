@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { v4 as uuidV4 } from 'uuid'
+import { LabelsService } from '../settings/labels.service'
 import { SettingsService } from '../settings/settings.service'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
 import { isMultiImageColumn } from '../settings/utils/is-multi-image-column.util'
@@ -25,7 +26,9 @@ export class NotesService {
     @Inject(NotesRepository)
     private readonly notesRepository: NotesRepository,
     @Inject(SettingsService)
-    private readonly settingsService: SettingsService
+    private readonly settingsService: SettingsService,
+    @Inject(LabelsService)
+    private readonly labelsService?: LabelsService
   ) {}
 
   createNote(input: CreateNoteInput): Note {
@@ -160,6 +163,9 @@ export class NotesService {
           )
         }
         return
+      case ColumnTypeEnum.Labels:
+        this.ensureValidLabelValue(value, column)
+        return
       case ColumnTypeEnum.Image:
         if (!this.isValidImageNoteValue(value, column)) {
           throw new BadRequestException(
@@ -172,6 +178,67 @@ export class NotesService {
     }
   }
 
+  private ensureValidLabelValue(value: NoteValue, column: NoteColumn): void {
+    if (
+      !Array.isArray(value) ||
+      value.some((labelId) => typeof labelId !== 'string')
+    ) {
+      throw new BadRequestException(
+        'Labels note values must be arrays of label ids.'
+      )
+    }
+
+    const labelIds = value as string[]
+
+    if (new Set(labelIds).size !== labelIds.length) {
+      throw new BadRequestException(
+        'Labels note values cannot contain duplicate ids.'
+      )
+    }
+
+    const config = this.settingsService.getLabelsColumnConfig(column)
+
+    if (!config.allowMultiple && labelIds.length > 1) {
+      throw new BadRequestException(
+        'Single-select labels columns accept at most one label id.'
+      )
+    }
+
+    const labelsService = this.labelsService
+
+    if (!labelsService) {
+      throw new BadRequestException('Labels service is not available.')
+    }
+
+    const labelsById = new Map(
+      labelsService.listLabels().map((label) => [label.id, label])
+    )
+
+    for (const labelId of labelIds) {
+      const label = labelsById.get(labelId)
+
+      if (!label) {
+        throw new BadRequestException(
+          'Labels note values contain an unknown label id.'
+        )
+      }
+
+      if (config.sources === null) {
+        continue
+      }
+
+      const isAllowed =
+        label.noteTypeId === null
+          ? config.sources.includeShared
+          : config.sources.noteTypeIds.includes(label.noteTypeId)
+
+      if (!isAllowed) {
+        throw new BadRequestException(
+          'Labels note values contain a label from a disallowed source.'
+        )
+      }
+    }
+  }
   private isValidImageNoteValue(
     value: NoteValue,
     column: NoteColumn

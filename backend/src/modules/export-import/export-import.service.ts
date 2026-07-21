@@ -631,7 +631,10 @@ export class ExportImportService {
 
     const existingValue = values[column.id]
 
-    if (Array.isArray(existingValue)) {
+    if (
+      Array.isArray(existingValue) &&
+      existingValue.every((value) => this.isValidImageValue(value))
+    ) {
       values[column.id] = [...existingValue, resolvedValue]
       return
     }

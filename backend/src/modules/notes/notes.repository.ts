@@ -24,6 +24,7 @@ interface MoveNotesToTypeOptions {
   fieldMappings: Array<{
     sourceColumnId: string
     targetColumnId: string
+    transformValue?: (value: NoteValue) => NoteValue
   }>
   sourceColumnIds: string[]
   sourceNoteTypeId: string
@@ -71,7 +72,11 @@ export class NotesRepository {
     )
     const sortDirection =
       options.sortDirection === NoteSortDirectionEnum.Asc ? 'ASC' : 'DESC'
-    const notes = this.findNoteRows(options.noteTypeIds, sortColumn, sortDirection)
+    const notes = this.findNoteRows(
+      options.noteTypeIds,
+      sortColumn,
+      sortDirection
+    )
 
     if (notes.length === 0) {
       return []
@@ -160,6 +165,44 @@ export class NotesRepository {
     const noteIdPlaceholders = noteIds.map(() => '?').join(', ')
     const copyMappedValues = database.transaction(() => {
       for (const fieldMapping of options.fieldMappings) {
+        if (fieldMapping.transformValue) {
+          const sourceRows = database
+            .prepare(
+              `SELECT note_id, value_json
+               FROM note_values
+               WHERE note_id IN (${noteIdPlaceholders}) AND column_id = ?`
+            )
+            .all(...noteIds, fieldMapping.sourceColumnId) as Array<{
+            note_id: string
+            value_json: string | null
+          }>
+          const upsertTransformedValue = database.prepare(
+            `
+            INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(note_id, column_id) DO UPDATE SET
+              value_json = excluded.value_json,
+              updated_at = excluded.updated_at
+          `
+          )
+
+          for (const sourceRow of sourceRows) {
+            const transformedValue = fieldMapping.transformValue(
+              this.parseValue(sourceRow.value_json)
+            )
+
+            upsertTransformedValue.run(
+              sourceRow.note_id,
+              fieldMapping.targetColumnId,
+              JSON.stringify(transformedValue),
+              options.timestamp,
+              options.timestamp
+            )
+          }
+
+          continue
+        }
+
         database
           .prepare(
             `
@@ -213,6 +256,25 @@ export class NotesRepository {
     copyMappedValues()
 
     return noteIds.length
+  }
+  hasMultipleLabelValuesForColumn(columnId: string): boolean {
+    const rows = this.getDatabase()
+      .prepare('SELECT value_json FROM note_values WHERE column_id = ?')
+      .all(columnId) as Array<{ value_json: string | null }>
+
+    return rows.some((row) => {
+      if (row.value_json === null) {
+        return false
+      }
+
+      try {
+        const value: unknown = JSON.parse(row.value_json)
+
+        return Array.isArray(value) && value.length > 1
+      } catch {
+        return false
+      }
+    })
   }
 
   deleteValuesForColumn(columnId: string): number {

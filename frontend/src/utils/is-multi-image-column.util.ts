@@ -7,5 +7,10 @@ export const isMultiImageColumn = (
     return false
   }
 
-  return column.config?.isMultiImage === true
+  return (
+    column.config !== undefined &&
+    column.config !== null &&
+    'isMultiImage' in column.config &&
+    column.config.isMultiImage === true
+  )
 }

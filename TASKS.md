@@ -453,7 +453,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Use `uuid/v4` for generated label IDs and keep persistence/services owned by the Settings domain.
   - Define transactional label and note-template deletion behavior so note values never retain dangling label IDs.
 
-- [ ] T91. Add backend label APIs and label field contracts
+- [x] T91. Add backend label APIs and label field contracts
   - Expose Swagger-backed CRUD endpoints for labels, including stable validation, conflict, and not-found responses.
   - Add `labels` to `ColumnTypeEnum` and add Settings-owned configuration for single/multiple selection and allowed label sources.
   - Treat empty source selection as all sources and validate explicit shared/note-template sources.

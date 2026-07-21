@@ -7,6 +7,7 @@ export type CreateNoteDto = {
     string,
     | string
     | number
+    | Array<string>
     | {
         fileName?: string
         mimeType?: string

@@ -19,31 +19,93 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger'
+import { LabelsService } from './labels.service'
 import { SettingsService } from './settings.service'
 import { ColumnDeleteModeEnum } from './types/column-delete-mode-enum'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import { ColumnDto } from './types/column.dto'
+import { CreateLabelDto } from './types/create-label.dto'
 import { CreateColumnDto } from './types/create-column.dto'
 import { CreateNoteTypeDto } from './types/create-note-type.dto'
 import { DeleteColumnQueryDto } from './types/delete-column-query.dto'
+import { DeleteLabelResultDto } from './types/delete-label-result.dto'
 import { DeleteNoteTypeDto } from './types/delete-note-type.dto'
 import { DeleteNoteTypeModeEnum } from './types/delete-note-type-mode-enum'
 import { DeleteNoteTypeResultDto } from './types/delete-note-type-result.dto'
 import { GeneralSettingsDto } from './types/general-settings.dto'
+import { LabelDto } from './types/label.dto'
 import { NoteTypeDetailDto } from './types/note-type-detail.dto'
 import { NoteTypeDto } from './types/note-type.dto'
 import type { CreateColumnInput, UpdateColumnInput } from './types/note-column'
 import { ReorderColumnsDto } from './types/reorder-columns.dto'
 import { UpdateColumnDto } from './types/update-column.dto'
 import { UpdateGeneralSettingsDto } from './types/update-general-settings.dto'
+import { UpdateLabelDto } from './types/update-label.dto'
 import { UpdateNoteTypeDto } from './types/update-note-type.dto'
 
 @ApiTags('settings')
 @Controller('settings')
 export class SettingsController {
   constructor(
-    @Inject(SettingsService) private readonly settingsService: SettingsService
+    @Inject(SettingsService) private readonly settingsService: SettingsService,
+    @Inject(LabelsService) private readonly labelsService: LabelsService
   ) {}
+
+  @Get('labels')
+  @ApiOperation({ summary: 'List labels' })
+  @ApiOkResponse({
+    description: 'Configured labels.',
+    type: LabelDto,
+    isArray: true,
+  })
+  listLabels(): LabelDto[] {
+    return this.labelsService.listLabels()
+  }
+
+  @Post('labels')
+  @ApiOperation({ summary: 'Create a label' })
+  @ApiCreatedResponse({ description: 'Created label.', type: LabelDto })
+  createLabel(@Body() body: CreateLabelDto): LabelDto {
+    this.ensureRequestBodyIsRecord(
+      body,
+      'Label request body must be an object.'
+    )
+    this.ensureRequiredString(body.title, 'Label title')
+    this.ensureRequiredString(body.name, 'Label name')
+    this.ensureRequiredString(body.color, 'Label color')
+    this.ensureOptionalNullableString(body.noteTypeId, 'Label note type id')
+
+    return this.labelsService.createLabel(body)
+  }
+
+  @Patch('labels/:id')
+  @ApiOperation({ summary: 'Update a label' })
+  @ApiParam({ name: 'id', description: 'Label id.' })
+  @ApiOkResponse({ description: 'Updated label.', type: LabelDto })
+  updateLabel(@Param('id') id: string, @Body() body: UpdateLabelDto): LabelDto {
+    this.ensureRequestBodyIsRecord(
+      body,
+      'Label request body must be an object.'
+    )
+    this.ensureLabelUpdateHasSupportedField(body)
+    this.ensureOptionalString(body.title, 'Label title')
+    this.ensureOptionalString(body.name, 'Label name')
+    this.ensureOptionalString(body.color, 'Label color')
+    this.ensureOptionalNullableString(body.noteTypeId, 'Label note type id')
+
+    return this.labelsService.updateLabel(id, body)
+  }
+
+  @Delete('labels/:id')
+  @ApiOperation({ summary: 'Delete a label' })
+  @ApiParam({ name: 'id', description: 'Label id.' })
+  @ApiOkResponse({
+    description: 'Label deletion result.',
+    type: DeleteLabelResultDto,
+  })
+  deleteLabel(@Param('id') id: string): DeleteLabelResultDto {
+    return this.labelsService.deleteLabel(id)
+  }
 
   @Get('note-types')
   @ApiOperation({ summary: 'List note types' })
@@ -140,8 +202,14 @@ export class SettingsController {
           fieldMapping,
           'Each field mapping must be an object.'
         )
-        this.ensureRequiredString(fieldMapping.sourceColumnId, 'Source column id')
-        this.ensureRequiredString(fieldMapping.targetColumnId, 'Target column id')
+        this.ensureRequiredString(
+          fieldMapping.sourceColumnId,
+          'Source column id'
+        )
+        this.ensureRequiredString(
+          fieldMapping.targetColumnId,
+          'Target column id'
+        )
       }
     }
 
@@ -361,6 +429,23 @@ export class SettingsController {
   private ensureOptionalString(value: unknown, label: string): void {
     if (value !== undefined && typeof value !== 'string') {
       throw new BadRequestException(`${label} must be a string.`)
+    }
+  }
+
+  private ensureLabelUpdateHasSupportedField(
+    body: Record<string, unknown>
+  ): void {
+    const supportedFields = ['title', 'name', 'color', 'noteTypeId']
+
+    if (!supportedFields.some((field) => body[field] !== undefined)) {
+      throw new BadRequestException(
+        'Label update must include at least one supported field.'
+      )
+    }
+  }
+  private ensureOptionalNullableString(value: unknown, label: string): void {
+    if (value !== undefined && value !== null && typeof value !== 'string') {
+      throw new BadRequestException(`${label} must be a string or null.`)
     }
   }
 
