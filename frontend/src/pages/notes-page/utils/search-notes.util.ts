@@ -1,5 +1,5 @@
 import type MiniSearch from 'minisearch'
-import type { NoteDto } from '../../../types/api'
+import type { LabelDto, NoteDto } from '../../../types/api'
 import type { NoteSearchDocument } from '../types/note-search-document'
 import { createNotesSearchIndex } from './create-notes-search-index.util'
 
@@ -7,9 +7,11 @@ export const searchNotes = (
   notes: NoteDto[],
   searchQuery: string,
   noteTypeTitleById: Record<string, string>,
+  labels: LabelDto[] = [],
   searchIndex: MiniSearch<NoteSearchDocument> = createNotesSearchIndex(
     notes,
-    noteTypeTitleById
+    noteTypeTitleById,
+    labels
   )
 ): NoteDto[] => {
   const normalizedSearchQuery = searchQuery.trim()

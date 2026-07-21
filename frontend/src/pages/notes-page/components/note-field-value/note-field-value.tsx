@@ -1,5 +1,7 @@
 import { Typography } from '@mui/material'
+import type { LabelDto } from '../../../../types/api'
 import { ImageNoteFieldValue } from './components/image-note-field-value'
+import { LabelNoteFieldValue } from './components/label-note-field-value'
 import { LinkNoteFieldValue } from './components/link-note-field-value'
 import { NumberNoteFieldValue } from './components/number-note-field-value'
 import { TextNoteFieldValue } from './components/text-note-field-value'
@@ -8,6 +10,7 @@ import { formatNoteDateValue } from '../../utils/format-note-date-value.util'
 import { hasRenderableNoteCardValue } from '../../utils/has-renderable-note-card-value.util'
 import { isImageNoteValue } from '../../utils/is-image-note-value.util'
 import { isNoteImageValueList } from '../../utils/is-note-image-value-list.util'
+import { isLabelIdList } from '../../utils/is-label-id-list.util'
 
 interface NoteFieldValueProps {
   emptyImageLabel: string
@@ -15,6 +18,7 @@ interface NoteFieldValueProps {
   enableImageOverlay?: boolean
   field: NoteCardField
   imagePreviewMaxWidth?: number | string
+  labels: LabelDto[]
   textTruncationLength: number | null
 }
 
@@ -24,6 +28,7 @@ export const NoteFieldValue = ({
   enableImageOverlay = false,
   field,
   imagePreviewMaxWidth,
+  labels,
   textTruncationLength,
 }: NoteFieldValueProps) => {
   if (!hasRenderableNoteCardValue(field.value)) {
@@ -32,6 +37,10 @@ export const NoteFieldValue = ({
         {emptyValueLabel}
       </Typography>
     ) : null
+  }
+
+  if (field.type === 'labels' && isLabelIdList(field.value)) {
+    return <LabelNoteFieldValue labelIds={field.value} labels={labels} />
   }
 
   if (

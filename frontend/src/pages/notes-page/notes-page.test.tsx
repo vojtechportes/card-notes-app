@@ -55,12 +55,17 @@ globalThis.IntersectionObserver =
 const useCreateNoteMutationMock = vi.hoisted(() => vi.fn())
 const useDeleteNoteMutationMock = vi.hoisted(() => vi.fn())
 const useGeneralSettingsQueryMock = vi.hoisted(() => vi.fn())
+const useLabelsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteTypeColumnsMapQueryMock = vi.hoisted(() => vi.fn())
 const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesSearchMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../settings-page/hooks/use-labels-query', () => ({
+  useLabelsQuery: useLabelsQueryMock,
+}))
 
 vi.mock('../settings-page/hooks/use-note-types-query', () => ({
   useNoteTypesQuery: useNoteTypesQueryMock,
@@ -308,6 +313,11 @@ describe('NotesPage', () => {
       isPending: false,
       mutate: vi.fn(),
     })
+    useLabelsQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
     useGeneralSettingsQueryMock.mockReturnValue({
       data: generalSettings,
       isError: false,
@@ -370,10 +380,15 @@ describe('NotesPage', () => {
       target: { value: 'alpha' },
     })
 
-    expect(useNotesSearchMock).toHaveBeenLastCalledWith(notes, 'alpha', {
-      'note-type-1': 'Books',
-      'note-type-2': 'Movies',
-    })
+    expect(useNotesSearchMock).toHaveBeenLastCalledWith(
+      notes,
+      'alpha',
+      {
+        'note-type-1': 'Books',
+        'note-type-2': 'Movies',
+      },
+      []
+    )
   })
 
   it('updates the notes query sort state from the toolbar', () => {
@@ -495,6 +510,11 @@ describe('NotesPage', () => {
   })
 
   it('merges created and updated timestamps in the detail drawer when enabled', async () => {
+    useLabelsQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
     useGeneralSettingsQueryMock.mockReturnValue({
       data: {
         ...generalSettings,
@@ -514,6 +534,11 @@ describe('NotesPage', () => {
   })
 
   it('shows a card configuration error when note columns or general settings fail to load', () => {
+    useLabelsQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
     useGeneralSettingsQueryMock.mockReturnValue({
       data: undefined,
       isError: true,

@@ -472,7 +472,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Explain that no selected source means all sources are available.
   - Keep the configuration UI in a focused component and keep validation/mapping utilities one function per file.
 
-- [ ] T94. Add label assignment and rendering to notes
+- [x] T94. Add label assignment and rendering to notes
   - Add source-filtered single/multiple label controls to note create/edit forms.
   - Render assigned labels as small filled colored Chips on note cards and in note details.
   - Index current label titles/names in MiniSearch and handle missing label references without crashing.

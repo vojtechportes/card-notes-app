@@ -5,17 +5,19 @@ import type {
   UseFormSetError,
 } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
-import type { ColumnDto } from '../../../../../types/api'
+import type { ColumnDto, LabelDto } from '../../../../../types/api'
 import type { FormValues } from '../types/form-values'
 import { isMultiImageColumn } from '../../../../../utils/is-multi-image-column.util'
 import { NoteImageDropZone } from './note-image-drop-zone'
 import type { NoteImageDropZoneValue } from './note-image-drop-zone'
+import { NoteLabelField } from './note-label-field'
 
 interface NoteFormFieldProps {
   autoFocus: boolean
   clearErrors: UseFormClearErrors<FormValues>
   column: ColumnDto
   control: Control<FormValues>
+  labels: LabelDto[]
   setError: UseFormSetError<FormValues>
 }
 
@@ -24,9 +26,21 @@ export const NoteFormField = ({
   clearErrors,
   column,
   control,
+  labels,
   setError,
 }: NoteFormFieldProps) => {
   const fieldName = `values.${column.id}` as const
+
+  if (column.type === 'labels') {
+    return (
+      <NoteLabelField
+        autoFocus={autoFocus}
+        column={column}
+        control={control}
+        labels={labels}
+      />
+    )
+  }
 
   if (column.type === 'image') {
     return (

@@ -26,6 +26,7 @@ import { useGeneralSettingsQuery } from './hooks/use-general-settings-query'
 import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query'
 import { useNotesSearch } from './hooks/use-notes-search'
 import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
+import { useLabelsQuery } from '../settings-page/hooks/use-labels-query'
 import { useNoteTypesQuery } from '../settings-page/hooks/use-note-types-query'
 
 const DEFAULT_SORT_BY: NoteSortBy = 'updatedAt'
@@ -46,6 +47,7 @@ export const NotesPage = () => {
     DEFAULT_SORT_DIRECTION
   )
   const noteTypesQuery = useNoteTypesQuery()
+  const labelsQuery = useLabelsQuery()
   const notesQuery = useNotesQuery({
     noteTypeIds:
       selectedNoteTypeIds.length > 0 ? selectedNoteTypeIds : undefined,
@@ -66,16 +68,21 @@ export const NotesPage = () => {
   const filteredNotes = useNotesSearch(
     notesQuery.data,
     searchQuery,
-    noteTypeTitleById
+    noteTypeTitleById,
+    labelsQuery.data ?? []
   )
   const noteTypeIds = useMemo(() => {
     return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
   }, [notesQuery.data])
   const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(noteTypeIds)
   const isCardConfigurationLoading =
-    noteTypeColumnsMapQuery.isLoading || generalSettingsQuery.isLoading
+    noteTypeColumnsMapQuery.isLoading ||
+    generalSettingsQuery.isLoading ||
+    labelsQuery.isLoading
   const hasCardConfigurationError =
-    noteTypeColumnsMapQuery.isError || generalSettingsQuery.isError
+    noteTypeColumnsMapQuery.isError ||
+    generalSettingsQuery.isError ||
+    labelsQuery.isError
   const selectedNote = useMemo(
     () => notesQuery.data?.find((note) => note.id === noteId),
     [noteId, notesQuery.data]
@@ -168,6 +175,7 @@ export const NotesPage = () => {
         <NoteDetailPanel
           columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? []}
           generalSettings={generalSettingsQuery.data}
+          labels={labelsQuery.data ?? []}
           note={selectedNote}
           noteTypeColumnsById={noteTypeColumnsMapQuery.data}
           noteTypeTitle={noteTypeTitleById[selectedNote.noteTypeId]}
@@ -186,6 +194,7 @@ export const NotesPage = () => {
     handleOpenNoteDialog,
     hasCardConfigurationError,
     isCardConfigurationLoading,
+    labelsQuery.data,
     navigate,
     noteId,
     noteTypeColumnsMapQuery.data,
@@ -257,6 +266,7 @@ export const NotesPage = () => {
             <NoteCardList
               columns={[]}
               generalSettings={generalSettingsQuery.data}
+              labels={labelsQuery.data ?? []}
               noteTypeColumnsById={noteTypeColumnsMapQuery.data}
               notes={filteredNotes}
               onDeleteNote={handleDeleteNote}

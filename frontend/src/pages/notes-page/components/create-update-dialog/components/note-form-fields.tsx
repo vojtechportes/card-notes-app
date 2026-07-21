@@ -4,7 +4,7 @@ import type {
   UseFormClearErrors,
   UseFormSetError,
 } from 'react-hook-form'
-import type { ColumnDto } from '../../../../../types/api'
+import type { ColumnDto, LabelDto } from '../../../../../types/api'
 import type { FormValues } from '../types/form-values'
 import { NoteFormField } from './note-form-field'
 
@@ -12,6 +12,7 @@ interface NoteFormFieldsProps {
   clearErrors: UseFormClearErrors<FormValues>
   columns: ColumnDto[]
   control: Control<FormValues>
+  labels: LabelDto[]
   setError: UseFormSetError<FormValues>
 }
 
@@ -19,6 +20,7 @@ export const NoteFormFields = ({
   clearErrors,
   columns,
   control,
+  labels,
   setError,
 }: NoteFormFieldsProps) => {
   return (
@@ -30,6 +32,7 @@ export const NoteFormFields = ({
           column={column}
           control={control}
           key={column.id}
+          labels={labels}
           setError={setError}
         />
       ))}

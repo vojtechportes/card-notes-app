@@ -1,10 +1,13 @@
-import type { NoteDto } from '../../../types/api'
+import type { LabelDto, NoteDto } from '../../../types/api'
 import type { NoteSearchDocument } from '../types/note-search-document'
+import { getLabelSearchText } from './get-label-search-text.util'
+import { isLabelIdList } from './is-label-id-list.util'
 import { normalizeNoteSearchValue } from './normalize-note-search-value.util'
 
 export const createNoteSearchDocument = (
   note: NoteDto,
-  noteTypeTitleById: Record<string, string>
+  noteTypeTitleById: Record<string, string>,
+  labelById: ReadonlyMap<string, LabelDto>
 ): NoteSearchDocument => {
   const noteTypeTitle = noteTypeTitleById[note.noteTypeId] ?? ''
 
@@ -15,8 +18,9 @@ export const createNoteSearchDocument = (
     noteTypeTitle,
     searchableText: [
       noteTypeTitle,
+      getLabelSearchText(note, labelById),
       ...Object.values(note.values).map((value) =>
-        normalizeNoteSearchValue(value)
+        isLabelIdList(value) ? '' : normalizeNoteSearchValue(value)
       ),
     ]
       .filter(Boolean)

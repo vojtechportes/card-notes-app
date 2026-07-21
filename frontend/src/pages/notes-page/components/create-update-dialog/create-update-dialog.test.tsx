@@ -10,11 +10,16 @@ import type { ColumnDto, NoteDto, NoteTypeDto } from '../../../../types/api'
 import '../../../../i18n'
 import { CreateUpdateDialog } from './create-update-dialog'
 
+const useLabelsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteColumnsQueryMock = vi.hoisted(() => vi.fn())
 const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useCreateNoteMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
 const createNoteImageValueFromFileMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../settings-page/hooks/use-labels-query', () => ({
+  useLabelsQuery: useLabelsQueryMock,
+}))
 
 vi.mock('../../../settings-page/hooks/use-note-types-query', () => ({
   useNoteTypesQuery: useNoteTypesQueryMock,
@@ -184,6 +189,11 @@ const selectSpecificNoteType = async (title: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  useLabelsQueryMock.mockReturnValue({
+    data: [],
+    isError: false,
+    isLoading: false,
+  })
   useNoteTypesQueryMock.mockReturnValue({
     data: noteTypes,
     isError: false,
@@ -239,6 +249,11 @@ describe('CreateUpdateDialog', () => {
   })
 
   it('shows the loading state from the note templates query', () => {
+    useLabelsQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
     useNoteTypesQueryMock.mockReturnValue({
       data: undefined,
       isError: false,
@@ -552,6 +567,218 @@ describe('CreateUpdateDialog', () => {
             'receipt-column': null,
             'title-column': 'Updated title',
           },
+        },
+      })
+    })
+  })
+
+  it('assigns source-filtered labels and submits unique label ids', async () => {
+    const labelsColumn: ColumnDto = {
+      config: {
+        allowMultiple: true,
+        sources: {
+          includeShared: true,
+          noteTypeIds: ['note-type-1'],
+        },
+      },
+      createdAt: '2026-07-21T10:00:00.000Z',
+      id: 'labels-column',
+      noteTypeId: 'note-type-1',
+      isDefault: false,
+      isHidden: false,
+      name: 'topics',
+      sortOrder: 6,
+      title: 'Topics',
+      type: 'labels',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+    }
+
+    useNoteColumnsQueryMock.mockImplementation((noteTypeId?: string) => ({
+      data:
+        noteTypeId === 'note-type-1'
+          ? [...bookColumns, labelsColumn]
+          : noteTypeId === 'note-type-2'
+            ? movieColumns
+            : undefined,
+      isError: false,
+      isLoading: false,
+    }))
+    useLabelsQueryMock.mockReturnValue({
+      data: [
+        {
+          color: '#0070F2',
+          createdAt: '2026-07-21T10:00:00.000Z',
+          id: 'shared-label',
+          name: 'shared',
+          noteTypeId: null,
+          title: 'Shared label',
+          updatedAt: '2026-07-21T10:00:00.000Z',
+        },
+        {
+          color: '#188918',
+          createdAt: '2026-07-21T10:00:00.000Z',
+          id: 'book-label',
+          name: 'book',
+          noteTypeId: 'note-type-1',
+          title: 'Book label',
+          updatedAt: '2026-07-21T10:00:00.000Z',
+        },
+        {
+          color: '#D20A0A',
+          createdAt: '2026-07-21T10:00:00.000Z',
+          id: 'movie-label',
+          name: 'movie',
+          noteTypeId: 'note-type-2',
+          title: 'Movie label',
+          updatedAt: '2026-07-21T10:00:00.000Z',
+        },
+      ],
+      isError: false,
+      isLoading: false,
+    })
+
+    render(<CreateUpdateDialog mode="create" onClose={vi.fn()} open />)
+
+    await selectSpecificNoteType('Books')
+
+    const labelsInput = screen.getByRole('combobox', { name: 'Topics' })
+    fireEvent.mouseDown(labelsInput)
+    expect(
+      await screen.findByRole('option', { name: 'Shared label' })
+    ).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Book label' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'Movie label' })).toBeNull()
+    fireEvent.click(screen.getByRole('option', { name: 'Shared label' }))
+
+    fireEvent.mouseDown(labelsInput)
+    fireEvent.click(await screen.findByRole('option', { name: 'Book label' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith({
+        noteTypeId: 'note-type-1',
+        values: {
+          'labels-column': ['shared-label', 'book-label'],
+        },
+      })
+    })
+  })
+
+  it('hydrates and clears a single-label field while editing', async () => {
+    const labelsColumn: ColumnDto = {
+      config: { allowMultiple: false, sources: null },
+      createdAt: '2026-07-21T10:00:00.000Z',
+      id: 'labels-column',
+      noteTypeId: 'note-type-1',
+      isDefault: false,
+      isHidden: false,
+      name: 'topic',
+      sortOrder: 6,
+      title: 'Topic',
+      type: 'labels',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+    }
+    const note: NoteDto = {
+      createdAt: '2026-07-21T10:00:00.000Z',
+      id: 'note-with-label',
+      noteTypeId: 'note-type-1',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+      values: { 'labels-column': ['shared-label'] },
+    }
+
+    useNoteColumnsQueryMock.mockReturnValue({
+      data: [...bookColumns, labelsColumn],
+      isError: false,
+      isLoading: false,
+    })
+    useLabelsQueryMock.mockReturnValue({
+      data: [
+        {
+          color: '#0070F2',
+          createdAt: '2026-07-21T10:00:00.000Z',
+          id: 'shared-label',
+          name: 'shared',
+          noteTypeId: null,
+          title: 'Shared label',
+          updatedAt: '2026-07-21T10:00:00.000Z',
+        },
+      ],
+      isError: false,
+      isLoading: false,
+    })
+
+    render(
+      <CreateUpdateDialog mode="update" note={note} onClose={vi.fn()} open />
+    )
+
+    expect(
+      screen.getByText('Shared label').closest('.MuiChip-root')
+    ).not.toBeNull()
+
+    fireEvent.click(screen.getByTitle('Clear'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'note-with-label',
+        note: {
+          values: expect.objectContaining({
+            'labels-column': null,
+          }),
+        },
+      })
+    })
+  })
+
+  it('surfaces and removes a missing label assignment while editing', async () => {
+    const labelsColumn: ColumnDto = {
+      config: { allowMultiple: true, sources: null },
+      createdAt: '2026-07-21T10:00:00.000Z',
+      id: 'labels-column',
+      noteTypeId: 'note-type-1',
+      isDefault: false,
+      isHidden: false,
+      name: 'topics',
+      sortOrder: 6,
+      title: 'Topics',
+      type: 'labels',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+    }
+    const note: NoteDto = {
+      createdAt: '2026-07-21T10:00:00.000Z',
+      id: 'note-with-missing-label',
+      noteTypeId: 'note-type-1',
+      updatedAt: '2026-07-21T10:00:00.000Z',
+      values: { 'labels-column': ['missing-label'] },
+    }
+
+    useNoteColumnsQueryMock.mockReturnValue({
+      data: [...bookColumns, labelsColumn],
+      isError: false,
+      isLoading: false,
+    })
+
+    render(
+      <CreateUpdateDialog mode="update" note={note} onClose={vi.fn()} open />
+    )
+
+    const missingChip = screen
+      .getByText('Unavailable label')
+      .closest('.MuiChip-root')
+    expect(missingChip).not.toBeNull()
+
+    const deleteIcon = missingChip?.querySelector('[data-testid="CancelIcon"]')
+    expect(deleteIcon).not.toBeNull()
+    fireEvent.click(deleteIcon as Element)
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'note-with-missing-label',
+        note: {
+          values: expect.objectContaining({
+            'labels-column': null,
+          }),
         },
       })
     })
