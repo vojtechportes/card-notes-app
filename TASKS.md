@@ -577,6 +577,11 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Expose narrow sandboxed IPC window controls and keep maximize/restore state synchronized.
   - Add automated coverage for the renderer controls and Electron bridge, then verify frontend and Electron builds/tests.
 
+- [x] TMSC-23. Use small MUI inputs in forms
+  - Set text fields, selects, autocomplete controls, checkboxes, radios, and switches inside forms to the small size.
+  - Preserve the existing size of toolbar, filter, and other non-form controls.
+  - Verify the affected form flows and frontend build.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

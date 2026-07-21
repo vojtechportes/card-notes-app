@@ -41,7 +41,9 @@ export const NoteTypeDialog = ({
   const formId = useId().replace(/:/g, '-')
 
   const schema = useMemo(() => {
-    return createNoteTypeFormSchema(t('settings.noteTypes.validation.titleRequired'))
+    return createNoteTypeFormSchema(
+      t('settings.noteTypes.validation.titleRequired')
+    )
   }, [t])
 
   const {
@@ -104,6 +106,7 @@ export const NoteTypeDialog = ({
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
 
           <TextField
+            size="small"
             autoFocus
             error={Boolean(errors.title)}
             fullWidth
@@ -116,7 +119,10 @@ export const NoteTypeDialog = ({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={isPending || isSubmitting} onClick={handleDialogClose}>
+        <Button
+          disabled={isPending || isSubmitting}
+          onClick={handleDialogClose}
+        >
           {t('settings.noteTypes.actions.cancel')}
         </Button>
         <Button form={formId} type="submit" variant="contained">

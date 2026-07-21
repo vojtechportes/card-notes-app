@@ -54,6 +54,7 @@ export const NoteLabelField = ({
           return (
             <Box>
               <Autocomplete
+                size="small"
                 autoFocus={autoFocus}
                 getOptionKey={(option) => option.id}
                 getOptionLabel={(option) => option.title}
@@ -120,6 +121,7 @@ export const NoteLabelField = ({
         return (
           <Box>
             <Autocomplete
+              size="small"
               autoFocus={autoFocus}
               getOptionKey={(option) => option.id}
               getOptionLabel={(option) => option.title}

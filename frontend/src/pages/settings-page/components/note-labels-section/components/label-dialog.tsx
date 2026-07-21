@@ -129,6 +129,7 @@ export const LabelDialog = ({
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
 
           <TextField
+            size="small"
             autoFocus
             error={Boolean(errors.title)}
             fullWidth
@@ -137,6 +138,7 @@ export const LabelDialog = ({
             {...register('title')}
           />
           <TextField
+            size="small"
             error={Boolean(errors.name)}
             fullWidth
             helperText={
@@ -145,7 +147,11 @@ export const LabelDialog = ({
             label={t('settings.noteLabels.fields.name')}
             {...register('name')}
           />
-          <FormControl fullWidth error={Boolean(errors.noteTypeId)}>
+          <FormControl
+            size="small"
+            fullWidth
+            error={Boolean(errors.noteTypeId)}
+          >
             <InputLabel id={`${formId}-source-label`}>
               {t('settings.noteLabels.fields.source')}
             </InputLabel>
@@ -154,6 +160,7 @@ export const LabelDialog = ({
               name="noteTypeId"
               render={({ field }) => (
                 <Select
+                  size="small"
                   {...field}
                   label={t('settings.noteLabels.fields.source')}
                   labelId={`${formId}-source-label`}
