@@ -188,6 +188,37 @@ describe('NoteLabelsSection', () => {
     })
   })
 
+  it('embeds the color picker and synchronizes picker changes', async () => {
+    renderSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
+
+    const picker = screen.getByLabelText('Choose label color')
+    expect(picker.closest('.MuiInputAdornment-root')).not.toBeNull()
+    expect((screen.getByLabelText('Color') as HTMLInputElement).value).toBe(
+      '#0070F2'
+    )
+
+    fireEvent.change(screen.getByLabelText('Label title'), {
+      target: { value: 'Selected color' },
+    })
+    fireEvent.change(screen.getByLabelText('Label name'), {
+      target: { value: 'selected-color' },
+    })
+    fireEvent.change(picker, { target: { value: '#c35500' } })
+
+    expect((screen.getByLabelText('Color') as HTMLInputElement).value).toBe(
+      '#C35500'
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Create label' }))
+
+    await waitFor(() => {
+      expect(createMutation.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ color: '#C35500' })
+      )
+    })
+  })
+
   it('updates a template-specific label', async () => {
     renderSection()
 

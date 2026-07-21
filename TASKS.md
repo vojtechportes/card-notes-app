@@ -582,6 +582,12 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Preserve the existing size of toolbar, filter, and other non-form controls.
   - Verify the affected form flows and frontend build.
 
+- [x] TMSC-24. Improve label color selection
+  - Render the label color picker as a compact leading swatch inside the outlined color text field.
+  - Keep the hexadecimal value editable and synchronized with picker changes, validation, and the live label preview.
+  - Preserve accessible picker labeling and add focused frontend coverage for both color input paths.
+  - Verify formatting, focused tests, frontend lint, and frontend build.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
