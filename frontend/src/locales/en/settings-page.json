@@ -11,6 +11,10 @@
         "title": "Note templates",
         "description": "Create and organize note templates, then open a template to manage its nested fields and field settings."
       },
+      "noteLabels": {
+        "title": "Note labels",
+        "description": "Create reusable shared or note-template-specific labels for organizing your notes."
+      },
       "exportImport": {
         "title": "Export / Import",
         "description": "Move data in and out of NoteStack with JSON backups or XLSX imports while keeping existing notes intact."
@@ -253,6 +257,70 @@
       "errors": {
         "load": "Updater status could not be loaded right now.",
         "action": "The updater action could not be completed."
+      }
+    },
+    "noteLabels": {
+      "summary_one": "{{count}} label configured.",
+      "summary_other": "{{count}} labels configured.",
+      "fields": {
+        "title": "Label title",
+        "name": "Label name",
+        "nameHint": "Names must be unique within the selected source.",
+        "source": "Source",
+        "color": "Color",
+        "colorHint": "Choose a label color in #RRGGBB format.",
+        "colorPicker": "Choose label color",
+        "preview": "Preview",
+        "previewFallback": "Label preview"
+      },
+      "grid": {
+        "columns": {
+          "title": "Label title",
+          "name": "Label name",
+          "noteTemplate": "Note template",
+          "createdAt": "Created at",
+          "updatedAt": "Updated at",
+          "actions": "Actions"
+        }
+      },
+      "sources": {
+        "shared": "Shared",
+        "missing": "Unavailable note template"
+      },
+      "actions": {
+        "add": "Add label",
+        "create": "Create label",
+        "save": "Save label",
+        "edit": "Edit label",
+        "delete": "Delete label",
+        "confirmDelete": "Delete label",
+        "cancel": "Cancel"
+      },
+      "dialog": {
+        "createTitle": "Add label",
+        "editTitle": "Edit label"
+      },
+      "status": {
+        "loading": "Loading labels...",
+        "error": "Labels could not be loaded right now.",
+        "empty": "No labels are configured yet. Add your first reusable label to get started."
+      },
+      "validation": {
+        "titleRequired": "Label title is required.",
+        "nameRequired": "Label name is required.",
+        "sourceRequired": "Label source is required.",
+        "colorRequired": "Label color is required.",
+        "colorFormat": "Enter a color in #RRGGBB format."
+      },
+      "delete": {
+        "title": "Delete label",
+        "description": "Delete \"{{title}}\"? This removes the label from every note that currently uses it."
+      },
+      "errors": {
+        "submit": "The label could not be saved. Try again.",
+        "nameConflict": "That label name is already used by the selected source.",
+        "delete": "The label could not be deleted. Try again.",
+        "noteTypes": "Note templates could not be loaded, so label sources are unavailable."
       }
     },
     "noteTypes": {

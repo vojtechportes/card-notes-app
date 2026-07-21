@@ -21,6 +21,9 @@ export const useDeleteNoteTypeMutation = () => {
           queryKey: settingsQueryKeys.noteTypes(),
         }),
         queryClient.invalidateQueries({
+          queryKey: settingsQueryKeys.labels(),
+        }),
+        queryClient.invalidateQueries({
           queryKey: settingsQueryKeys.noteTypeDetail(variables.id),
         }),
         queryClient.invalidateQueries({

@@ -47,6 +47,10 @@ const settingsNavItems = [
     labelKey: 'navigation.settingsPages.noteTemplates',
   },
   {
+    path: `${settingsPath}/${settingsSubPageRoutes.noteLabels}`,
+    labelKey: 'navigation.settingsPages.noteLabels',
+  },
+  {
     path: `${settingsPath}/${settingsSubPageRoutes.exportImport}`,
     labelKey: 'navigation.settingsPages.exportImport',
   },

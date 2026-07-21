@@ -3,30 +3,38 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ColumnDto,
   CreateColumnDto,
+  CreateLabelDto,
   CreateNoteTypeDto,
   DeleteColumnQueryDto,
+  DeleteLabelResultDto,
   DeleteNoteTypeDto,
   DeleteNoteTypeResultDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteTypeDetailDto,
   NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
+  UpdateLabelDto,
   UpdateGeneralSettingsDto,
   UpdateNoteTypeDto,
 } from '../../types/api'
 import {
   createColumn,
+  createLabel,
   createNoteType,
   deleteColumn,
+  deleteLabel,
   deleteNoteType,
   getColumns,
   getGeneralSettings,
+  getLabels,
   getNoteType,
   getNoteTypes,
   reorderColumns,
   updateColumn,
   updateGeneralSettings,
+  updateLabel,
   updateNoteType,
 } from './requests'
 
@@ -75,6 +83,77 @@ const createNoteTypeDto = (): NoteTypeDto => ({
 })
 
 describe('settings requests', () => {
+  it('fetches configured labels', () => {
+    const signal = new AbortController().signal
+    const response = Promise.resolve(createResponse<LabelDto[]>([]))
+    apiClientMock.get.mockReturnValue(response)
+
+    const result = getLabels(signal)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.get).toHaveBeenCalledWith('/settings/labels', {
+      signal,
+    })
+  })
+
+  it('creates a label', () => {
+    const label: CreateLabelDto = {
+      color: '#0070F2',
+      name: 'priority',
+      noteTypeId: null,
+      title: 'Priority',
+    }
+    const response = Promise.resolve(
+      createResponse<LabelDto>({
+        ...label,
+        createdAt: '2026-07-21T10:00:00.000Z',
+        id: 'label-1',
+        noteTypeId: label.noteTypeId ?? null,
+        updatedAt: '2026-07-21T10:00:00.000Z',
+      })
+    )
+    apiClientMock.post.mockReturnValue(response)
+
+    const result = createLabel(label)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.post).toHaveBeenCalledWith('/settings/labels', label)
+  })
+
+  it('updates a label', () => {
+    const label: UpdateLabelDto = {
+      color: '#188918',
+      noteTypeId: 'note-type-1',
+      title: 'Done',
+    }
+    const response = Promise.resolve(createResponse<LabelDto>({} as LabelDto))
+    apiClientMock.patch.mockReturnValue(response)
+
+    const result = updateLabel('label-1', label)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.patch).toHaveBeenCalledWith(
+      '/settings/labels/label-1',
+      label
+    )
+  })
+
+  it('deletes a label', () => {
+    const response = Promise.resolve(
+      createResponse<DeleteLabelResultDto>({
+        affectedNoteValuesCount: 2,
+        deletedLabelId: 'label-1',
+      })
+    )
+    apiClientMock.delete.mockReturnValue(response)
+
+    const result = deleteLabel('label-1')
+
+    expect(result).toBe(response)
+    expect(apiClientMock.delete).toHaveBeenCalledWith(
+      '/settings/labels/label-1'
+    )
+  })
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -117,20 +196,27 @@ describe('settings requests', () => {
     const noteType: CreateNoteTypeDto = {
       title: 'Projects',
     }
-    const response = Promise.resolve(createResponse<NoteTypeDto>(createNoteTypeDto()))
+    const response = Promise.resolve(
+      createResponse<NoteTypeDto>(createNoteTypeDto())
+    )
     apiClientMock.post.mockReturnValue(response)
 
     const result = createNoteType(noteType)
 
     expect(result).toBe(response)
-    expect(apiClientMock.post).toHaveBeenCalledWith('/settings/note-types', noteType)
+    expect(apiClientMock.post).toHaveBeenCalledWith(
+      '/settings/note-types',
+      noteType
+    )
   })
 
   it('updates a note type', () => {
     const noteType: UpdateNoteTypeDto = {
       title: 'Projects',
     }
-    const response = Promise.resolve(createResponse<NoteTypeDto>(createNoteTypeDto()))
+    const response = Promise.resolve(
+      createResponse<NoteTypeDto>(createNoteTypeDto())
+    )
     apiClientMock.patch.mockReturnValue(response)
 
     const result = updateNoteType(noteTypeId, noteType)
@@ -188,7 +274,9 @@ describe('settings requests', () => {
       title: 'Summary',
       type: 'text',
     }
-    const response = Promise.resolve(createResponse<ColumnDto>(createColumnDto()))
+    const response = Promise.resolve(
+      createResponse<ColumnDto>(createColumnDto())
+    )
     apiClientMock.post.mockReturnValue(response)
 
     const result = createColumn(noteTypeId, column)

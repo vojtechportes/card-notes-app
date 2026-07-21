@@ -2,20 +2,50 @@ import type { AxiosResponse } from 'axios'
 import type {
   ColumnDto,
   CreateColumnDto,
+  CreateLabelDto,
   CreateNoteTypeDto,
   DeleteColumnQueryDto,
+  DeleteLabelResultDto,
   DeleteNoteTypeDto,
   DeleteNoteTypeResultDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteTypeDetailDto,
   NoteTypeDto,
   ReorderColumnsDto,
   UpdateColumnDto,
+  UpdateLabelDto,
   UpdateGeneralSettingsDto,
   UpdateNoteTypeDto,
 } from '../../types/api'
 import { apiClient } from '../../utils/api-client'
 
+export const getLabels = (
+  signal?: AbortSignal
+): Promise<AxiosResponse<LabelDto[]>> => {
+  return apiClient.get<LabelDto[]>('/settings/labels', {
+    signal,
+  })
+}
+
+export const createLabel = (
+  label: CreateLabelDto
+): Promise<AxiosResponse<LabelDto>> => {
+  return apiClient.post<LabelDto>('/settings/labels', label)
+}
+
+export const updateLabel = (
+  id: string,
+  label: UpdateLabelDto
+): Promise<AxiosResponse<LabelDto>> => {
+  return apiClient.patch<LabelDto>(`/settings/labels/${id}`, label)
+}
+
+export const deleteLabel = (
+  id: string
+): Promise<AxiosResponse<DeleteLabelResultDto>> => {
+  return apiClient.delete<DeleteLabelResultDto>(`/settings/labels/${id}`)
+}
 export const getNoteTypes = (
   signal?: AbortSignal
 ): Promise<AxiosResponse<NoteTypeDto[]>> => {
@@ -62,9 +92,12 @@ export const getColumns = (
   noteTypeId: string,
   signal?: AbortSignal
 ): Promise<AxiosResponse<ColumnDto[]>> => {
-  return apiClient.get<ColumnDto[]>(`/settings/note-types/${noteTypeId}/columns`, {
-    signal,
-  })
+  return apiClient.get<ColumnDto[]>(
+    `/settings/note-types/${noteTypeId}/columns`,
+    {
+      signal,
+    }
+  )
 }
 
 export const createColumn = (
@@ -103,9 +136,12 @@ export const deleteColumn = (
   id: string,
   query?: DeleteColumnQueryDto
 ): Promise<AxiosResponse<void>> => {
-  return apiClient.delete<void>(`/settings/note-types/${noteTypeId}/columns/${id}`, {
-    params: query,
-  })
+  return apiClient.delete<void>(
+    `/settings/note-types/${noteTypeId}/columns/${id}`,
+    {
+      params: query,
+    }
+  )
 }
 
 export const getGeneralSettings = (

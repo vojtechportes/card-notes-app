@@ -16,6 +16,12 @@ vi.mock(
 )
 
 vi.mock(
+  './components/note-labels-settings-page/note-labels-settings-page',
+  () => ({
+    NoteLabelsSettingsPage: () => <h3>Note labels page</h3>,
+  })
+)
+vi.mock(
   './components/export-import-settings-page/export-import-settings-page',
   () => ({
     ExportImportSettingsPage: () => <h3>Export / Import page</h3>,
@@ -75,6 +81,13 @@ describe('SettingsPage', () => {
     ).toBeTruthy()
   })
 
+  it('renders the note labels sub-page', () => {
+    renderSettingsRoute('/settings/note-labels')
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Note labels page' })
+    ).toBeTruthy()
+  })
   it('renders the export import sub-page', () => {
     renderSettingsRoute('/settings/export-import')
 
