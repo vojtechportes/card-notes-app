@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type HealthStatusDto = {
-  "status": string;
-};
+  status: string
+}

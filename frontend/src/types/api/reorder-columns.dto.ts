@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type ReorderColumnsDto = {
-  "columnIds": Array<string>;
-};
+  columnIds: Array<string>
+}

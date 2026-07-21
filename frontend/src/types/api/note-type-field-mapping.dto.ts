@@ -2,6 +2,6 @@
 // Do not edit by hand.
 
 export type NoteTypeFieldMappingDto = {
-  "sourceColumnId": string;
-  "targetColumnId": string;
-};
+  sourceColumnId: string
+  targetColumnId: string
+}

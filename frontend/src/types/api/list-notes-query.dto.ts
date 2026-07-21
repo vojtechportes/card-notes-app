@@ -2,7 +2,7 @@
 // Do not edit by hand.
 
 export type ListNotesQueryDto = {
-  "sortBy"?: "createdAt" | "updatedAt";
-  "sortDirection"?: "asc" | "desc";
-  "noteTypeIds"?: Array<string>;
-};
+  sortBy?: 'createdAt' | 'updatedAt'
+  sortDirection?: 'asc' | 'desc'
+  noteTypeIds?: Array<string>
+}

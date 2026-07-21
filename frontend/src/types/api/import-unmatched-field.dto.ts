@@ -5,5 +5,5 @@ export type ImportUnmatchedFieldDto = {
   name: string
   title?: string | null
   noteTypeTitle?: string | null
-  type?: 'text' | 'date' | 'number' | 'image' | 'link' | null
+  type?: 'text' | 'date' | 'number' | 'image' | 'link' | 'labels' | null
 }

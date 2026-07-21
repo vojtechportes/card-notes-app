@@ -2,5 +2,5 @@
 // Do not edit by hand.
 
 export type DeleteAllNotesResultDto = {
-  "deletedCount": number;
-};
+  deletedCount: number
+}

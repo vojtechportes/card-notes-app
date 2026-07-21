@@ -2,8 +2,8 @@
 // Do not edit by hand.
 
 export type NoteTypeDto = {
-  "id": string;
-  "title": string;
-  "createdAt": string;
-  "updatedAt": string;
-};
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}

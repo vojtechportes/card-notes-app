@@ -2,7 +2,7 @@
 // Do not edit by hand.
 
 export type UpdateGeneralSettingsDto = {
-  "textTruncationLength"?: number | null;
-  "cardFieldDisplayCount"?: number | null;
-  "mergeDateTimeFields"?: boolean | null;
-};
+  textTruncationLength?: number | null
+  cardFieldDisplayCount?: number | null
+  mergeDateTimeFields?: boolean | null
+}
