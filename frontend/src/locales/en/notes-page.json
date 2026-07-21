@@ -29,14 +29,35 @@
         "button": "Filters",
         "buttonWithCount": "Filters ({{count}})",
         "title": "Advanced filters",
-        "description": "Filter the notes list by note template.",
-        "actions": {
-          "clear": "Clear",
-          "close": "Close"
+        "description": "Filter notes by template and labels.",
+        "noteTypes": {
+          "title": "Note templates",
+          "status": {
+            "loading": "Loading note templates...",
+            "empty": "No note templates are available."
+          }
         },
-        "status": {
-          "loading": "Loading note templates...",
-          "empty": "No note templates are available."
+        "labels": {
+          "title": "Labels",
+          "description": "Match labels across every Labels field on a note.",
+          "matchMode": {
+            "label": "Label match mode",
+            "options": {
+              "or": "Any selected label (OR)",
+              "and": "All selected labels (AND)"
+            }
+          },
+          "status": {
+            "loading": "Loading labels...",
+            "empty": "No labels are available."
+          }
+        },
+        "active": {
+          "title": "Active filters"
+        },
+        "actions": {
+          "clear": "Clear all",
+          "close": "Close"
         }
       },
       "actions": {

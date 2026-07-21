@@ -484,7 +484,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Validate and report conflicting/invalid label data without deleting existing data.
   - Exclude Labels fields from XLSX mapping and never infer or create labels from XLSX cells.
 
-- [ ] T96. Add advanced label filters
+- [x] T96. Add advanced label filters
   - Extend the existing Notes advanced filters with label selection and an explicit AND/OR match mode.
   - Define AND across all selected labels and OR across any selected label, evaluated across all Labels fields on a note.
   - Combine note-template and label filters with AND while preserving text search and sorting.

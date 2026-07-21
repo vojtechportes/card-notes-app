@@ -13,6 +13,7 @@ import { SideDrawer, SideDrawerProvider } from '../../components/side-drawer'
 import type {
   ColumnDto,
   GeneralSettingsDto,
+  LabelDto,
   NoteDto,
   NoteTypeDto,
 } from '../../types/api'
@@ -419,6 +420,78 @@ describe('NotesPage', () => {
     })
   })
 
+  it('filters notes by labels before applying text search', () => {
+    const labels: LabelDto[] = [
+      {
+        color: '#0070F2',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'label-1',
+        name: 'favorite',
+        noteTypeId: null,
+        title: 'Favorite',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+    ]
+    const labelColumn: ColumnDto = {
+      config: null,
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'labels-column',
+      isDefault: false,
+      isHidden: false,
+      name: 'labels',
+      noteTypeId: 'note-type-1',
+      sortOrder: 6,
+      title: 'Labels',
+      type: 'labels',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+    }
+    const notesWithLabels = [
+      {
+        ...notes[0],
+        values: { ...notes[0].values, 'labels-column': ['label-1'] },
+      },
+      notes[1],
+    ]
+    useLabelsQueryMock.mockReturnValue({
+      data: labels,
+      isError: false,
+      isLoading: false,
+    })
+    useNotesQueryMock.mockReturnValue({
+      data: notesWithLabels,
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {
+        'note-type-1': [...bookColumns, labelColumn],
+        'note-type-2': movieColumns,
+      },
+      isError: false,
+      isLoading: false,
+    })
+    useNotesSearchMock.mockImplementation((filteredNotes) => filteredNotes)
+
+    renderNotesPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }))
+
+    expect(useNotesSearchMock).toHaveBeenLastCalledWith(
+      [notesWithLabels[0]],
+      '',
+      {
+        'note-type-1': 'Books',
+        'note-type-2': 'Movies',
+      },
+      labels
+    )
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
+      noteTypeIds: undefined,
+      sortBy: 'updatedAt',
+      sortDirection: 'desc',
+    })
+  })
   it('renders mixed note cards without note template labels in the list', () => {
     renderNotesPage()
 
