@@ -15,22 +15,33 @@ import type {
 import { SettingsService } from '../settings/settings.service'
 import { defaultNoteColumns } from '../settings/constants/default-note-columns'
 import { areColumnTypesCompatible } from '../settings/utils/are-column-types-compatible.util'
+import { filterLabelIdsForColumn } from '../settings/utils/filter-label-ids-for-column.util'
 import { isMultiImageColumn } from '../settings/utils/is-multi-image-column.util'
+import { resolveLabelsColumnConfig } from '../settings/utils/resolve-labels-column-config.util'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
 import type { GeneralSettings } from '../settings/types/general-settings'
+import type { Label } from '../settings/types/label'
+import type { LabelsColumnConfig } from '../settings/types/labels-column-config'
 import type { NoteColumn } from '../settings/types/note-column'
 import type { NoteType } from '../settings/types/note-type'
 import { ExportImportDataDto } from './types/export-import-data.dto'
+import { createLabelSourceNameKey } from './utils/create-label-source-name-key.util'
+import { ImportLabelIssueCodeEnum } from './types/import-label-issue-code-enum'
+import type { ImportLabelIssueDto } from './types/import-label-issue.dto'
 import type { ImportUnmatchedFieldDto } from './types/import-unmatched-field.dto'
 import { ImportResultDto } from './types/import-result.dto'
 
-const exportDataVersion = 2
+const exportDataVersion = 3
+const previousExportDataVersion = 2
+const labelColorPattern = /^#[0-9A-Fa-f]{6}$/
 
 interface ValidExportImportData {
   version: number
   exportedAt: string
   noteTypes: NoteType[]
   columns: NoteColumn[]
+  labels: Label[]
+  labelIssues: ImportLabelIssueDto[]
   generalSettings: GeneralSettings
   notes: Note[]
 }
@@ -43,6 +54,13 @@ interface ColumnImportResult {
   importedColumns: number
   targetColumnIdsBySourceId: Map<string, string>
   unmatchedFields: ImportUnmatchedFieldDto[]
+}
+
+interface LabelImportResult {
+  importedLabels: number
+  reusedLabels: number
+  labelIdBySourceId: Map<string, string>
+  issues: ImportLabelIssueDto[]
 }
 
 interface ImportedNoteTypeResolution {
@@ -84,6 +102,7 @@ export class ExportImportService {
       columns: noteTypes.flatMap((noteType) =>
         this.settingsService.listColumns(noteType.id)
       ),
+      labels: this.listLabels(),
       generalSettings: this.settingsService.getGeneralSettings(),
       notes: this.notesService.listNotes({
         sortBy: NoteSortFieldEnum.CreatedAt,
@@ -140,7 +159,10 @@ export class ExportImportService {
 
         return {
           importedColumns: mappedColumnCount,
+          importedLabels: 0,
+          reusedLabels: 0,
           importedNotes,
+          labelIssues: [],
           unmatchedFields: spreadsheetImport.unmatchedFields,
           updatedGeneralSettings: false,
         }
@@ -157,8 +179,17 @@ export class ExportImportService {
     data: ValidExportImportData
   ): ImportResultDto {
     const importedNoteTypes = this.importNoteTypes(data.noteTypes)
-    const columnImport = this.importColumnsPreservingNoteTypes(
+    const remappedColumns = this.remapLabelsColumnConfigs(
       data.columns,
+      importedNoteTypes.noteTypeIdBySourceId
+    )
+    const labelImport = this.importLabels(
+      data.labels,
+      importedNoteTypes.noteTypeIdBySourceId,
+      data.labelIssues
+    )
+    const columnImport = this.importColumnsPreservingNoteTypes(
+      remappedColumns,
       importedNoteTypes
     )
 
@@ -166,9 +197,13 @@ export class ExportImportService {
 
     return {
       importedColumns: columnImport.importedColumns,
+      importedLabels: labelImport.importedLabels,
+      reusedLabels: labelImport.reusedLabels,
       importedNotes: this.appendImportedNotes(
         data.notes,
         columnImport.targetColumnIdsBySourceId,
+        labelImport.labelIdBySourceId,
+        labelImport.issues,
         (sourceNoteTypeId) => {
           const targetNoteTypeId =
             importedNoteTypes.noteTypeIdBySourceId.get(sourceNoteTypeId)
@@ -182,11 +217,11 @@ export class ExportImportService {
           return targetNoteTypeId
         }
       ),
+      labelIssues: labelImport.issues,
       unmatchedFields: columnImport.unmatchedFields,
       updatedGeneralSettings: true,
     }
   }
-
   private importJsonIntoTargetNoteType(
     data: ValidExportImportData,
     targetNoteTypeId: string
@@ -195,8 +230,20 @@ export class ExportImportService {
     const noteTypeTitleBySourceId = new Map(
       data.noteTypes.map((noteType) => [noteType.id, noteType.title])
     )
-    const columnImport = this.createTargetedColumnMappings(
+    const noteTypeIdBySourceId = new Map(
+      data.noteTypes.map((noteType) => [noteType.id, targetNoteType.id])
+    )
+    const remappedColumns = this.remapLabelsColumnConfigs(
       data.columns,
+      noteTypeIdBySourceId
+    )
+    const labelImport = this.importLabels(
+      data.labels,
+      noteTypeIdBySourceId,
+      data.labelIssues
+    )
+    const columnImport = this.createTargetedColumnMappings(
+      remappedColumns,
       noteTypeTitleBySourceId,
       targetNoteType
     )
@@ -205,14 +252,123 @@ export class ExportImportService {
 
     return {
       importedColumns: columnImport.importedColumns,
+      importedLabels: labelImport.importedLabels,
+      reusedLabels: labelImport.reusedLabels,
       importedNotes: this.appendImportedNotes(
         data.notes,
         columnImport.targetColumnIdsBySourceId,
+        labelImport.labelIdBySourceId,
+        labelImport.issues,
         () => targetNoteType.id,
         true
       ),
+      labelIssues: labelImport.issues,
       unmatchedFields: columnImport.unmatchedFields,
       updatedGeneralSettings: true,
+    }
+  }
+
+  private remapLabelsColumnConfigs(
+    columns: NoteColumn[],
+    noteTypeIdBySourceId: Map<string, string>
+  ): NoteColumn[] {
+    return columns.map((column) => {
+      if (column.type !== ColumnTypeEnum.Labels) {
+        return column
+      }
+
+      const config = column.config as unknown as LabelsColumnConfig
+      const remappedConfig: LabelsColumnConfig = {
+        allowMultiple: config.allowMultiple,
+        sources:
+          config.sources === null
+            ? null
+            : {
+                includeShared: config.sources.includeShared,
+                noteTypeIds: [
+                  ...new Set(
+                    config.sources.noteTypeIds.map((sourceNoteTypeId) => {
+                      const targetNoteTypeId =
+                        noteTypeIdBySourceId.get(sourceNoteTypeId)
+
+                      if (!targetNoteTypeId) {
+                        throw new BadRequestException(
+                          'Labels column sources contain an unknown imported note type id.'
+                        )
+                      }
+
+                      return targetNoteTypeId
+                    })
+                  ),
+                ],
+              },
+      }
+
+      return {
+        ...column,
+        config: resolveLabelsColumnConfig(remappedConfig, (noteTypeId) =>
+          Boolean(
+            this.settingsService
+              .listNoteTypes()
+              .some((noteType) => noteType.id === noteTypeId)
+          )
+        ) as unknown as Record<string, unknown>,
+      }
+    })
+  }
+
+  private importLabels(
+    labels: Label[],
+    noteTypeIdBySourceId: Map<string, string>,
+    initialIssues: ImportLabelIssueDto[]
+  ): LabelImportResult {
+    const issues = [...initialIssues]
+    const labelIdBySourceId = new Map<string, string>()
+    const existingLabelsBySourceAndName = new Map(
+      this.listLabels().map((label) => [
+        createLabelSourceNameKey(label.noteTypeId, label.name),
+        label,
+      ])
+    )
+    let importedLabels = 0
+    let reusedLabels = 0
+
+    for (const label of labels) {
+      const noteTypeId =
+        label.noteTypeId === null
+          ? null
+          : noteTypeIdBySourceId.get(label.noteTypeId)
+
+      if (noteTypeId === undefined) {
+        issues.push({
+          labelId: label.id,
+          name: label.name,
+          code: ImportLabelIssueCodeEnum.UnknownSource,
+        })
+        continue
+      }
+
+      const sourceNameKey = createLabelSourceNameKey(noteTypeId, label.name)
+      const existingLabel = existingLabelsBySourceAndName.get(sourceNameKey)
+
+      if (existingLabel) {
+        labelIdBySourceId.set(label.id, existingLabel.id)
+        reusedLabels += 1
+        continue
+      }
+
+      const importedLabel = this.insertImportedLabel(label, noteTypeId)
+
+      existingLabelsBySourceAndName.set(sourceNameKey, importedLabel)
+      labelIdBySourceId.set(label.id, importedLabel.id)
+      importedLabels += 1
+    }
+
+    return {
+      importedLabels,
+      reusedLabels,
+      labelIdBySourceId,
+      issues,
     }
   }
 
@@ -310,7 +466,36 @@ export class ExportImportService {
           }
 
           if (!this.isSystemTimestampColumn(existingColumn)) {
-            this.syncImportedColumn(existingColumn, column)
+            if (
+              existingColumn.type === ColumnTypeEnum.Labels &&
+              column.type === ColumnTypeEnum.Labels
+            ) {
+              try {
+                this.settingsService.updateColumn(
+                  existingColumn.noteTypeId,
+                  existingColumn.id,
+                  {
+                    title: column.title,
+                    isHidden: column.isHidden,
+                    config: column.config,
+                  }
+                )
+              } catch (error) {
+                if (!(error instanceof BadRequestException)) {
+                  throw error
+                }
+
+                unmatchedFields.push(
+                  this.createUnmatchedField(
+                    column,
+                    importedNoteTypes.noteTypeTitleBySourceId
+                  )
+                )
+                continue
+              }
+            } else {
+              this.syncImportedColumn(existingColumn, column)
+            }
           }
 
           targetColumnIdsBySourceId.set(column.id, existingColumn.id)
@@ -402,6 +587,8 @@ export class ExportImportService {
   private appendImportedNotes(
     notes: Note[],
     targetColumnIdsBySourceId: Map<string, string>,
+    labelIdBySourceId: Map<string, string>,
+    labelIssues: ImportLabelIssueDto[],
     resolveTargetNoteTypeId: (sourceNoteTypeId: string) => string,
     skipEmptyNotes = false
   ): number {
@@ -418,7 +605,9 @@ export class ExportImportService {
       const values = this.resolveImportedNoteValues(
         note.values,
         targetColumnIdsBySourceId,
-        targetColumnsById
+        targetColumnsById,
+        labelIdBySourceId,
+        labelIssues
       )
 
       if (skipEmptyNotes && Object.keys(values).length === 0) {
@@ -441,7 +630,9 @@ export class ExportImportService {
   private resolveImportedNoteValues(
     values: NoteValues,
     targetColumnIdsBySourceId: Map<string, string>,
-    targetColumnsById: Map<string, NoteColumn>
+    targetColumnsById: Map<string, NoteColumn>,
+    labelIdBySourceId: Map<string, string>,
+    labelIssues: ImportLabelIssueDto[]
   ): NoteValues {
     const resolvedValues: NoteValues = {}
 
@@ -465,6 +656,46 @@ export class ExportImportService {
       }
 
       this.ensureValueMatchesColumnType(value, targetColumn)
+
+      if (targetColumn.type === ColumnTypeEnum.Labels) {
+        const mappedLabelIds = (value as string[]).flatMap((labelId) => {
+          const mappedLabelId = labelIdBySourceId.get(labelId)
+
+          if (mappedLabelId) {
+            return [mappedLabelId]
+          }
+
+          labelIssues.push({
+            labelId,
+            name: null,
+            code: ImportLabelIssueCodeEnum.InvalidReference,
+          })
+          return []
+        })
+
+        const uniqueMappedLabelIds = [...new Set(mappedLabelIds)]
+        const acceptedLabelIds = filterLabelIdsForColumn(
+          uniqueMappedLabelIds,
+          this.settingsService.getLabelsColumnConfig(targetColumn),
+          this.listLabels()
+        )
+
+        if (acceptedLabelIds.length < uniqueMappedLabelIds.length) {
+          for (const labelId of uniqueMappedLabelIds) {
+            if (!acceptedLabelIds.includes(labelId)) {
+              labelIssues.push({
+                labelId,
+                name: null,
+                code: ImportLabelIssueCodeEnum.InvalidReference,
+              })
+            }
+          }
+        }
+
+        resolvedValues[targetColumnId] = acceptedLabelIds
+        continue
+      }
+
       resolvedValues[targetColumnId] = value
     }
 
@@ -511,7 +742,11 @@ export class ExportImportService {
     const existingColumnsByName = new Map(
       this.settingsService
         .listColumns(targetNoteTypeId)
-        .filter((column) => !this.isSystemTimestampColumn(column))
+        .filter(
+          (column) =>
+            !this.isSystemTimestampColumn(column) &&
+            column.type !== ColumnTypeEnum.Labels
+        )
         .map((column) => [column.name, column])
     )
     const mappedColumnsByIndex = new Map<number, NoteColumn>()
@@ -727,6 +962,8 @@ export class ExportImportService {
         return this.resolveSpreadsheetNumberValue(value, cellText)
       case ColumnTypeEnum.Date:
         return this.resolveSpreadsheetDateValue(value, cellText, usesDate1904)
+      case ColumnTypeEnum.Labels:
+        return null
       case ColumnTypeEnum.Image:
         return this.resolveSpreadsheetImageCellValue(value, imageValue)
       default:
@@ -966,7 +1203,10 @@ export class ExportImportService {
   private resolveImportPayload(payload: unknown): ValidExportImportData {
     this.ensureRecord(payload, 'Import payload must be an object.')
 
-    if (payload.version !== exportDataVersion) {
+    if (
+      payload.version !== exportDataVersion &&
+      payload.version !== previousExportDataVersion
+    ) {
       throw new BadRequestException('Import payload version is not supported.')
     }
 
@@ -986,6 +1226,13 @@ export class ExportImportService {
       throw new BadRequestException('Import payload notes must be an array.')
     }
 
+    if (
+      payload.version === exportDataVersion &&
+      !Array.isArray(payload.labels)
+    ) {
+      throw new BadRequestException('Import payload labels must be an array.')
+    }
+
     const noteTypes = payload.noteTypes.map((noteType) =>
       this.resolveImportedNoteType(noteType)
     )
@@ -994,6 +1241,13 @@ export class ExportImportService {
     )
     const notes = payload.notes.map((note) => this.resolveImportedNote(note))
     const generalSettings = this.resolveGeneralSettings(payload.generalSettings)
+    const resolvedLabels =
+      payload.version === exportDataVersion
+        ? this.resolveImportedLabels(
+            payload.labels as unknown[],
+            new Set(noteTypes.map((noteType) => noteType.id))
+          )
+        : { labels: [], issues: [] }
 
     this.ensureUniqueValues(
       noteTypes.map((noteType) => noteType.id),
@@ -1016,6 +1270,7 @@ export class ExportImportService {
       'Imported note ids must be unique.'
     )
     this.ensureColumnsBelongToKnownNoteTypes(noteTypes, columns)
+    this.ensureLabelsColumnConfigsAreValid(noteTypes, columns)
     this.ensureNotesBelongToKnownNoteTypes(noteTypes, notes)
     this.ensureNoteValuesMatchImport(columns, notes)
 
@@ -1024,11 +1279,110 @@ export class ExportImportService {
       exportedAt: payload.exportedAt,
       noteTypes,
       columns,
+      labels: resolvedLabels.labels,
+      labelIssues: resolvedLabels.issues,
       generalSettings,
       notes,
     }
   }
 
+  private resolveImportedLabels(
+    values: unknown[],
+    noteTypeIds: Set<string>
+  ): { labels: Label[]; issues: ImportLabelIssueDto[] } {
+    const labels: Label[] = []
+    const issues: ImportLabelIssueDto[] = []
+    const seenIds = new Set<string>()
+    const seenSourceNames = new Set<string>()
+
+    for (const value of values) {
+      const candidate =
+        value && typeof value === 'object' && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : undefined
+      const labelId =
+        typeof candidate?.id === 'string' && candidate.id.trim()
+          ? candidate.id.trim()
+          : null
+      const name =
+        typeof candidate?.name === 'string' && candidate.name.trim()
+          ? candidate.name.trim()
+          : null
+      const noteTypeId = candidate?.noteTypeId
+
+      if (
+        !candidate ||
+        !labelId ||
+        !name ||
+        typeof candidate.title !== 'string' ||
+        !candidate.title.trim() ||
+        typeof candidate.color !== 'string' ||
+        !labelColorPattern.test(candidate.color.trim()) ||
+        (noteTypeId !== null &&
+          (typeof noteTypeId !== 'string' || !noteTypeId.trim())) ||
+        typeof candidate.createdAt !== 'string' ||
+        Number.isNaN(Date.parse(candidate.createdAt)) ||
+        typeof candidate.updatedAt !== 'string' ||
+        Number.isNaN(Date.parse(candidate.updatedAt))
+      ) {
+        issues.push({
+          labelId,
+          name,
+          code: ImportLabelIssueCodeEnum.InvalidDefinition,
+        })
+        continue
+      }
+
+      const normalizedNoteTypeId =
+        noteTypeId === null ? null : (noteTypeId as string).trim()
+
+      if (
+        normalizedNoteTypeId !== null &&
+        !noteTypeIds.has(normalizedNoteTypeId)
+      ) {
+        issues.push({
+          labelId,
+          name,
+          code: ImportLabelIssueCodeEnum.UnknownSource,
+        })
+        continue
+      }
+
+      if (seenIds.has(labelId)) {
+        issues.push({
+          labelId,
+          name,
+          code: ImportLabelIssueCodeEnum.DuplicateId,
+        })
+        continue
+      }
+
+      const sourceNameKey = createLabelSourceNameKey(normalizedNoteTypeId, name)
+
+      if (seenSourceNames.has(sourceNameKey)) {
+        issues.push({
+          labelId,
+          name,
+          code: ImportLabelIssueCodeEnum.DuplicateSourceName,
+        })
+        continue
+      }
+
+      seenIds.add(labelId)
+      seenSourceNames.add(sourceNameKey)
+      labels.push({
+        id: labelId,
+        title: candidate.title.trim(),
+        name,
+        color: candidate.color.trim().toUpperCase(),
+        noteTypeId: normalizedNoteTypeId,
+        createdAt: candidate.createdAt,
+        updatedAt: candidate.updatedAt,
+      })
+    }
+
+    return { labels, issues }
+  }
   private resolveImportedNoteType(value: unknown): NoteType {
     this.ensureRecord(value, 'Imported note type must be an object.')
     this.ensureRequiredString(value.id, 'Imported note type id')
@@ -1163,6 +1517,22 @@ export class ExportImportService {
     }
   }
 
+  private ensureLabelsColumnConfigsAreValid(
+    noteTypes: NoteType[],
+    columns: NoteColumn[]
+  ): void {
+    const noteTypeIds = new Set(noteTypes.map((noteType) => noteType.id))
+
+    for (const column of columns) {
+      if (column.type !== ColumnTypeEnum.Labels) {
+        continue
+      }
+
+      resolveLabelsColumnConfig(column.config, (noteTypeId) =>
+        noteTypeIds.has(noteTypeId)
+      )
+    }
+  }
   private ensureNotesBelongToKnownNoteTypes(
     noteTypes: NoteType[],
     notes: Note[]
@@ -1211,6 +1581,66 @@ export class ExportImportService {
     }
   }
 
+  private listLabels(): Label[] {
+    return this.getDatabase()
+      .prepare('SELECT * FROM labels ORDER BY created_at ASC, id ASC')
+      .all()
+      .map((row) => {
+        const label = row as {
+          id: string
+          title: string
+          name: string
+          color: string
+          note_type_id: string | null
+          created_at: string
+          updated_at: string
+        }
+
+        return {
+          id: label.id,
+          title: label.title,
+          name: label.name,
+          color: label.color,
+          noteTypeId: label.note_type_id,
+          createdAt: label.created_at,
+          updatedAt: label.updated_at,
+        }
+      })
+  }
+
+  private insertImportedLabel(label: Label, noteTypeId: string | null): Label {
+    const importedLabel: Label = {
+      ...label,
+      id: uuidV4(),
+      noteTypeId,
+    }
+
+    this.getDatabase()
+      .prepare(
+        `
+        INSERT INTO labels (
+          id,
+          title,
+          name,
+          color,
+          note_type_id,
+          created_at,
+          updated_at
+        ) VALUES (
+          @id,
+          @title,
+          @name,
+          @color,
+          @noteTypeId,
+          @createdAt,
+          @updatedAt
+        )
+      `
+      )
+      .run(importedLabel)
+
+    return importedLabel
+  }
   private insertImportedNoteType(id: string, noteType: NoteType): void {
     this.getDatabase()
       .prepare(
@@ -1399,6 +1829,17 @@ export class ExportImportService {
           )
         }
         return
+      case ColumnTypeEnum.Labels:
+        if (
+          !Array.isArray(value) ||
+          value.some((item) => typeof item !== 'string') ||
+          new Set(value as string[]).size !== value.length
+        ) {
+          throw new BadRequestException(
+            'Labels note values must be arrays of unique label ids.'
+          )
+        }
+        return
       case ColumnTypeEnum.Image:
         if (!this.isValidImageNoteValue(value, column)) {
           throw new BadRequestException(
@@ -1422,12 +1863,17 @@ export class ExportImportService {
       return
     }
 
-    if (this.isValidImageValue(value) || this.isValidImageValueList(value)) {
+    if (
+      (Array.isArray(value) &&
+        value.every((item) => typeof item === 'string')) ||
+      this.isValidImageValue(value) ||
+      this.isValidImageValueList(value)
+    ) {
       return
     }
 
     throw new BadRequestException(
-      'Imported note values must be strings, finite numbers, image metadata objects, or image metadata arrays.'
+      'Imported note values must be strings, finite numbers, label id arrays, image metadata objects, or image metadata arrays.'
     )
   }
 

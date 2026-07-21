@@ -38,9 +38,10 @@ describe('export-import requests', () => {
           textTruncationLength: null,
           mergeDateTimeFields: null,
         },
+        labels: [],
         notes: [],
         noteTypes: [],
-        version: 2,
+        version: 3,
       })
     )
     apiClientMock.get.mockReturnValue(response)
@@ -60,8 +61,11 @@ describe('export-import requests', () => {
     const response = Promise.resolve(
       createResponse<ImportResultDto>({
         importedColumns: 0,
+        importedLabels: 0,
+        reusedLabels: 0,
         updatedGeneralSettings: true,
         importedNotes: 0,
+        labelIssues: [],
         unmatchedFields: [],
       })
     )

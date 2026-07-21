@@ -478,7 +478,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Index current label titles/names in MiniSearch and handle missing label references without crashing.
   - Keep components slim and extract distinct input, Chip, list, and configuration responsibilities where useful.
 
-- [ ] T95. Add label JSON export/import and XLSX exclusion
+- [x] T95. Add label JSON export/import and XLSX exclusion
   - Increment the JSON export format, include label definitions/configuration/assignments, and keep the immediately previous JSON format importable as label-free data.
   - Import note templates and labels in dependency order, remap IDs, reuse source/name matches, and keep imports append-only.
   - Validate and report conflicting/invalid label data without deleting existing data.

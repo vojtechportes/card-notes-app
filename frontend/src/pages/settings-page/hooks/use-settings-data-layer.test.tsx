@@ -121,15 +121,19 @@ const createExportImportDataDto = (): ExportImportDataDto => ({
   columns: [],
   exportedAt: '2026-07-08T10:00:00.000Z',
   generalSettings: createGeneralSettingsDto(),
+  labels: [],
   notes: [],
   noteTypes: [],
-  version: 2,
+  version: 3,
 })
 
 const createImportResultDto = (): ImportResultDto => ({
   importedColumns: 1,
+  importedLabels: 0,
+  reusedLabels: 0,
   updatedGeneralSettings: true,
   importedNotes: 2,
+  labelIssues: [],
   unmatchedFields: [],
 })
 

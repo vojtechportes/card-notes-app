@@ -88,13 +88,16 @@ describe(ExportImportController.name, () => {
       createImportFile(JSON.stringify(exportedData))
     )
 
-    expect(exportedData.version).toBe(2)
+    expect(exportedData.version).toBe(3)
     expect(exportedData.noteTypes.map((noteType) => noteType.title)).toContain(
       'Books'
     )
     expect(result).toEqual({
       importedColumns: exportedData.columns.length,
+      importedLabels: 0,
+      reusedLabels: 0,
       importedNotes: 1,
+      labelIssues: [],
       unmatchedFields: [],
       updatedGeneralSettings: true,
     })
@@ -119,7 +122,10 @@ describe(ExportImportController.name, () => {
 
     expect(result).toEqual({
       importedColumns: 1,
+      importedLabels: 0,
+      reusedLabels: 0,
       importedNotes: 1,
+      labelIssues: [],
       unmatchedFields: [],
       updatedGeneralSettings: false,
     })

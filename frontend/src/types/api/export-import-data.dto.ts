@@ -3,6 +3,7 @@
 
 import type { ColumnDto } from './column.dto'
 import type { GeneralSettingsDto } from './general-settings.dto'
+import type { LabelDto } from './label.dto'
 import type { NoteDto } from './note.dto'
 import type { NoteTypeDto } from './note-type.dto'
 
@@ -11,6 +12,7 @@ export type ExportImportDataDto = {
   exportedAt: string
   noteTypes: Array<NoteTypeDto>
   columns: Array<ColumnDto>
+  labels: Array<LabelDto>
   generalSettings: GeneralSettingsDto
   notes: Array<NoteDto>
 }
