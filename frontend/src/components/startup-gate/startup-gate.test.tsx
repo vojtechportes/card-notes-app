@@ -10,6 +10,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { NoteStackStartupBridge } from '../../types/notestack-startup-bridge'
 import type { StartupState } from '../../types/startup-state'
 import { App } from '../../app'
+import { StartupGate } from './startup-gate'
+import { API_BASE_URL } from '../../constants/api-base-url'
+import { apiClient } from '../../utils/api-client'
 import '../../i18n'
 
 const originalUserAgent = navigator.userAgent
@@ -51,6 +54,7 @@ describe('StartupGate', () => {
       value: originalUserAgent,
     })
     window.location.hash = ''
+    apiClient.defaults.baseURL = API_BASE_URL
   })
 
   it('falls back to ready in a standalone browser', async () => {
@@ -165,20 +169,28 @@ describe('StartupGate', () => {
     const harness = createBridgeHarness(currentState)
     window.noteStackStartup = harness.bridge
 
-    render(<App />)
+    render(
+      <StartupGate>
+        <div>Application ready</div>
+      </StartupGate>
+    )
 
     act(() => {
-      harness.emit({ status: 'ready' })
+      harness.emit({
+        status: 'ready',
+        apiBaseUrl: 'http://127.0.0.1:43123/api',
+      })
     })
 
-    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
+    expect(await screen.findByText('Application ready')).toBeTruthy()
+    expect(apiClient.defaults.baseURL).toBe('http://127.0.0.1:43123/api')
 
     await act(async () => {
       resolveCurrentState?.({ status: 'starting', phase: 'initial' })
       await currentState
     })
 
-    expect(screen.getByRole('heading', { name: /Notes/ })).toBeTruthy()
+    expect(screen.getByText('Application ready')).toBeTruthy()
     expect(
       screen.queryByRole('heading', { name: 'NoteStack is starting' })
     ).toBeNull()

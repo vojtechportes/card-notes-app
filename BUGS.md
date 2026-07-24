@@ -19,3 +19,4 @@
 - [x] B109. Fix sandboxed preload failure bypassing the startup gate
 - [x] B110. Packaged app reports "Automatic updates are unavailable in this environment." after startup preload changes
 - [x] B111. Fix notes toolbar sticky offset below the window title bar
+- [x] B112. Start the local backend on an available port and connect the frontend to it
