@@ -7,6 +7,7 @@ import { delayWithSignal } from './utils/delay-with-signal.util.js'
 import { terminateChildProcess } from './utils/terminate-child-process.util.js'
 
 interface CreateBackendStartupControllerOptions {
+  apiBaseUrl: string
   emitState: (state: StartupState) => void
   isHealthy: (signal: AbortSignal) => Promise<boolean>
   log: (message: string) => void
@@ -28,6 +29,7 @@ interface StartupAttempt {
 }
 
 export const createBackendStartupController = ({
+  apiBaseUrl,
   emitState,
   isHealthy,
   log,
@@ -158,7 +160,7 @@ export const createBackendStartupController = ({
               : ' by reusing an existing backend') +
             '.'
         )
-        setState({ status: 'ready' })
+        setState({ status: 'ready', apiBaseUrl })
         return
       }
 
@@ -205,7 +207,7 @@ export const createBackendStartupController = ({
             attempt.id +
             ' reused an already healthy backend without taking ownership.'
         )
-        setState({ status: 'ready' })
+        setState({ status: 'ready', apiBaseUrl })
       }
       return
     }

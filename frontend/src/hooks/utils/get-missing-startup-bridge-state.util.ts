@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../constants/api-base-url'
 import type { StartupState } from '../../types/startup-state'
 
 export const getMissingStartupBridgeState = (
@@ -10,5 +11,5 @@ export const getMissingStartupBridgeState = (
     }
   }
 
-  return { status: 'ready' }
+  return { status: 'ready', apiBaseUrl: API_BASE_URL }
 }

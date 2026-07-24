@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { StartupState } from '../types/startup-state'
+import { setApiClientBaseUrl } from '../utils/set-api-client-base-url.util'
 import { getMissingStartupBridgeState } from './utils/get-missing-startup-bridge-state.util'
 
 interface StartupStateController {
@@ -20,6 +21,14 @@ export const useStartupState = (): StartupStateController => {
       ? electronInitialState
       : getMissingStartupBridgeState(navigator.userAgent)
   )
+
+  const applyState = useCallback((nextState: StartupState) => {
+    if (nextState.status === 'ready') {
+      setApiClientBaseUrl(nextState.apiBaseUrl)
+    }
+
+    setState(nextState)
+  }, [])
 
   const retry = useCallback(() => {
     void window.noteStackStartup?.retry().catch(() => undefined)
@@ -49,14 +58,14 @@ export const useStartupState = (): StartupStateController => {
       }
 
       receivedSubscriptionState = true
-      setState(nextState)
+      applyState(nextState)
     })
 
     void bridge
       .getState()
       .then((currentState) => {
         if (active && !receivedSubscriptionState) {
-          setState(currentState)
+          applyState(currentState)
         }
       })
       .catch(() => {
@@ -72,7 +81,7 @@ export const useStartupState = (): StartupStateController => {
       active = false
       unsubscribe()
     }
-  }, [])
+  }, [applyState])
 
   return {
     exit,

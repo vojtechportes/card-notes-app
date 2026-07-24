@@ -6,6 +6,8 @@ import { BackendEntrypointMissingError } from '../../src/startup/backend-entrypo
 import { createBackendStartupController } from '../../src/startup/create-backend-startup-controller'
 import type { StartupState } from '../../src/startup/types/startup-state'
 
+const apiBaseUrl = 'http://127.0.0.1:43123/api'
+
 class ChildProcessMock extends EventEmitter {
   exitCode: number | null = null
   killCalled = false
@@ -41,6 +43,7 @@ test('reuses an already healthy backend without taking ownership', async () => {
   let spawnCount = 0
   const states: StartupState[] = []
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: (state) => states.push(state),
     isHealthy: async () => true,
     log: () => undefined,
@@ -57,7 +60,7 @@ test('reuses an already healthy backend without taking ownership', async () => {
   controller.dispose()
 
   assert.equal(spawnCount, 0)
-  assert.deepEqual(states.at(-1), { status: 'ready' })
+  assert.deepEqual(states.at(-1), { status: 'ready', apiBaseUrl })
 })
 
 test('continues polling after the soft threshold and eventually becomes ready', async () => {
@@ -68,6 +71,7 @@ test('continues polling after the soft threshold and eventually becomes ready', 
   })
   const states: StartupState[] = []
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: (state) => {
       states.push(state)
 
@@ -94,7 +98,7 @@ test('continues polling after the soft threshold and eventually becomes ready', 
       (state) => state.status === 'starting' && state.phase === 'taking-longer'
     )
   )
-  assert.deepEqual(states.at(-1), { status: 'ready' })
+  assert.deepEqual(states.at(-1), { status: 'ready', apiBaseUrl })
 })
 
 test('reports a missing entrypoint as a recoverable failure', async () => {
@@ -103,6 +107,7 @@ test('reports a missing entrypoint as a recoverable failure', async () => {
     resolveFailure = resolve
   })
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: (state) => {
       if (state.status === 'failed') {
         resolveFailure?.(state)
@@ -134,6 +139,7 @@ test('reports spawn errors and pre-readiness exits with distinct reasons', async
       resolveFailure = resolve
     })
     const controller = createBackendStartupController({
+      apiBaseUrl,
       emitState: (state) => {
         if (state.status === 'failed') {
           resolveFailure?.(state)
@@ -164,6 +170,7 @@ test('reports spawn errors and pre-readiness exits with distinct reasons', async
       resolveFailure = resolve
     })
     const controller = createBackendStartupController({
+      apiBaseUrl,
       emitState: (state) => {
         if (state.status === 'failed') {
           resolveFailure?.(state)
@@ -199,6 +206,7 @@ test('retry cancels its owned child and ignores stale health results', async () 
   })
   const states: StartupState[] = []
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: (state) => {
       states.push(state)
 
@@ -237,7 +245,7 @@ test('retry cancels its owned child and ignores stale health results', async () 
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(firstChild.killCalled, true)
-  assert.deepEqual(states.at(-1), { status: 'ready' })
+  assert.deepEqual(states.at(-1), { status: 'ready', apiBaseUrl })
   controller.dispose()
 })
 
@@ -245,6 +253,7 @@ test('concurrent retry requests create one replacement attempt', async () => {
   const children = [new ChildProcessMock(6), new ChildProcessMock(7)]
   let spawnCount = 0
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: () => undefined,
     isHealthy: async () => false,
     log: () => undefined,
@@ -270,6 +279,7 @@ test('concurrent retry requests create one replacement attempt', async () => {
 test('shutdown terminates an owned live child', async () => {
   const child = new ChildProcessMock(8)
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: () => undefined,
     isHealthy: async () => false,
     log: () => undefined,
@@ -288,6 +298,7 @@ test('does not replace an owned backend when kill reports failure', async () => 
   const child = new ChildProcessMock(9, false)
   let spawnCount = 0
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: () => undefined,
     isHealthy: async () => false,
     log: () => undefined,
@@ -316,6 +327,7 @@ test('bounds termination waiting and does not launch a competing backend', async
   const child = new ChildProcessMock(10, true, false)
   let spawnCount = 0
   const controller = createBackendStartupController({
+    apiBaseUrl,
     emitState: () => undefined,
     isHealthy: async () => false,
     log: () => undefined,

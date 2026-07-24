@@ -24,6 +24,7 @@ import { startupIpcChannels } from './startup/startup-ipc-channels.js'
 import type { BackendStartupController } from './startup/types/backend-startup-controller.js'
 import type { StartupState } from './startup/types/startup-state.js'
 import { fetchBackendHealth } from './startup/utils/fetch-backend-health.util.js'
+import { findAvailablePort } from './startup/utils/find-available-port.util.js'
 import { openBackendLog } from './startup/utils/open-backend-log.util.js'
 import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
 import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
@@ -60,10 +61,8 @@ const applicationIconPath = path.join(
   'icon.png'
 )
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
-const backendPort = Number(
-  process.env.PORT ?? process.env.BACKEND_PORT ?? '3000'
-)
-const backendHealthUrl = `http://${backendHost}:${backendPort}/api/health`
+let backendPort: number | null = null
+let backendHealthUrl: string | null = null
 const backendStartupSoftThresholdMs = 30_000
 const backendPollIntervalMs = 250
 const backendHealthRequestTimeoutMs = 2_000
@@ -116,6 +115,9 @@ app.on('before-quit', () => {
 
 async function startApplication(): Promise<void> {
   try {
+    backendPort = await findAvailablePort(backendHost)
+    const apiBaseUrl = `http://${backendHost}:${backendPort}/api`
+    backendHealthUrl = `${apiBaseUrl}/health`
     updaterService = createUpdaterService({
       client: autoUpdater,
       currentVersion: app.getVersion(),
@@ -126,6 +128,7 @@ async function startApplication(): Promise<void> {
       updaterService,
     })
     backendStartupController = createBackendStartupController({
+      apiBaseUrl,
       emitState: emitStartupState,
       isHealthy: isBackendHealthy,
       log: (message) => writeBackendLog('lifecycle', message + '\n'),
@@ -301,6 +304,7 @@ function getSafeExternalUrl(url: string): string | null {
 
 function startBackendProcess(): ChildProcess {
   const args = getBackendProcessArgs()
+  const port = getBackendPort()
 
   const childProcess = spawn(process.execPath, args, {
     cwd: workspaceRoot,
@@ -309,8 +313,8 @@ function startBackendProcess(): ChildProcess {
       ELECTRON_RUN_AS_NODE: '1',
       HOST: backendHost,
       BACKEND_HOST: backendHost,
-      PORT: String(backendPort),
-      BACKEND_PORT: String(backendPort),
+      PORT: String(port),
+      BACKEND_PORT: String(port),
     },
     stdio: 'pipe',
   })
@@ -387,9 +391,20 @@ function getBackendLogPath(): string {
 }
 
 function isBackendHealthy(signal: AbortSignal): Promise<boolean> {
+  if (!backendHealthUrl) {
+    return Promise.resolve(false)
+  }
+
   return fetchBackendHealth(
     backendHealthUrl,
     signal,
     backendHealthRequestTimeoutMs
   )
+}
+function getBackendPort(): number {
+  if (backendPort === null) {
+    throw new Error('Backend port has not been selected.')
+  }
+
+  return backendPort
 }

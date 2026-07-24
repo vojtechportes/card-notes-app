@@ -2,5 +2,5 @@ import type { StartupFailureReason } from './startup-failure-reason'
 
 export type StartupState =
   | { status: 'starting'; phase: 'initial' | 'taking-longer' }
-  | { status: 'ready' }
+  | { status: 'ready'; apiBaseUrl: string }
   | { status: 'failed'; reason: StartupFailureReason }
