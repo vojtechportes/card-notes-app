@@ -12,7 +12,6 @@ export const createColumnFormSchema = (
 ) => {
   return yup.object({
     allowMultipleLabels: yup.boolean().required(),
-    isHidden: yup.boolean().required(),
     isMultiImage: yup.boolean().required(),
     labelSourceIds: yup.array().of(yup.string().required()).required(),
     name: yup

@@ -30,10 +30,15 @@ export class ColumnDto {
 
   @ApiProperty({
     type: Boolean,
-    description:
-      'Whether the column should be hidden in note entry/display surfaces.',
+    description: 'Whether the column should be hidden on note cards.',
   })
   isHidden: boolean
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Whether the column should be hidden in note details.',
+  })
+  isHiddenInDetail: boolean
 
   @ApiProperty({
     type: Boolean,

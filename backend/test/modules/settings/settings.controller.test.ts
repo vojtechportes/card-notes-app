@@ -101,6 +101,7 @@ describe(SettingsController.name, () => {
       title: 'Rating',
       type: ColumnTypeEnum.Number,
       isHidden: true,
+      isHiddenInDetail: true,
     })
 
     expect(
@@ -113,6 +114,7 @@ describe(SettingsController.name, () => {
       {
         title: 'Summary text',
         isHidden: true,
+        isHiddenInDetail: true,
         config: { multiline: true },
       }
     )
@@ -122,6 +124,7 @@ describe(SettingsController.name, () => {
         id: summaryColumn.id,
         title: 'Summary text',
         isHidden: true,
+        isHiddenInDetail: true,
         config: { multiline: true },
       })
     )
@@ -246,6 +249,11 @@ describe(SettingsController.name, () => {
     ).toThrow(BadRequestException)
     expect(() =>
       settingsController.updateColumn(noteTypeId, defaultColumn.id, [] as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      settingsController.updateColumn(noteTypeId, defaultColumn.id, {
+        isHiddenInDetail: 'yes' as never,
+      })
     ).toThrow(BadRequestException)
     expect(() =>
       settingsController.reorderColumns(noteTypeId, {

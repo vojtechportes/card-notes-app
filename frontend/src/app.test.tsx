@@ -56,7 +56,7 @@ describe('App routing', () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        'Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note.'
+        'Set app-wide list display preferences for note cards, including text truncation and how many fields appear before opening a note.'
       )
     ).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))
@@ -114,7 +114,7 @@ describe('App routing', () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        'Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note.'
+        'Set app-wide list display preferences for note cards, including text truncation and how many fields appear before opening a note.'
       )
     ).toBeTruthy()
     await waitFor(() => expect(window.location.hash).toBe('#/settings/general'))

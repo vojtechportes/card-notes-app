@@ -8,7 +8,6 @@ export const getColumnFormDefaultValues = (
 ): ColumnFormValues => {
   return {
     ...getLabelsColumnFormDefaultValues(column),
-    isHidden: column?.isHidden ?? false,
     isMultiImage: column ? isMultiImageColumn(column) : false,
     name: column?.name ?? '',
     title: column?.title ?? '',

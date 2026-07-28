@@ -26,9 +26,15 @@ export class UpdateColumnDto {
 
   @ApiPropertyOptional({
     type: Boolean,
-    description: 'Whether the column should be hidden.',
+    description: 'Whether the column should be hidden on note cards.',
   })
   isHidden?: boolean
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Whether the column should be hidden in note details.',
+  })
+  isHiddenInDetail?: boolean
 
   @ApiPropertyOptional({
     oneOf: [

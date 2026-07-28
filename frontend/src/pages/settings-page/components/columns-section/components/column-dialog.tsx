@@ -236,23 +236,6 @@ export const ColumnDialog = ({
             {selectedType === 'labels' ? (
               <LabelsColumnConfiguration control={control} errors={errors} />
             ) : null}
-
-            <Controller
-              control={control}
-              name="isHidden"
-              render={({ field }) => (
-                <FormControlLabel
-                  control={
-                    <Switch
-                      size="small"
-                      checked={field.value}
-                      onChange={(_, checked) => field.onChange(checked)}
-                    />
-                  }
-                  label={t('settings.columns.fields.hidden')}
-                />
-              )}
-            />
           </Stack>
         </form>
       </DialogContent>

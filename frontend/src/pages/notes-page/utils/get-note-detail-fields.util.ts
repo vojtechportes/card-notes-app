@@ -9,7 +9,7 @@ export const getNoteDetailFields = (
   mergedDateTitle: string
 ): NoteCardField[] => {
   return getNoteDisplayFields(note, columns, {
-    includeDefaultHiddenFields: true,
+    isColumnHidden: (column) => column.isHiddenInDetail,
     mergeDateTimeFields,
     mergedDateTitle,
   })

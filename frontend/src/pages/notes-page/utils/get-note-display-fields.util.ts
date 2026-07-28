@@ -3,7 +3,7 @@ import type { NoteCardField } from '../types/note-card-field'
 import { resolveNoteCardColumnValue } from './resolve-note-card-column-value.util'
 
 interface GetNoteDisplayFieldsOptions {
-  includeDefaultHiddenFields: boolean
+  isColumnHidden: (column: ColumnDto) => boolean
   mergeDateTimeFields: boolean
   mergedDateTitle: string
 }
@@ -14,13 +14,7 @@ export const getNoteDisplayFields = (
   options: GetNoteDisplayFieldsOptions
 ): NoteCardField[] => {
   const visibleColumns = columns
-    .filter((column) => {
-      if (options.includeDefaultHiddenFields && column.isDefault) {
-        return true
-      }
-
-      return !column.isHidden
-    })
+    .filter((column) => !options.isColumnHidden(column))
     .sort(
       (leftColumn, rightColumn) => leftColumn.sortOrder - rightColumn.sortOrder
     )

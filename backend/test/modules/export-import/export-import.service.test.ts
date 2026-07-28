@@ -129,6 +129,9 @@ describe(ExportImportService.name, () => {
       title: 'Author',
       type: ColumnTypeEnum.Text,
     })
+    settingsService.updateColumn(books.id, booksAuthorColumn.id, {
+      isHiddenInDetail: true,
+    })
 
     settingsService.updateGeneralSettings({
       textTruncationLength: 80,
@@ -153,6 +156,10 @@ describe(ExportImportService.name, () => {
     ).toEqual(['Books', 'Default'])
     expect(
       exportedData.columns.every((column) => Boolean(column.noteTypeId))
+    ).toBe(true)
+    expect(
+      exportedData.columns.find((column) => column.id === booksAuthorColumn.id)
+        ?.isHiddenInDetail
     ).toBe(true)
     expect(exportedData.notes).toHaveLength(2)
     expect(exportedData.notes.map((note) => note.noteTypeId)).toContain(
@@ -484,6 +491,10 @@ describe(ExportImportService.name, () => {
         type: ColumnTypeEnum.Text,
       })
 
+      sourceSettingsService.updateColumn(books.id, booksAuthorColumn.id, {
+        isHiddenInDetail: true,
+      })
+
       sourceNotesService.createNote({
         noteTypeId: books.id,
         values: {
@@ -508,6 +519,7 @@ describe(ExportImportService.name, () => {
       expect(importResult.importedNotes).toBe(1)
       expect(importedBooks).toBeDefined()
       expect(importedAuthorColumn).toBeDefined()
+      expect(importedAuthorColumn?.isHiddenInDetail).toBe(true)
       expect(importedBookNote?.values).toEqual({
         [importedAuthorColumn?.id ?? 'missing-column']: 'Martha Wells',
       })
@@ -736,12 +748,32 @@ describe(ExportImportService.name, () => {
   })
 
   it('imports version 2 payloads as label-free data', () => {
+    const hiddenColumn = settingsService.createColumn({
+      name: 'legacyHidden',
+      title: 'Legacy hidden',
+      type: ColumnTypeEnum.Text,
+      isHidden: true,
+    })
+    const hiddenDefaultColumn = settingsService
+      .listColumns()
+      .find((column) => column.name === 'createdAt')
+
+    if (!hiddenDefaultColumn) {
+      throw new Error('Expected the default createdAt column.')
+    }
+
+    settingsService.updateColumn(hiddenDefaultColumn.id, {
+      isHidden: true,
+    })
+
     const payload = exportImportService.exportData()
     const versionTwoPayload = {
       version: 2,
       exportedAt: payload.exportedAt,
       noteTypes: payload.noteTypes,
-      columns: payload.columns,
+      columns: payload.columns.map(
+        ({ isHiddenInDetail: _isHiddenInDetail, ...column }) => column
+      ),
       generalSettings: payload.generalSettings,
       notes: payload.notes,
     }
@@ -751,6 +783,26 @@ describe(ExportImportService.name, () => {
     expect(result.importedLabels).toBe(0)
     expect(result.reusedLabels).toBe(0)
     expect(result.labelIssues).toEqual([])
+    expect(
+      settingsService
+        .listColumns()
+        .find((column) => column.name === hiddenColumn.name)
+    ).toEqual(
+      expect.objectContaining({
+        isHidden: true,
+        isHiddenInDetail: true,
+      })
+    )
+    expect(
+      settingsService
+        .listColumns()
+        .find((column) => column.id === hiddenDefaultColumn.id)
+    ).toEqual(
+      expect.objectContaining({
+        isHidden: true,
+        isHiddenInDetail: false,
+      })
+    )
   })
 
   it('reports invalid label definitions and references without deleting existing data', () => {

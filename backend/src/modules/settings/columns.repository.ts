@@ -14,6 +14,7 @@ interface NoteColumnRow {
   type: string
   sort_order: number
   is_hidden: number
+  is_hidden_in_detail: number
   is_default: number
   config_json: string | null
   created_at: string
@@ -52,6 +53,7 @@ export class ColumnsRepository {
         type,
         sort_order,
         is_hidden,
+        is_hidden_in_detail,
         is_default,
         config_json
       ) VALUES (
@@ -61,6 +63,7 @@ export class ColumnsRepository {
         @title,
         @type,
         @sortOrder,
+        0,
         0,
         1,
         NULL
@@ -92,10 +95,8 @@ export class ColumnsRepository {
     const seedDefaultColumns = database.transaction(
       (typeId: string, columns: DefaultNoteColumnDefinition[]) => {
         for (const column of columns) {
-          const existingColumn = findExistingColumn.get(
-            typeId,
-            column.name
-          ) as { id: string } | undefined
+          const existingColumn = findExistingColumn.get(typeId, column.name) as
+            { id: string } | undefined
 
           if (!existingColumn) {
             insertDefaultColumn.run({
@@ -150,9 +151,7 @@ export class ColumnsRepository {
 
   findByName(name: string, noteTypeId: string): NoteColumn | undefined {
     const row = this.getDatabase()
-      .prepare(
-        'SELECT * FROM note_columns WHERE note_type_id = ? AND name = ?'
-      )
+      .prepare('SELECT * FROM note_columns WHERE note_type_id = ? AND name = ?')
       .get(noteTypeId, name) as NoteColumnRow | undefined
 
     return row ? this.mapColumnRow(row) : undefined
@@ -180,6 +179,7 @@ export class ColumnsRepository {
           type,
           sort_order,
           is_hidden,
+          is_hidden_in_detail,
           is_default,
           config_json
         ) VALUES (
@@ -190,6 +190,7 @@ export class ColumnsRepository {
           @type,
           @sortOrder,
           @isHidden,
+          @isHiddenInDetail,
           @isDefault,
           @configJson
         )
@@ -203,6 +204,7 @@ export class ColumnsRepository {
         type: column.type,
         sortOrder: column.sortOrder,
         isHidden: column.isHidden ? 1 : 0,
+        isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
         isDefault: column.isDefault ? 1 : 0,
         configJson: column.config ? JSON.stringify(column.config) : null,
       })
@@ -221,6 +223,7 @@ export class ColumnsRepository {
             type = @type,
             sort_order = @sortOrder,
             is_hidden = @isHidden,
+            is_hidden_in_detail = @isHiddenInDetail,
             is_default = @isDefault,
             config_json = @configJson,
             updated_at = CURRENT_TIMESTAMP
@@ -235,6 +238,7 @@ export class ColumnsRepository {
         type: column.type,
         sortOrder: column.sortOrder,
         isHidden: column.isHidden ? 1 : 0,
+        isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
         isDefault: column.isDefault ? 1 : 0,
         configJson: column.config ? JSON.stringify(column.config) : null,
       })
@@ -288,6 +292,7 @@ export class ColumnsRepository {
       type: row.type as ColumnTypeEnum,
       sortOrder: row.sort_order,
       isHidden: Boolean(row.is_hidden),
+      isHiddenInDetail: Boolean(row.is_hidden_in_detail),
       isDefault: Boolean(row.is_default),
       config: row.config_json
         ? (JSON.parse(row.config_json) as Record<string, unknown>)

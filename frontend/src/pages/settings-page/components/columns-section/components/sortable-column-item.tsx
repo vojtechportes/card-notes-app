@@ -1,8 +1,6 @@
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import {
   Box,
   Chip,
@@ -18,19 +16,22 @@ import { CSS } from '@dnd-kit/utilities'
 import { useSortable } from '@dnd-kit/sortable'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDto } from '../../../../../types/api'
+import { ColumnVisibilityActions } from './column-visibility-actions'
 
 interface SortableColumnItemProps {
   column: ColumnDto
   onDelete: (column: ColumnDto) => void
   onEdit: (column: ColumnDto) => void
-  onToggleHidden: (column: ColumnDto) => void
+  onToggleDetailVisibility: (column: ColumnDto) => void
+  onToggleListVisibility: (column: ColumnDto) => void
 }
 
 export const SortableColumnItem = ({
   column,
   onDelete,
   onEdit,
-  onToggleHidden,
+  onToggleDetailVisibility,
+  onToggleListVisibility,
 }: SortableColumnItemProps) => {
   const { t } = useTranslation()
   const {
@@ -54,7 +55,7 @@ export const SortableColumnItem = ({
         mb: 1.5,
         opacity: isDragging ? 0.6 : 1,
         pl: 1,
-        pr: 14,
+        pr: 20,
         py: 1.5,
         transform: CSS.Transform.toString(transform),
         transition,
@@ -95,7 +96,15 @@ export const SortableColumnItem = ({
             {column.isHidden ? (
               <Chip
                 color="warning"
-                label={t('settings.columns.status.hidden')}
+                label={t('settings.columns.status.hiddenInList')}
+                size="small"
+                variant="outlined"
+              />
+            ) : null}
+            {column.isHiddenInDetail ? (
+              <Chip
+                color="warning"
+                label={t('settings.columns.status.hiddenInDetail')}
                 size="small"
                 variant="outlined"
               />
@@ -123,28 +132,11 @@ export const SortableColumnItem = ({
 
       <ListItemSecondaryAction>
         <Stack direction="row" spacing={0.5}>
-          <Tooltip
-            title={
-              column.isHidden
-                ? t('settings.columns.actions.show')
-                : t('settings.columns.actions.hide')
-            }
-          >
-            <IconButton
-              aria-label={
-                column.isHidden
-                  ? t('settings.columns.actions.show')
-                  : t('settings.columns.actions.hide')
-              }
-              onClick={() => onToggleHidden(column)}
-            >
-              {column.isHidden ? (
-                <VisibilityOutlinedIcon />
-              ) : (
-                <VisibilityOffOutlinedIcon />
-              )}
-            </IconButton>
-          </Tooltip>
+          <ColumnVisibilityActions
+            column={column}
+            onToggleDetailVisibility={onToggleDetailVisibility}
+            onToggleListVisibility={onToggleListVisibility}
+          />
           <Tooltip title={t('settings.columns.actions.edit')}>
             <IconButton
               aria-label={t('settings.columns.actions.edit')}

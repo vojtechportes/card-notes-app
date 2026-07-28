@@ -588,6 +588,11 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Preserve accessible picker labeling and add focused frontend coverage for both color input paths.
   - Verify formatting, focused tests, frontend lint, and frontend build.
 
+- [x] TMSC-25. Add separate list and detail column visibility
+  - Allow each note-template column to be hidden from note cards independently of note details.
+  - Keep text truncation character count limited to note cards so detail values always render in full.
+  - Preserve column visibility through persistence, API contracts, and export/import.
+  - Add focused backend and frontend coverage for both visibility settings and list-only truncation.
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

@@ -67,6 +67,7 @@ const createColumnDto = (): ColumnDto => ({
   id: 'column-1',
   isDefault: false,
   isHidden: false,
+  isHiddenInDetail: false,
   name: 'summary',
   noteTypeId,
   sortOrder: 2,
@@ -307,12 +308,14 @@ describe('settings requests', () => {
   it('updates a note column', () => {
     const column: UpdateColumnDto = {
       isHidden: true,
+      isHiddenInDetail: false,
       title: 'Updated summary',
     }
     const response = Promise.resolve(
       createResponse<ColumnDto>({
         ...createColumnDto(),
         isHidden: true,
+        isHiddenInDetail: false,
         title: 'Updated summary',
         updatedAt: '2026-07-08T10:15:00.000Z',
       })

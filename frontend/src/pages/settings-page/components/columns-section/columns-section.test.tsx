@@ -111,6 +111,7 @@ const columns: ColumnDto[] = [
     noteTypeId: 'note-type-1',
     isDefault: true,
     isHidden: false,
+    isHiddenInDetail: false,
     name: 'createdAt',
     sortOrder: 0,
     title: 'Created at',
@@ -124,6 +125,7 @@ const columns: ColumnDto[] = [
     noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
+    isHiddenInDetail: false,
     name: 'summary',
     sortOrder: 1,
     title: 'Summary',
@@ -137,6 +139,7 @@ const columns: ColumnDto[] = [
     noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: true,
+    isHiddenInDetail: false,
     name: 'referenceLink',
     sortOrder: 2,
     title: 'Reference link',
@@ -255,7 +258,6 @@ describe('ColumnsSection', () => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
           config: null,
-          isHidden: false,
           name: 'firstField',
           title: 'First field',
           type: 'text',
@@ -292,7 +294,6 @@ describe('ColumnsSection', () => {
       expect(createMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
           config: null,
-          isHidden: false,
           name: 'projectStatus',
           title: 'Duplicate summary',
           type: 'number',
@@ -329,7 +330,6 @@ describe('ColumnsSection', () => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
         column: {
           config: null,
-          isHidden: false,
           name: 'createdAt',
           title: 'Created on',
           type: 'date',
@@ -340,20 +340,33 @@ describe('ColumnsSection', () => {
     })
   })
 
-  it('toggles visibility and reorders fields', async () => {
+  it('toggles list and detail visibility independently and reorders fields', async () => {
     renderColumnsSection()
 
     const hiddenRow = screen
       .getByText('Reference link')
       .closest('li') as HTMLElement
     fireEvent.click(
-      within(hiddenRow).getByRole('button', { name: 'Show field' })
+      within(hiddenRow).getByRole('button', { name: 'Show field in list' })
     )
 
     await waitFor(() => {
       expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
         column: { isHidden: false },
         id: 'reference-link',
+        noteTypeId: 'note-type-1',
+      })
+    })
+
+    const summaryRow = screen.getByText('Summary').closest('li') as HTMLElement
+    fireEvent.click(
+      within(summaryRow).getByRole('button', { name: 'Hide field in detail' })
+    )
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        column: { isHiddenInDetail: true },
+        id: 'summary',
         noteTypeId: 'note-type-1',
       })
     })
@@ -527,7 +540,6 @@ describe('ColumnsSection', () => {
             allowMultiple: false,
             sources: null,
           },
-          isHidden: false,
           name: 'topics',
           title: 'Topics',
           type: 'labels',
@@ -569,7 +581,6 @@ describe('ColumnsSection', () => {
               noteTypeIds: ['note-type-2'],
             },
           },
-          isHidden: false,
           name: 'topics',
           title: 'Topics',
           type: 'labels',
@@ -592,6 +603,7 @@ describe('ColumnsSection', () => {
       id: 'topics',
       isDefault: false,
       isHidden: false,
+      isHiddenInDetail: false,
       name: 'topics',
       noteTypeId: 'note-type-1',
       sortOrder: 3,
@@ -639,7 +651,6 @@ describe('ColumnsSection', () => {
               noteTypeIds: ['note-type-2'],
             },
           },
-          isHidden: false,
           name: 'topics',
           title: 'Topics',
           type: 'labels',

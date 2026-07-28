@@ -18,6 +18,7 @@ const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
     noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
+    isHiddenInDetail: false,
     name: 'column-name',
     sortOrder: 0,
     title: 'Column title',

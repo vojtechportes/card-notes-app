@@ -16,6 +16,7 @@ const column: ColumnDto = {
   id: 'labels-column',
   isDefault: false,
   isHidden: false,
+  isHiddenInDetail: false,
   name: 'topics',
   noteTypeId: 'note-type-1',
   sortOrder: 0,

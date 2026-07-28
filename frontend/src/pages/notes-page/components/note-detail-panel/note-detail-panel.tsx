@@ -67,7 +67,7 @@ export const NoteDetailPanel = ({
               field={field}
               imagePreviewMaxWidth={520}
               labels={labels}
-              textTruncationLength={generalSettings.textTruncationLength}
+              textTruncationLength={null}
             />
           </NoteDetailItem>
         ))}

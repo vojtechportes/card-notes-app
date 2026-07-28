@@ -9,7 +9,7 @@ export const filterEditableNoteColumns = (
         column.isDefault &&
         (column.name === 'createdAt' || column.name === 'updatedAt')
 
-      return !column.isHidden && !isSystemTimestampColumn
+      return !isSystemTimestampColumn
     })
     .sort((left, right) => left.sortOrder - right.sortOrder)
 }

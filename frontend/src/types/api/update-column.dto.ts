@@ -9,5 +9,6 @@ export type UpdateColumnDto = {
   type?: 'text' | 'date' | 'number' | 'image' | 'link' | 'labels'
   sortOrder?: number
   isHidden?: boolean
+  isHiddenInDetail?: boolean
   config?: LabelsColumnConfigDto | Record<string, unknown> | null
 }

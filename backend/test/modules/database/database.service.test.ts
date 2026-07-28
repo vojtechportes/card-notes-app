@@ -92,7 +92,7 @@ function createLegacyDatabase(databasePath: string): void {
       'Summary',
       'text',
       2,
-      0,
+      1,
       0,
       NULL,
       '2026-07-01T10:00:00.000Z',
@@ -182,6 +182,7 @@ describe(DatabaseService.name, () => {
       .map((row) => (row as PragmaColumnRow).name)
 
     expect(noteColumnNames).toContain('note_type_id')
+    expect(noteColumnNames).toContain('is_hidden_in_detail')
     expect(noteNames).toContain('note_type_id')
     service.close()
   })
@@ -236,8 +237,14 @@ describe(DatabaseService.name, () => {
       )
       .get() as { id: string; title: string }
     const migratedColumn = database
-      .prepare('SELECT note_type_id, name FROM note_columns WHERE id = ?')
-      .get('legacy-column-id') as { note_type_id: string; name: string }
+      .prepare(
+        'SELECT note_type_id, name, is_hidden_in_detail FROM note_columns WHERE id = ?'
+      )
+      .get('legacy-column-id') as {
+      note_type_id: string
+      name: string
+      is_hidden_in_detail: number
+    }
     const migratedNote = database
       .prepare(
         'SELECT note_type_id, created_at, updated_at FROM notes WHERE id = ?'
@@ -260,6 +267,7 @@ describe(DatabaseService.name, () => {
     expect(migratedColumn).toEqual({
       note_type_id: noteType.id,
       name: 'summary',
+      is_hidden_in_detail: 1,
     })
     expect(migratedNote).toEqual({
       note_type_id: noteType.id,
@@ -385,7 +393,7 @@ describe(DatabaseService.name, () => {
       .prepare('SELECT COUNT(*) as count FROM note_types WHERE title = ?')
       .get('Default') as CountRow
 
-    expect(migrationCount.count).toBe(3)
+    expect(migrationCount.count).toBe(4)
     expect(defaultNoteTypeCount.count).toBe(1)
     service.close()
   })

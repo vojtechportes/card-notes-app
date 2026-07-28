@@ -8,6 +8,7 @@ const labelColumn = (id: string, noteTypeId: string): ColumnDto => ({
   id,
   isDefault: false,
   isHidden: false,
+  isHiddenInDetail: false,
   name: id,
   noteTypeId,
   sortOrder: 0,
