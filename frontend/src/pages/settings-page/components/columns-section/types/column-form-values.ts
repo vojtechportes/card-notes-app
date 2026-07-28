@@ -1,6 +1,5 @@
 export interface ColumnFormValues {
   allowMultipleLabels: boolean
-  isHidden: boolean
   isMultiImage: boolean
   labelSourceIds: string[]
   name: string

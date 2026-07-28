@@ -96,6 +96,7 @@ const createColumnDto = (id: string): ColumnDto => ({
   id,
   isDefault: false,
   isHidden: false,
+  isHiddenInDetail: false,
   name: `column-${id}`,
   noteTypeId,
   sortOrder: 2,

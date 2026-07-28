@@ -187,12 +187,14 @@ describe(SettingsService.name, () => {
       settingsService.updateColumn(defaultNoteType.id, summary.id, {
         title: 'Summary text',
         isHidden: true,
+        isHiddenInDetail: true,
       })
     ).toEqual(
       expect.objectContaining({
         id: summary.id,
         title: 'Summary text',
         isHidden: true,
+        isHiddenInDetail: true,
       })
     )
 

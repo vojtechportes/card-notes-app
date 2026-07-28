@@ -20,6 +20,7 @@ const createColumn = (
   id: 'labels-column',
   isDefault: false,
   isHidden: false,
+  isHiddenInDetail: false,
   name: 'labels',
   noteTypeId: 'note-type-1',
   sortOrder: 0,

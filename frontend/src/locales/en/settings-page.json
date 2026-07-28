@@ -5,7 +5,7 @@
     "pages": {
       "general": {
         "title": "General",
-        "description": "Set app-wide display preferences for note cards, including text truncation and how many fields appear before opening a note."
+        "description": "Set app-wide list display preferences for note cards, including text truncation and how many fields appear before opening a note."
       },
       "noteTemplates": {
         "title": "Note templates",
@@ -31,11 +31,11 @@
     "sections": {
       "columns": {
         "title": "Columns",
-        "description": "Add, edit, reorder, hide, and remove the note fields your cards use."
+        "description": "Add, edit, reorder, and control where each note field appears."
       },
       "general": {
         "title": "Display preferences",
-        "description": "Control how note cards summarize values across the app."
+        "description": "Control how note cards summarize values in the list."
       },
       "exportImport": {
         "title": "Export / Import",
@@ -55,7 +55,7 @@
       }
     },
     "general": {
-      "summary": "These preferences stay shared across every note template and affect how note cards are summarized on the Notes page.",
+      "summary": "These preferences stay shared across every note template and affect only note cards in the Notes list.",
       "fields": {
         "textTruncationLength": "Text truncation character count",
         "cardFieldDisplayCount": "Fields displayed on cards",
@@ -63,7 +63,7 @@
       },
       "hints": {
         "optional": "Leave either field empty to keep that limit unset.",
-        "textTruncationLength": "Leave empty to show full text values on cards.",
+        "textTruncationLength": "Leave empty to show full text values on cards. Note details always show full text.",
         "cardFieldDisplayCount": "Leave empty to show all configured fields on cards."
       },
       "actions": {
@@ -168,7 +168,6 @@
         "title": "Column title",
         "name": "Column name",
         "type": "Column type",
-        "hidden": "Hide this column from note cards and forms",
         "multiImage": "Allow multiple images"
       },
       "types": {
@@ -199,7 +198,8 @@
         "error": "Fields could not be loaded right now.",
         "empty": "No fields are configured for this note template yet. Add your first custom field to get started.",
         "default": "Default",
-        "hidden": "Hidden"
+        "hiddenInList": "Hidden in list",
+        "hiddenInDetail": "Hidden in detail"
       },
       "actions": {
         "add": "Add field",
@@ -209,8 +209,10 @@
         "cancel": "Cancel",
         "edit": "Edit field",
         "delete": "Delete field",
-        "hide": "Hide field",
-        "show": "Show field",
+        "hideInList": "Hide field in list",
+        "showInList": "Show field in list",
+        "hideInDetail": "Hide field in detail",
+        "showInDetail": "Show field in detail",
         "reorder": "Reorder field"
       },
       "dialog": {
@@ -240,7 +242,8 @@
       },
       "errors": {
         "submit": "The field could not be saved. Try again.",
-        "updateHidden": "The field visibility could not be updated. Try again.",
+        "updateListVisibility": "The field list visibility could not be updated. Try again.",
+        "updateDetailVisibility": "The field detail visibility could not be updated. Try again.",
         "delete": "The field could not be deleted. Try again.",
         "reorder": "The field order could not be saved. Try again."
       },

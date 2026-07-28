@@ -8,6 +8,7 @@ export interface NoteColumn {
   type: ColumnTypeEnum
   sortOrder: number
   isHidden: boolean
+  isHiddenInDetail: boolean
   isDefault: boolean
   config: Record<string, unknown> | null
   createdAt: string
@@ -20,6 +21,7 @@ export interface CreateColumnInput {
   type: ColumnTypeEnum
   sortOrder?: number
   isHidden?: boolean
+  isHiddenInDetail?: boolean
   config?: Record<string, unknown> | null
 }
 
@@ -29,5 +31,6 @@ export interface UpdateColumnInput {
   type?: ColumnTypeEnum
   sortOrder?: number
   isHidden?: boolean
+  isHiddenInDetail?: boolean
   config?: Record<string, unknown> | null
 }

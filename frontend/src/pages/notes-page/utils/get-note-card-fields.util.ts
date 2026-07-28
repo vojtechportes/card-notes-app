@@ -11,7 +11,7 @@ export const getNoteCardFields = (
   mergedDateTitle: string
 ): NoteCardField[] => {
   const visibleFields = getNoteDisplayFields(note, columns, {
-    includeDefaultHiddenFields: false,
+    isColumnHidden: (column) => column.isHidden,
     mergeDateTimeFields,
     mergedDateTitle,
   }).filter(hasNoteCardFieldValue)

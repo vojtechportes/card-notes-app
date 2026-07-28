@@ -477,6 +477,7 @@ export class ExportImportService {
                   {
                     title: column.title,
                     isHidden: column.isHidden,
+                    isHiddenInDetail: column.isHiddenInDetail,
                     config: column.config,
                   }
                 )
@@ -1413,6 +1414,10 @@ export class ExportImportService {
     this.ensureValidColumnType(value.type)
     this.ensureNonNegativeInteger(value.sortOrder, 'Imported column sort order')
     this.ensureRequiredBoolean(value.isHidden, 'Imported column hidden state')
+    this.ensureOptionalBooleanOrNull(
+      value.isHiddenInDetail,
+      'Imported column detail hidden state'
+    )
     this.ensureRequiredBoolean(value.isDefault, 'Imported column default state')
     this.ensureRecordOrNull(value.config, 'Imported column config')
     this.ensureIsoDateString(
@@ -1432,6 +1437,8 @@ export class ExportImportService {
       type: value.type,
       sortOrder: value.sortOrder,
       isHidden: value.isHidden,
+      isHiddenInDetail:
+        value.isHiddenInDetail ?? (value.isHidden && !value.isDefault),
       isDefault: value.isDefault,
       config: value.config,
       createdAt: value.createdAt,
@@ -1671,6 +1678,7 @@ export class ExportImportService {
         type: column.type,
         sortOrder: column.sortOrder,
         isHidden: false,
+        isHiddenInDetail: false,
         isDefault: true,
         config: null,
         createdAt,
@@ -1691,6 +1699,7 @@ export class ExportImportService {
           type,
           sort_order,
           is_hidden,
+          is_hidden_in_detail,
           is_default,
           config_json,
           created_at,
@@ -1703,6 +1712,7 @@ export class ExportImportService {
           @type,
           @sortOrder,
           @isHidden,
+          @isHiddenInDetail,
           @isDefault,
           @configJson,
           @createdAt,
@@ -1718,6 +1728,7 @@ export class ExportImportService {
         type: column.type,
         sortOrder: column.sortOrder,
         isHidden: column.isHidden ? 1 : 0,
+        isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
         isDefault: column.isDefault ? 1 : 0,
         configJson: column.config ? JSON.stringify(column.config) : null,
         createdAt: column.createdAt,
@@ -1735,6 +1746,7 @@ export class ExportImportService {
         UPDATE note_columns
         SET title = @title,
             is_hidden = @isHidden,
+            is_hidden_in_detail = @isHiddenInDetail,
             config_json = @configJson,
             updated_at = @updatedAt
         WHERE id = @id
@@ -1744,6 +1756,7 @@ export class ExportImportService {
         id: existingColumn.id,
         title: importedColumn.title,
         isHidden: importedColumn.isHidden ? 1 : 0,
+        isHiddenInDetail: importedColumn.isHiddenInDetail ? 1 : 0,
         configJson: importedColumn.config
           ? JSON.stringify(importedColumn.config)
           : null,

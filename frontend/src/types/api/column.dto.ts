@@ -11,6 +11,7 @@ export type ColumnDto = {
   type: 'text' | 'date' | 'number' | 'image' | 'link' | 'labels'
   sortOrder: number
   isHidden: boolean
+  isHiddenInDetail: boolean
   isDefault: boolean
   config?: LabelsColumnConfigDto | Record<string, unknown> | null
   createdAt: string

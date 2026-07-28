@@ -216,6 +216,7 @@ export class SettingsService implements OnModuleInit {
       sortOrder:
         input.sortOrder ?? this.columnsRepository.getNextSortOrder(noteTypeId),
       isHidden: input.isHidden ?? false,
+      isHiddenInDetail: input.isHiddenInDetail ?? false,
       isDefault: false,
       config,
     })
@@ -264,6 +265,8 @@ export class SettingsService implements OnModuleInit {
       type,
       sortOrder,
       isHidden: input.isHidden ?? existingColumn.isHidden,
+      isHiddenInDetail:
+        input.isHiddenInDetail ?? existingColumn.isHiddenInDetail,
       config,
     })
   }

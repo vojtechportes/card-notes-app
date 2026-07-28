@@ -10,6 +10,7 @@ const createColumn = (overrides: Partial<ColumnDto>): ColumnDto => {
     noteTypeId: 'note-type-1',
     isDefault: false,
     isHidden: false,
+    isHiddenInDetail: false,
     name: 'column-name',
     sortOrder: 0,
     title: 'Column title',
@@ -140,6 +141,26 @@ describe('getNoteCardFields', () => {
     ])
   })
 
+  it('keeps detail-hidden fields visible on cards', () => {
+    const fields = getNoteCardFields(
+      {
+        ...note,
+        values: { 'detail-hidden': 'Visible on card' },
+      },
+      [
+        createColumn({
+          id: 'detail-hidden',
+          isHiddenInDetail: true,
+          title: 'Detail hidden',
+        }),
+      ],
+      null,
+      false,
+      'Last updated at'
+    )
+
+    expect(fields.map((field) => field.title)).toEqual(['Detail hidden'])
+  })
   it('skips hidden or empty fields and applies the configured field count limit', () => {
     const fields = getNoteCardFields(
       {
@@ -156,6 +177,7 @@ describe('getNoteCardFields', () => {
         createColumn({
           id: 'hidden-column',
           isHidden: true,
+          isHiddenInDetail: false,
           name: 'hidden',
           sortOrder: 0,
           title: 'Hidden',

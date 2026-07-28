@@ -95,7 +95,6 @@ export const ColumnsSection = ({
       setSectionError(null)
 
       const payload = {
-        isHidden: values.isHidden,
         name: values.name.trim(),
         title: values.title.trim(),
         type: values.type,
@@ -119,7 +118,7 @@ export const ColumnsSection = ({
     [activeColumn, createColumnMutation, noteTypeId, updateColumnMutation]
   )
 
-  const handleToggleHidden = useCallback(
+  const handleToggleListVisibility = useCallback(
     async (column: ColumnDto) => {
       setSectionError(null)
 
@@ -130,12 +129,28 @@ export const ColumnsSection = ({
           noteTypeId: column.noteTypeId,
         })
       } catch {
-        setSectionError(t('settings.columns.errors.updateHidden'))
+        setSectionError(t('settings.columns.errors.updateListVisibility'))
       }
     },
     [t, updateColumnMutation]
   )
 
+  const handleToggleDetailVisibility = useCallback(
+    async (column: ColumnDto) => {
+      setSectionError(null)
+
+      try {
+        await updateColumnMutation.mutateAsync({
+          column: { isHiddenInDetail: !column.isHiddenInDetail },
+          id: column.id,
+          noteTypeId: column.noteTypeId,
+        })
+      } catch {
+        setSectionError(t('settings.columns.errors.updateDetailVisibility'))
+      }
+    },
+    [t, updateColumnMutation]
+  )
   const handleDelete = useCallback(
     async (column: ColumnDto) => {
       setSectionError(null)
@@ -263,7 +278,8 @@ export const ColumnsSection = ({
                     key={column.id}
                     onDelete={handleDelete}
                     onEdit={openEditDialog}
-                    onToggleHidden={handleToggleHidden}
+                    onToggleDetailVisibility={handleToggleDetailVisibility}
+                    onToggleListVisibility={handleToggleListVisibility}
                   />
                 ))}
               </List>

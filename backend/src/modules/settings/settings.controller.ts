@@ -339,7 +339,11 @@ export class SettingsController {
     this.ensureRequiredString(body.title, 'Column title')
     this.ensureValidColumnType(body.type)
     this.ensureOptionalInteger(body.sortOrder, 'Column sort order')
-    this.ensureOptionalBoolean(body.isHidden, 'Column hidden state')
+    this.ensureOptionalBoolean(body.isHidden, 'Column list hidden state')
+    this.ensureOptionalBoolean(
+      body.isHiddenInDetail,
+      'Column detail hidden state'
+    )
     this.ensureOptionalRecordOrNull(body.config, 'Column config')
 
     return {
@@ -348,6 +352,7 @@ export class SettingsController {
       type: body.type,
       sortOrder: body.sortOrder,
       isHidden: body.isHidden,
+      isHiddenInDetail: body.isHiddenInDetail,
       config: body.config,
     }
   }
@@ -369,7 +374,11 @@ export class SettingsController {
     this.ensureOptionalInteger(updateColumnInput.sortOrder, 'Column sort order')
     this.ensureOptionalBoolean(
       updateColumnInput.isHidden,
-      'Column hidden state'
+      'Column list hidden state'
+    )
+    this.ensureOptionalBoolean(
+      updateColumnInput.isHiddenInDetail,
+      'Column detail hidden state'
     )
     this.ensureOptionalRecordOrNull(updateColumnInput.config, 'Column config')
 
@@ -379,6 +388,7 @@ export class SettingsController {
       type: updateColumnInput.type,
       sortOrder: updateColumnInput.sortOrder,
       isHidden: updateColumnInput.isHidden,
+      isHiddenInDetail: updateColumnInput.isHiddenInDetail,
       config: updateColumnInput.config,
     }
   }
