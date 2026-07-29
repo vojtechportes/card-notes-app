@@ -26,6 +26,8 @@ import type { NoteColumn } from '../settings/types/note-column'
 import type { NoteType } from '../settings/types/note-type'
 import { ExportImportDataDto } from './types/export-import-data.dto'
 import { createLabelSourceNameKey } from './utils/create-label-source-name-key.util'
+import { getXlsxInCellImageCandidateAddresses } from './utils/get-xlsx-in-cell-image-candidate-addresses.util'
+import { resolveXlsxInCellImages } from './utils/resolve-xlsx-in-cell-images.util'
 import { ImportLabelIssueCodeEnum } from './types/import-label-issue-code-enum'
 import type { ImportLabelIssueDto } from './types/import-label-issue.dto'
 import type { ImportUnmatchedFieldDto } from './types/import-unmatched-field.dto'
@@ -784,8 +786,31 @@ export class ExportImportService {
     )
 
     const imagesByCellAddress = this.resolveWorksheetImages(worksheet, workbook)
-    const rows: NoteValues[] = []
+    const inCellImageCandidateAddresses = getXlsxInCellImageCandidateAddresses(
+      worksheet,
+      mappedColumnsByIndex
+    )
 
+    if (inCellImageCandidateAddresses.size > 0) {
+      try {
+        const inCellImagesByCellAddress = await resolveXlsxInCellImages(
+          buffer,
+          inCellImageCandidateAddresses
+        )
+
+        for (const [cellAddress, imageValue] of inCellImagesByCellAddress) {
+          if (!imagesByCellAddress.has(cellAddress)) {
+            imagesByCellAddress.set(cellAddress, imageValue)
+          }
+        }
+      } catch {
+        throw new BadRequestException(
+          'XLSX in-cell image metadata must be valid.'
+        )
+      }
+    }
+
+    const rows: NoteValues[] = []
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
       const row = worksheet.getRow(rowNumber)
       const values: NoteValues = {}
@@ -991,6 +1016,10 @@ export class ExportImportService {
 
     if (typeof rawCellValue !== 'object' || Array.isArray(rawCellValue)) {
       return cellText.trim()
+    }
+
+    if ('error' in rawCellValue) {
+      return null
     }
 
     if ('result' in rawCellValue) {
