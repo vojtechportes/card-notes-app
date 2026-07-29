@@ -598,6 +598,24 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Reduce the Electron main window minimum width from 960px to 420px.
   - Verify the Electron shell still passes its tests, lint check, and build.
 
+- [x] B115. Fix responsive notes toolbar behavior
+  - Use 1060px as the MUI medium breakpoint and keep the navigation behavior synchronized with it.
+  - Reorganize the notes toolbar below 1060px and show only search and Add note while it is sticky.
+  - Align sticky toolbar controls with note cards at all supported widths and prevent sticky content from shrinking after resize.
+  - Exclude the main scroll container scrollbar from wide sticky toolbar alignment calculations.
+  - Add focused responsive and sticky resize coverage, then verify the frontend test, lint, and build commands.
+
+- [x] B116. Restore backend Swagger startup in development
+  - Give polymorphic column configuration DTO properties explicit Swagger runtime types.
+  - Preserve the existing labels configuration and arbitrary-object OpenAPI alternatives.
+  - Verify the real backend development command, health endpoint, Swagger document, tests, lint, and build.
+
+- [x] B117. Allow standalone frontend development in Electron-hosted browsers
+  - Replace generic Electron user-agent detection with a NoteStack-owned renderer marker.
+  - Add the marker to development and packaged Electron renderer URLs.
+  - Preserve genuine missing-preload failure handling and add focused regression coverage.
+  - Verify frontend and Electron tests, lint, builds, and the standalone development flow.
+
 - [x] TMSC-26. Add XLSX label imports
   - Map XLSX headers matching configured Labels fields.
   - Resolve comma-separated label names to existing allowed label IDs while respecting field cardinality.

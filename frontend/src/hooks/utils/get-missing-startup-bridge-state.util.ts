@@ -2,9 +2,9 @@ import { API_BASE_URL } from '../../constants/api-base-url'
 import type { StartupState } from '../../types/startup-state'
 
 export const getMissingStartupBridgeState = (
-  userAgent: string
+  isNoteStackElectronRuntime: boolean
 ): StartupState => {
-  if (userAgent.includes('Electron')) {
+  if (isNoteStackElectronRuntime) {
     return {
       status: 'failed',
       reason: 'bridge-unavailable',

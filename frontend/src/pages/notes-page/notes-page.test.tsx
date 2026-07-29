@@ -7,9 +7,15 @@ import {
   within,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AppProviders } from '../../components/app-providers/app-providers'
-import { SideDrawer, SideDrawerProvider } from '../../components/side-drawer'
+import {
+  SideDrawer,
+  SideDrawerContext,
+  SideDrawerProvider,
+  drawerInitialState,
+} from '../../components/side-drawer'
 import type {
   ColumnDto,
   GeneralSettingsDto,
@@ -663,6 +669,60 @@ describe('NotesPage', () => {
     })
   })
 
+  it('does not reopen the drawer when hook result objects change identity', async () => {
+    const deleteNote = vi.fn()
+    const toggleDrawer = vi.fn()
+
+    useDeleteNoteMutationMock.mockImplementation(() => ({
+      isPending: false,
+      mutate: deleteNote,
+    }))
+    useNoteTypeColumnsMapQueryMock.mockImplementation(() => ({
+      data: {
+        'note-type-1': bookColumns,
+        'note-type-2': movieColumns,
+      },
+      isError: false,
+      isLoading: false,
+    }))
+
+    const RerenderHarness = () => {
+      const [, setRenderCount] = useState(0)
+
+      return (
+        <SideDrawerContext.Provider
+          value={{ sideDrawerInfo: drawerInitialState, toggleDrawer }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setRenderCount((currentCount) => currentCount + 1)
+            }}
+          >
+            Rerender notes page
+          </button>
+          <Routes>
+            <Route path="/notes/:noteId" element={<NotesPage />} />
+          </Routes>
+        </SideDrawerContext.Provider>
+      )
+    }
+
+    window.location.hash = '#/notes/note-1'
+    render(
+      <AppProviders>
+        <RerenderHarness />
+      </AppProviders>
+    )
+
+    await waitFor(() => {
+      expect(toggleDrawer).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rerender notes page' }))
+
+    expect(toggleDrawer).toHaveBeenCalledTimes(1)
+  })
   it('merges created and updated timestamps in the detail drawer when enabled', async () => {
     useLabelsQueryMock.mockReturnValue({
       data: [],

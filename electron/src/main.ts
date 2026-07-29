@@ -26,6 +26,8 @@ import type { StartupState } from './startup/types/startup-state.js'
 import { fetchBackendHealth } from './startup/utils/fetch-backend-health.util.js'
 import { findAvailablePort } from './startup/utils/find-available-port.util.js'
 import { openBackendLog } from './startup/utils/open-backend-log.util.js'
+import { noteStackRuntimeQuery } from './runtime/constants/note-stack-runtime-query.js'
+import { addNoteStackRuntimeMarker } from './runtime/utils/add-note-stack-runtime-marker.util.js'
 import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
 import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
 
@@ -232,11 +234,13 @@ async function createMainWindow(): Promise<void> {
   })
 
   if (frontendDevServerUrl) {
-    await mainWindow.loadURL(frontendDevServerUrl)
+    await mainWindow.loadURL(addNoteStackRuntimeMarker(frontendDevServerUrl))
     return
   }
 
-  await mainWindow.loadFile(packagedFrontendEntryPath)
+  await mainWindow.loadFile(packagedFrontendEntryPath, {
+    query: noteStackRuntimeQuery,
+  })
 }
 
 function emitUpdaterState(state: UpdaterState): void {

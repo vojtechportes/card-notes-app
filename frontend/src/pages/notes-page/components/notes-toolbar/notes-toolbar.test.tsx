@@ -1,11 +1,28 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render as testingLibraryRender,
+  screen,
+} from '@testing-library/react'
+import { ThemeProvider } from '@mui/material'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PropsWithChildren, ReactNode } from 'react'
 import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
+import { theme } from '../../../../theme'
 import '../../../../i18n'
 import { NotesToolbar } from './notes-toolbar'
 import type { NoteSortBy, NoteSortDirection } from './notes-toolbar'
 
 let intersectionObserverCallback: IntersectionObserverCallback
+let resizeObserverCallback: ResizeObserverCallback
+
+const render = (ui: ReactNode) =>
+  testingLibraryRender(ui, {
+    wrapper: ({ children }: PropsWithChildren) => (
+      <ThemeProvider theme={theme}>{children}</ThemeProvider>
+    ),
+  })
 
 class IntersectionObserverMock {
   constructor(callback: IntersectionObserverCallback) {
@@ -26,6 +43,10 @@ class IntersectionObserverMock {
 }
 
 class ResizeObserverMock {
+  constructor(callback: ResizeObserverCallback) {
+    resizeObserverCallback = callback
+  }
+
   observe() {
     return undefined
   }
@@ -81,10 +102,21 @@ describe('NotesToolbar', () => {
       IntersectionObserverMock as unknown as typeof IntersectionObserver
     globalThis.ResizeObserver =
       ResizeObserverMock as unknown as typeof ResizeObserver
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: false,
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    }))
   })
 
   afterEach(() => {
     cleanup()
+    vi.restoreAllMocks()
   })
 
   it('renders search, sort, filter, and add note controls', () => {
@@ -118,6 +150,8 @@ describe('NotesToolbar', () => {
       .join(' ')
 
     expect(stickyToolbarClass).toBeTruthy()
+    expect(screen.getByLabelText('Sort by')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeTruthy()
     expect(generatedCss).toContain(
       `.${stickyToolbarClass} { top: calc(${56 + windowTitleBarHeight}px)`
     )
@@ -125,6 +159,168 @@ describe('NotesToolbar', () => {
       `.${stickyToolbarClass} { top: calc(${64 + windowTitleBarHeight}px)`
     )
   })
+  it('uses the 1060px responsive layout for the non-sticky toolbar', () => {
+    render(<NotesToolbar {...createProps()} />)
+
+    const actionsClass = screen
+      .getByTestId('notes-toolbar-actions')
+      .className.split(' ')
+      .find((className) => className.startsWith('css-'))
+    const generatedCss = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .map((rule) => rule.cssText)
+      .join(' ')
+
+    expect(actionsClass).toBeTruthy()
+    expect(generatedCss).toContain('min-width:600px')
+    expect(generatedCss).toContain('width > 1060px')
+    expect(generatedCss).toContain('grid-template-columns: minmax(0, 1fr) auto')
+  })
+
+  it('keeps only search and add note in the compact sticky toolbar', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: query.includes('width <= 1060px'),
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    }))
+    render(<NotesToolbar {...createProps()} />)
+
+    expect(
+      screen
+        .getByTestId('notes-toolbar-content')
+        .classList.contains('MuiContainer-disableGutters')
+    ).toBe(true)
+
+    act(() => {
+      intersectionObserverCallback(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      )
+    })
+
+    expect(screen.getByRole('textbox', { name: 'Search notes' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add note' })).toBeTruthy()
+    expect(screen.queryByLabelText('Sort by')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ascending' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Filters' })).toBeNull()
+    expect(
+      screen
+        .getByTestId('notes-toolbar-content')
+        .classList.contains('MuiContainer-disableGutters')
+    ).toBe(false)
+  })
+
+  it('restores sticky toolbar width after narrowing and widening', () => {
+    render(
+      <main>
+        <NotesToolbar {...createProps()} />
+      </main>
+    )
+
+    const main = screen.getByTestId('notes-toolbar-shell').closest('main')
+    const wrapper = screen.getByTestId('notes-toolbar-shell').parentElement
+
+    expect(main).toBeTruthy()
+    expect(wrapper).toBeTruthy()
+
+    vi.spyOn(main as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      bottom: 800,
+      height: 800,
+      left: 248,
+      right: 948,
+      toJSON: () => ({}),
+      top: 0,
+      width: 700,
+      x: 248,
+      y: 0,
+    })
+    const mainOffsetWidth = vi
+      .spyOn(main as HTMLElement, 'offsetWidth', 'get')
+      .mockReturnValue(700)
+    const mainClientWidth = vi
+      .spyOn(main as HTMLElement, 'clientWidth', 'get')
+      .mockReturnValue(685)
+    vi.spyOn(wrapper as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      bottom: 160,
+      height: 96,
+      left: 272,
+      right: 924,
+      toJSON: () => ({}),
+      top: 64,
+      width: 652,
+      x: 272,
+      y: 64,
+    })
+
+    act(() => {
+      resizeObserverCallback([], {} as ResizeObserver)
+      intersectionObserverCallback(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      )
+    })
+
+    let stickyToolbarClass = screen
+      .getByTestId('notes-toolbar-shell')
+      .className.split(' ')
+      .find((className) => className.startsWith('css-'))
+    let generatedCss = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .map((rule) => rule.cssText)
+      .join(' ')
+
+    expect(generatedCss).toContain(`.${stickyToolbarClass} { position: fixed;`)
+    expect(generatedCss).toContain('left: 248px')
+    expect(generatedCss).toContain('width: 685px')
+
+    vi.mocked((main as HTMLElement).getBoundingClientRect).mockReturnValue({
+      bottom: 800,
+      height: 800,
+      left: 0,
+      right: 950,
+      toJSON: () => ({}),
+      top: 0,
+      width: 950,
+      x: 0,
+      y: 0,
+    })
+    mainOffsetWidth.mockReturnValue(950)
+    mainClientWidth.mockReturnValue(950)
+    vi.mocked((wrapper as HTMLElement).getBoundingClientRect).mockReturnValue({
+      bottom: 160,
+      height: 96,
+      left: 24,
+      right: 926,
+      toJSON: () => ({}),
+      top: 64,
+      width: 902,
+      x: 24,
+      y: 64,
+    })
+
+    act(() => {
+      resizeObserverCallback([], {} as ResizeObserver)
+    })
+
+    stickyToolbarClass = screen
+      .getByTestId('notes-toolbar-shell')
+      .className.split(' ')
+      .find((className) => className.startsWith('css-'))
+    generatedCss = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .map((rule) => rule.cssText)
+      .join(' ')
+
+    expect(generatedCss).toContain(`.${stickyToolbarClass} { position: fixed;`)
+    expect(generatedCss).toContain('left: 0')
+    expect(generatedCss).toContain('width: 950px')
+  })
+
   it('notifies when the search query changes', () => {
     const props = createProps()
     render(<NotesToolbar {...props} />)

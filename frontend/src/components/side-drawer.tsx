@@ -67,6 +67,7 @@ export const SideDrawerProvider: FC<PropsWithChildren> = ({ children }) => {
   const location = useLocation()
   const [sideDrawerInfo, setSideDrawerInfo] =
     useState<SideDrawerInfo>(drawerInitialState)
+
   const toggleDrawer = useCallback<Dispatch<SetStateAction<SideDrawerInfo>>>(
     (value) => {
       setTimeout(() => {
@@ -80,6 +81,7 @@ export const SideDrawerProvider: FC<PropsWithChildren> = ({ children }) => {
     },
     []
   )
+
   const value = useMemo(
     () => ({ sideDrawerInfo, toggleDrawer }),
     [sideDrawerInfo, toggleDrawer]
