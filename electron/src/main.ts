@@ -178,7 +178,7 @@ async function createMainWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 960,
+    minWidth: 420,
     minHeight: 640,
     frame: false,
     icon: existsSync(applicationIconPath) ? applicationIconPath : undefined,

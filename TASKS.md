@@ -593,6 +593,11 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Keep text truncation character count limited to note cards so detail values always render in full.
   - Preserve column visibility through persistence, API contracts, and export/import.
   - Add focused backend and frontend coverage for both visibility settings and list-only truncation.
+
+- [x] B114. Allow the Electron window to resize to 420px wide
+  - Reduce the Electron main window minimum width from 960px to 420px.
+  - Verify the Electron shell still passes its tests, lint check, and build.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
