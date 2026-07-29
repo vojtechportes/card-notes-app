@@ -28,6 +28,7 @@ import { ExportImportDataDto } from './types/export-import-data.dto'
 import { createLabelSourceNameKey } from './utils/create-label-source-name-key.util'
 import { getXlsxInCellImageCandidateAddresses } from './utils/get-xlsx-in-cell-image-candidate-addresses.util'
 import { resolveXlsxInCellImages } from './utils/resolve-xlsx-in-cell-images.util'
+import { resolveSpreadsheetLabelIds } from './utils/resolve-spreadsheet-label-ids.util'
 import { ImportLabelIssueCodeEnum } from './types/import-label-issue-code-enum'
 import type { ImportLabelIssueDto } from './types/import-label-issue.dto'
 import type { ImportUnmatchedFieldDto } from './types/import-unmatched-field.dto'
@@ -73,6 +74,7 @@ interface ImportedNoteTypeResolution {
 interface ResolvedSpreadsheetImport {
   mappedColumnCount: number
   rows: NoteValues[]
+  labelIssues: ImportLabelIssueDto[]
   unmatchedFields: ImportUnmatchedFieldDto[]
 }
 
@@ -164,7 +166,7 @@ export class ExportImportService {
           importedLabels: 0,
           reusedLabels: 0,
           importedNotes,
-          labelIssues: [],
+          labelIssues: spreadsheetImport.labelIssues,
           unmatchedFields: spreadsheetImport.unmatchedFields,
           updatedGeneralSettings: false,
         }
@@ -745,11 +747,7 @@ export class ExportImportService {
     const existingColumnsByName = new Map(
       this.settingsService
         .listColumns(targetNoteTypeId)
-        .filter(
-          (column) =>
-            !this.isSystemTimestampColumn(column) &&
-            column.type !== ColumnTypeEnum.Labels
-        )
+        .filter((column) => !this.isSystemTimestampColumn(column))
         .map((column) => [column.name, column])
     )
     const mappedColumnsByIndex = new Map<number, NoteColumn>()
@@ -810,6 +808,8 @@ export class ExportImportService {
       }
     }
 
+    const labels = this.listLabels()
+    const labelIssues: ImportLabelIssueDto[] = []
     const rows: NoteValues[] = []
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
       const row = worksheet.getRow(rowNumber)
@@ -817,6 +817,23 @@ export class ExportImportService {
 
       for (const [columnIndex, column] of mappedColumnsByIndex.entries()) {
         const cell = row.getCell(columnIndex)
+
+        if (column.type === ColumnTypeEnum.Labels) {
+          const resolution = resolveSpreadsheetLabelIds(
+            cell.text,
+            this.settingsService.getLabelsColumnConfig(column),
+            labels
+          )
+
+          labelIssues.push(...resolution.issues)
+
+          if (resolution.labelIds.length > 0) {
+            this.assignSpreadsheetValue(values, column, resolution.labelIds)
+          }
+
+          continue
+        }
+
         const imageValue = imagesByCellAddress.get(cell.address)
         const resolvedValue = this.resolveSpreadsheetCellValue(
           cell.value,
@@ -837,6 +854,7 @@ export class ExportImportService {
     return {
       mappedColumnCount: mappedColumnsByIndex.size,
       rows,
+      labelIssues,
       unmatchedFields,
     }
   }

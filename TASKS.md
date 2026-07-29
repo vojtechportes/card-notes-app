@@ -598,6 +598,12 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Reduce the Electron main window minimum width from 960px to 420px.
   - Verify the Electron shell still passes its tests, lint check, and build.
 
+- [x] TMSC-26. Add XLSX label imports
+  - Map XLSX headers matching configured Labels fields.
+  - Resolve comma-separated label names to existing allowed label IDs while respecting field cardinality.
+  - Report unknown, disallowed, and ambiguous label names without creating labels.
+  - Add focused backend coverage and verify the backend test, lint, and build commands.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

@@ -940,7 +940,26 @@ describe(ExportImportService.name, () => {
     ])
   })
 
-  it('excludes labels fields from xlsx mapping and reports their headers', async () => {
+  it('imports comma-separated xlsx label names into matching labels fields', async () => {
+    const labelsService = createLabelsService(databaseService)
+    const firstLabel = labelsService.createLabel({
+      title: 'Label one',
+      name: 'label1',
+      color: '#111111',
+      noteTypeId: null,
+    })
+    const secondLabel = labelsService.createLabel({
+      title: 'Label two',
+      name: 'label2',
+      color: '#222222',
+      noteTypeId: getDefaultNoteTypeId(),
+    })
+    const thirdLabel = labelsService.createLabel({
+      title: 'Label three',
+      name: 'label3',
+      color: '#333333',
+      noteTypeId: null,
+    })
     const labelsColumn = settingsService.createColumn({
       name: 'labels',
       title: 'Labels',
@@ -951,25 +970,37 @@ describe(ExportImportService.name, () => {
       const worksheet = workbook.addWorksheet('Import')
 
       worksheet.addRow([labelsColumn.name])
-      worksheet.addRow(['important'])
+      worksheet.addRow(['label1,label3'])
+      worksheet.addRow(['label1, label2'])
+      worksheet.addRow(['missing, label3'])
+      worksheet.addRow([''])
     })
 
     const result = await exportImportService.importSpreadsheetData(
       spreadsheetBuffer,
       getDefaultNoteTypeId()
     )
+    const importedNotes = notesService.listNotes()
 
-    expect(result.importedColumns).toBe(0)
-    expect(result.importedNotes).toBe(0)
-    expect(result.unmatchedFields).toEqual([
-      {
-        name: 'labels',
-        noteTypeTitle: null,
-        title: null,
-        type: null,
-      },
-    ])
-    expect(createLabelsService(databaseService).listLabels()).toEqual([])
+    expect(result).toEqual({
+      importedColumns: 1,
+      importedLabels: 0,
+      reusedLabels: 0,
+      importedNotes: 3,
+      labelIssues: [
+        { labelId: null, name: 'missing', code: 'invalid-reference' },
+      ],
+      unmatchedFields: [],
+      updatedGeneralSettings: false,
+    })
+    expect(importedNotes.map((note) => note.values[labelsColumn.id])).toEqual(
+      expect.arrayContaining([
+        [firstLabel.id, thirdLabel.id],
+        [firstLabel.id, secondLabel.id],
+        [thirdLabel.id],
+      ])
+    )
+    expect(labelsService.listLabels()).toHaveLength(3)
   })
   it('maps template-owned labels to a selected target note type', () => {
     const targetNoteType = settingsService.createNoteType({ title: 'Library' })
