@@ -38,7 +38,8 @@ export class CreateColumnDto {
   isHiddenInDetail?: boolean
 
   @ApiPropertyOptional({
-    oneOf: [
+    type: Object,
+    anyOf: [
       { $ref: getSchemaPath(LabelsColumnConfigDto) },
       { type: 'object', additionalProperties: true },
     ],

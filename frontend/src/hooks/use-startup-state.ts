@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { StartupState } from '../types/startup-state'
 import { setApiClientBaseUrl } from '../utils/set-api-client-base-url.util'
 import { getMissingStartupBridgeState } from './utils/get-missing-startup-bridge-state.util'
+import { isNoteStackElectronRuntime } from './utils/is-note-stack-electron-runtime.util'
 
 interface StartupStateController {
   exit: () => void
@@ -19,7 +20,9 @@ export const useStartupState = (): StartupStateController => {
   const [state, setState] = useState<StartupState>(() =>
     window.noteStackStartup
       ? electronInitialState
-      : getMissingStartupBridgeState(navigator.userAgent)
+      : getMissingStartupBridgeState(
+          isNoteStackElectronRuntime(window.location.search)
+        )
   )
 
   const applyState = useCallback((nextState: StartupState) => {
@@ -46,7 +49,11 @@ export const useStartupState = (): StartupStateController => {
     const bridge = window.noteStackStartup
 
     if (!bridge) {
-      setState(getMissingStartupBridgeState(navigator.userAgent))
+      setState(
+        getMissingStartupBridgeState(
+          isNoteStackElectronRuntime(window.location.search)
+        )
+      )
       return
     }
 

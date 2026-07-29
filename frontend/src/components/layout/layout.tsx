@@ -30,6 +30,7 @@ import { NotesPage } from '../../pages/notes-page/notes-page'
 import { SettingsPage } from '../../pages/settings-page/settings-page'
 import { settingsSubPageRoutes } from '../../pages/settings-page/constants/settings-sub-page-routes'
 import { windowTitleBarHeight } from '../../constants/window-title-bar'
+import { mediumUpMediaQuery } from '../../theme'
 import appLogoUrl from '../../assets/logo.png'
 import { SideDrawer } from '../side-drawer'
 
@@ -84,9 +85,9 @@ const navItems = [
 ]
 
 export const Layout: FC = () => {
-  const location = useLocation()
   const { t } = useTranslation()
-  const desktop = useMediaQuery('(min-width: 900px)')
+  const location = useLocation()
+  const desktop = useMediaQuery(mediumUpMediaQuery)
   const [mobileOpen, setMobileOpen] = useState(false)
   const navigationLabel = mobileOpen
     ? t('navigation.close')

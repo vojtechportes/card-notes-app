@@ -38,7 +38,7 @@ export const NotesPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { noteId } = useParams<{ noteId?: string }>()
-  const confirmation = useConfirmation()
+  const { confirm } = useConfirmation()
   const { toggleDrawer } = useContext(SideDrawerContext)
   const [activeNote, setActiveNote] = useState<NoteDto | undefined>()
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
@@ -58,7 +58,7 @@ export const NotesPage = () => {
     sortBy,
     sortDirection,
   })
-  const deleteNoteMutation = useDeleteNoteMutation()
+  const { mutate: deleteNote } = useDeleteNoteMutation()
   const generalSettingsQuery = useGeneralSettingsQuery()
   const noteTypeTitleById = useMemo(() => {
     return (noteTypesQuery.data ?? []).reduce<Record<string, string>>(
@@ -104,6 +104,9 @@ export const NotesPage = () => {
     () => notesQuery.data?.find((note) => note.id === noteId),
     [noteId, notesQuery.data]
   )
+  const selectedNoteColumns = selectedNote
+    ? noteTypeColumnsMapQuery.data[selectedNote.noteTypeId]
+    : undefined
 
   const handleCloseNoteDialog = useCallback(() => {
     setActiveNote(undefined)
@@ -117,7 +120,7 @@ export const NotesPage = () => {
 
   const handleDeleteNote = useCallback(
     async (note: NoteDto) => {
-      const isConfirmed = await confirmation.confirm({
+      const isConfirmed = await confirm({
         title: t('notes.deleteConfirmation.title'),
         description: t('notes.deleteConfirmation.description'),
         confirmLabel: t('notes.deleteConfirmation.actions.confirm'),
@@ -132,9 +135,9 @@ export const NotesPage = () => {
         navigate('/notes')
       }
 
-      deleteNoteMutation.mutate(note.id)
+      deleteNote(note.id)
     },
-    [confirmation, deleteNoteMutation, navigate, noteId, t]
+    [confirm, deleteNote, navigate, noteId, t]
   )
 
   const handleOpenNoteDetail = useCallback(
@@ -159,7 +162,7 @@ export const NotesPage = () => {
       !generalSettingsQuery.data ||
       isCardConfigurationLoading ||
       hasCardConfigurationError ||
-      !noteTypeColumnsMapQuery.data[selectedNote.noteTypeId]
+      !selectedNoteColumns
     ) {
       return
     }
@@ -190,11 +193,10 @@ export const NotesPage = () => {
       ],
       drawerContent: (
         <NoteDetailPanel
-          columns={noteTypeColumnsMapQuery.data[selectedNote.noteTypeId] ?? []}
+          columns={selectedNoteColumns}
           generalSettings={generalSettingsQuery.data}
           labels={labelsQuery.data ?? []}
           note={selectedNote}
-          noteTypeColumnsById={noteTypeColumnsMapQuery.data}
           noteTypeTitle={noteTypeTitleById[selectedNote.noteTypeId]}
         />
       ),
@@ -214,9 +216,9 @@ export const NotesPage = () => {
     labelsQuery.data,
     navigate,
     noteId,
-    noteTypeColumnsMapQuery.data,
     noteTypeTitleById,
     selectedNote,
+    selectedNoteColumns,
     t,
     toggleDrawer,
   ])

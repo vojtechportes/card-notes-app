@@ -1,6 +1,19 @@
 import { createTheme } from '@mui/material/styles'
 
+export const mediumBreakpointMaxWidth = 1060
+export const mediumDownMediaQuery = '@media (width <= 1060px)'
+export const mediumUpMediaQuery = '@media (width > 1060px)'
+
 export const theme = createTheme({
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: mediumBreakpointMaxWidth,
+      lg: 1200,
+      xl: 1536,
+    },
+  },
   palette: {
     mode: 'light',
 

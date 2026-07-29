@@ -53,6 +53,7 @@ describe('StartupGate', () => {
       configurable: true,
       value: originalUserAgent,
     })
+    window.history.replaceState({}, '', '/')
     window.location.hash = ''
     apiClient.defaults.baseURL = API_BASE_URL
   })
@@ -67,11 +68,19 @@ describe('StartupGate', () => {
     expect(screen.getByRole('button', { name: 'Minimize' })).toBeTruthy()
   })
 
-  it('blocks the app when an Electron preload fails to expose the bridge', async () => {
+  it('falls back to ready in an Electron-hosted standalone browser', async () => {
     Object.defineProperty(navigator, 'userAgent', {
       configurable: true,
-      value: 'Mozilla/5.0 NoteStack Electron/32.0.0',
+      value: 'Mozilla/5.0 Electron/32.0.0',
     })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
+  })
+
+  it('blocks the app when the marked NoteStack runtime has no preload bridge', async () => {
+    window.history.replaceState({}, '', '/?notestack-runtime=electron')
 
     render(<App />)
 

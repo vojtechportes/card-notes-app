@@ -47,7 +47,8 @@ export class ColumnDto {
   isDefault: boolean
 
   @ApiPropertyOptional({
-    oneOf: [
+    type: Object,
+    anyOf: [
       { $ref: getSchemaPath(LabelsColumnConfigDto) },
       { type: 'object', additionalProperties: true },
     ],

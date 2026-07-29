@@ -1,33 +1,18 @@
-import AddIcon from '@mui/icons-material/Add'
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
-import FilterListIcon from '@mui/icons-material/FilterList'
-import SearchIcon from '@mui/icons-material/Search'
-import {
-  Box,
-  Button,
-  FormControl,
-  InputAdornment,
-  InputLabel,
-  Select,
-  Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-} from '@mui/material'
+import { Box, Container, useMediaQuery } from '@mui/material'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
-import type {
-  LabelDto,
-  ListNotesQueryDto,
-  NoteTypeDto,
-} from '../../../../types/api'
+import { mediumDownMediaQuery, mediumUpMediaQuery } from '../../../../theme'
+import type { LabelDto, NoteTypeDto } from '../../../../types/api'
 import type { LabelMatchMode } from '../../types/label-match-mode'
 import { AdvancedFilterPopover } from './components/advanced-filter-popover'
+import { NotesSearchField } from './components/notes-search-field'
+import { NotesToolbarActions } from './components/notes-toolbar-actions'
+import type { NoteSortBy } from './types/note-sort-by'
+import type { NoteSortDirection } from './types/note-sort-direction'
 
-export type NoteSortBy = NonNullable<ListNotesQueryDto['sortBy']>
-export type NoteSortDirection = NonNullable<ListNotesQueryDto['sortDirection']>
+export type { NoteSortBy } from './types/note-sort-by'
+export type { NoteSortDirection } from './types/note-sort-direction'
 
 interface NotesToolbarProps {
   isLabelsLoading: boolean
@@ -50,14 +35,12 @@ interface NotesToolbarProps {
 }
 
 interface ToolbarMetrics {
-  contentWidth: number | null
   mainLeft: number
   mainWidth: number | null
   shellHeight: number | null
 }
 
 const defaultToolbarMetrics: ToolbarMetrics = {
-  contentWidth: null,
   mainLeft: 0,
   mainWidth: null,
   shellHeight: null,
@@ -83,10 +66,9 @@ export const NotesToolbar = ({
   onSortDirectionChange,
 }: NotesToolbarProps) => {
   const { t } = useTranslation()
+  const isMediumDown = useMediaQuery(mediumDownMediaQuery)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const shellRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
   const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(null)
   const [isSticky, setIsSticky] = useState(false)
   const [toolbarMetrics, setToolbarMetrics] = useState<ToolbarMetrics>(
@@ -100,9 +82,10 @@ export const NotesToolbar = ({
           count: activeFilterCount,
         })
       : t('notes.toolbar.filters.button')
+  const isCompactSticky = isSticky && isMediumDown
 
   const updateToolbarMetrics = useCallback(() => {
-    if (!wrapperRef.current || !shellRef.current || !contentRef.current) {
+    if (!wrapperRef.current) {
       return
     }
 
@@ -113,14 +96,17 @@ export const NotesToolbar = ({
     }
 
     const mainRect = mainElement.getBoundingClientRect()
-    const contentRect = contentRef.current.getBoundingClientRect()
-    const shellRect = shellRef.current.getBoundingClientRect()
+    const wrapperRect = wrapperRef.current.getBoundingClientRect()
+    const scrollbarWidth = Math.max(
+      0,
+      mainElement.offsetWidth - mainElement.clientWidth
+    )
+    const mainWidth = Math.max(0, mainRect.width - scrollbarWidth)
 
     setToolbarMetrics({
-      contentWidth: contentRect.width,
       mainLeft: mainRect.left,
-      mainWidth: mainRect.width,
-      shellHeight: shellRect.height,
+      mainWidth: mainWidth || null,
+      shellHeight: wrapperRect.height || null,
     })
   }, [])
 
@@ -147,13 +133,14 @@ export const NotesToolbar = ({
     const resizeObserver = new ResizeObserver(() => {
       updateToolbarMetrics()
     })
+    const mainElement = wrapperRef.current?.closest('main')
 
     if (wrapperRef.current) {
       resizeObserver.observe(wrapperRef.current)
     }
 
-    if (shellRef.current) {
-      resizeObserver.observe(shellRef.current)
+    if (mainElement) {
+      resizeObserver.observe(mainElement)
     }
 
     window.addEventListener('resize', updateToolbarMetrics)
@@ -163,6 +150,12 @@ export const NotesToolbar = ({
       window.removeEventListener('resize', updateToolbarMetrics)
     }
   }, [updateToolbarMetrics])
+
+  useEffect(() => {
+    if (isCompactSticky) {
+      setFilterAnchorEl(null)
+    }
+  }, [isCompactSticky])
 
   return (
     <>
@@ -179,7 +172,6 @@ export const NotesToolbar = ({
       >
         <Box
           data-testid="notes-toolbar-shell"
-          ref={shellRef}
           sx={{
             position: isSticky ? 'fixed' : 'relative',
             top: isSticky
@@ -193,7 +185,9 @@ export const NotesToolbar = ({
               isSticky && toolbarMetrics.mainWidth
                 ? `${toolbarMetrics.mainWidth}px`
                 : '100%',
-            zIndex: isSticky ? (theme) => theme.zIndex.appBar - 1 : 'auto',
+            zIndex: isSticky
+              ? (muiTheme) => muiTheme.zIndex.appBar - 1
+              : 'auto',
             bgcolor: 'background.paper',
             border: 1,
             borderColor: 'divider',
@@ -202,131 +196,54 @@ export const NotesToolbar = ({
               borderRadius: 0,
               borderLeft: 0,
               borderRight: 0,
-              boxShadow: (theme) => theme.shadows[1],
+              boxShadow: (muiTheme) => muiTheme.shadows[1],
             }),
           }}
         >
-          <Box
-            ref={contentRef}
-            sx={{
-              p: 2,
-              ...(isSticky && {
-                boxSizing: 'border-box',
-                width: toolbarMetrics.contentWidth
-                  ? `${toolbarMetrics.contentWidth}px`
-                  : '100%',
-                maxWidth: '100%',
-                mx: 'auto',
-              }),
-            }}
+          <Container
+            maxWidth="xl"
+            disableGutters={!isSticky}
+            data-testid="notes-toolbar-content"
+            sx={isSticky ? { py: 2 } : { p: 2 }}
           >
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1.5}
-              sx={{ alignItems: { xs: 'stretch', md: 'center' } }}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: isCompactSticky
+                  ? { xs: 'minmax(0, 1fr)', sm: 'minmax(0, 1fr) auto' }
+                  : 'minmax(0, 1fr)',
+                gap: 1.5,
+                alignItems: isCompactSticky
+                  ? { xs: 'stretch', sm: 'center' }
+                  : 'stretch',
+                ...(!isCompactSticky && {
+                  [mediumUpMediaQuery]: {
+                    gridTemplateColumns: 'minmax(0, 1fr) auto',
+                    alignItems: 'center',
+                  },
+                }),
+              }}
             >
-              <TextField
-                fullWidth
+              <NotesSearchField
                 label={t('notes.toolbar.search.label')}
                 placeholder={t('notes.toolbar.search.placeholder')}
-                size="small"
-                value={searchQuery}
-                onChange={(event) => onSearchQueryChange(event.target.value)}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                sx={{
-                  flex: { md: '1 1 auto' },
-                  minWidth: 0,
-                }}
+                searchQuery={searchQuery}
+                onSearchQueryChange={onSearchQueryChange}
               />
 
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1.5}
-                sx={{
-                  alignItems: { xs: 'stretch', sm: 'center' },
-                  flexShrink: 0,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <FormControl
-                  size="small"
-                  sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                >
-                  <InputLabel htmlFor="notes-sort-by">
-                    {t('notes.toolbar.sortBy.label')}
-                  </InputLabel>
-
-                  <Select
-                    native
-                    label={t('notes.toolbar.sortBy.label')}
-                    value={sortBy}
-                    onChange={(event) =>
-                      onSortByChange(event.target.value as NoteSortBy)
-                    }
-                    inputProps={{ id: 'notes-sort-by' }}
-                  >
-                    <option value="createdAt">
-                      {t('notes.toolbar.sortBy.options.createdAt')}
-                    </option>
-                    <option value="updatedAt">
-                      {t('notes.toolbar.sortBy.options.updatedAt')}
-                    </option>
-                  </Select>
-                </FormControl>
-
-                <ToggleButtonGroup
-                  exclusive
-                  aria-label={t('notes.toolbar.sortDirection.label')}
-                  size="small"
-                  value={sortDirection}
-                  onChange={(_, value: NoteSortDirection | null) => {
-                    if (value) {
-                      onSortDirectionChange(value)
-                    }
-                  }}
-                >
-                  <ToggleButton
-                    aria-label={t('notes.toolbar.sortDirection.options.asc')}
-                    value="asc"
-                  >
-                    <ArrowUpwardIcon fontSize="small" />
-                  </ToggleButton>
-
-                  <ToggleButton
-                    aria-label={t('notes.toolbar.sortDirection.options.desc')}
-                    value="desc"
-                  >
-                    <ArrowDownwardIcon fontSize="small" />
-                  </ToggleButton>
-                </ToggleButtonGroup>
-
-                <Button
-                  startIcon={<FilterListIcon />}
-                  variant="outlined"
-                  onClick={(event) => setFilterAnchorEl(event.currentTarget)}
-                >
-                  {filterButtonLabel}
-                </Button>
-
-                <Button
-                  startIcon={<AddIcon />}
-                  variant="contained"
-                  onClick={onAddNote}
-                  sx={{ whiteSpace: 'nowrap' }}
-                >
-                  {t('notes.toolbar.actions.add')}
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
+              <NotesToolbarActions
+                filterButtonLabel={filterButtonLabel}
+                isCompactSticky={isCompactSticky}
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                t={t}
+                onAddNote={onAddNote}
+                onFilterClick={setFilterAnchorEl}
+                onSortByChange={onSortByChange}
+                onSortDirectionChange={onSortDirectionChange}
+              />
+            </Box>
+          </Container>
         </Box>
       </Box>
 
