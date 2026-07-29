@@ -12,7 +12,7 @@ import { LabelsService } from '../../../src/modules/settings/labels.service'
 import { NoteTypesRepository } from '../../../src/modules/settings/note-types.repository'
 import { SettingsService } from '../../../src/modules/settings/settings.service'
 import { ColumnTypeEnum } from '../../../src/modules/settings/types/column-type-enum'
-
+import { createInCellImageSpreadsheetBuffer } from './utils/create-in-cell-image-spreadsheet-buffer.util'
 let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesService: NotesService
@@ -388,6 +388,86 @@ describe(ExportImportService.name, () => {
     ])
   })
 
+  it('imports repeated Excel in-cell image references into multi-image fields', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+    const harmonyLinkColumn = settingsService.createColumn(recipes.id, {
+      name: 'harmonyLink',
+      title: 'Harmony link',
+      type: ColumnTypeEnum.Link,
+    })
+    const titleColumn = settingsService.createColumn(recipes.id, {
+      name: 'title',
+      title: 'Title',
+      type: ColumnTypeEnum.Text,
+    })
+    const printscreenColumn = settingsService.createColumn(recipes.id, {
+      config: { isMultiImage: true },
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+    const spreadsheetBuffer = await createInCellImageSpreadsheetBuffer()
+    const parsedWorkbook = new Workbook()
+
+    await parsedWorkbook.xlsx.load(spreadsheetBuffer)
+    expect(parsedWorkbook.worksheets[0].getImages()).toHaveLength(0)
+
+    const result = await exportImportService.importSpreadsheetData(
+      spreadsheetBuffer,
+      recipes.id
+    )
+    const importedRecipeNotes = notesService
+      .listNotes()
+      .filter((note) => note.noteTypeId === recipes.id)
+    const firstNote = importedRecipeNotes.find(
+      (note) => note.values[titleColumn.id] === 'First note'
+    )
+    const secondNote = importedRecipeNotes.find(
+      (note) => note.values[titleColumn.id] === 'Second note'
+    )
+    const thirdNote = importedRecipeNotes.find(
+      (note) => note.values[titleColumn.id] === 'Third note'
+    )
+    const firstNoteImages = firstNote?.values[printscreenColumn.id]
+    const thirdNoteImages = thirdNote?.values[printscreenColumn.id]
+
+    expect(result.importedNotes).toBe(3)
+    expect(firstNote?.values[harmonyLinkColumn.id]).toBe(
+      'https://example.com/first'
+    )
+    expect(firstNoteImages).toHaveLength(3)
+    expect(firstNoteImages).toMatchObject([
+      { fileName: 'image1.png', mimeType: 'image/png', size: 68 },
+      { fileName: 'image1.png', mimeType: 'image/png', size: 68 },
+      { fileName: 'image1.png', mimeType: 'image/png', size: 68 },
+    ])
+    expect(secondNote?.values[printscreenColumn.id]).toBeUndefined()
+    expect(thirdNoteImages).toHaveLength(2)
+    expect(thirdNoteImages).toMatchObject([
+      { dataUrl: expect.stringContaining('data:image/png;base64,') },
+      { dataUrl: expect.stringContaining('data:image/png;base64,') },
+    ])
+  })
+  it('rejects malformed Excel in-cell image metadata', async () => {
+    const recipes = settingsService.createNoteType({ title: 'Recipes' })
+
+    settingsService.createColumn(recipes.id, {
+      config: { isMultiImage: true },
+      name: 'printscreen',
+      title: 'Printscreen',
+      type: ColumnTypeEnum.Image,
+    })
+
+    const spreadsheetBuffer = await createInCellImageSpreadsheetBuffer({
+      malformedRichValueData: true,
+    })
+
+    await expect(
+      exportImportService.importSpreadsheetData(spreadsheetBuffer, recipes.id)
+    ).rejects.toThrow(
+      new BadRequestException('XLSX in-cell image metadata must be valid.')
+    )
+  })
   it('imports only the first duplicate xlsx image header into single-image fields', async () => {
     const recipes = settingsService.createNoteType({ title: 'Recipes' })
     const printscreenColumn = settingsService.createColumn(recipes.id, {
