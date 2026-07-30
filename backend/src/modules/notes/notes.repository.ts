@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { DatabaseService } from '../database/database.service'
 import type { Note } from './types/note'
+import type { BackgroundEnumDto } from './types/background-enum.dto'
 import { NoteSortDirectionEnum } from './types/note-sort-direction-enum'
 import { NoteSortFieldEnum } from './types/note-sort-field-enum'
 import type { ListNotesOptions } from './types/list-notes-options'
@@ -10,6 +11,7 @@ import type { NoteValue, NoteValuePatch, NoteValues } from './types/note-value'
 interface NoteRow {
   id: string
   note_type_id: string
+  background: BackgroundEnumDto | null
   created_at: string
   updated_at: string
 }
@@ -132,6 +134,16 @@ export class NotesRepository {
     return this.findById(id)
   }
 
+  updateBackground(
+    id: string,
+    background: BackgroundEnumDto | null
+  ): Note | undefined {
+    const result = this.getDatabase()
+      .prepare('UPDATE notes SET background = @background WHERE id = @id')
+      .run({ id, background })
+
+    return result.changes > 0 ? this.findById(id) : undefined
+  }
   delete(id: string): boolean {
     const result = this.getDatabase()
       .prepare('DELETE FROM notes WHERE id = ?')
@@ -409,6 +421,7 @@ export class NotesRepository {
     return {
       id: row.id,
       noteTypeId: row.note_type_id,
+      background: row.background,
       values: {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,

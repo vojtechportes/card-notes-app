@@ -44,6 +44,7 @@ const labels: LabelDto[] = [
 ]
 
 const note: NoteDto = {
+  background: null,
   createdAt: '2026-07-21T10:00:00.000Z',
   id: 'note-1',
   noteTypeId: 'note-type-1',

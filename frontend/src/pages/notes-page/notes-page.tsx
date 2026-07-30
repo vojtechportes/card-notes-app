@@ -13,9 +13,10 @@ import {
   SideDrawerContext,
   drawerInitialState,
 } from '../../components/side-drawer'
-import type { NoteDto } from '../../types/api'
+import type { BackgroundEnumDto, NoteDto } from '../../types/api'
 import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog'
 import { NoteCardList } from './components/note-card-list/note-card-list'
+import { NoteBackgroundMenuItem } from './components/note-background-menu-item/note-background-menu-item'
 import { NoteDetailPanel } from './components/note-detail-panel/note-detail-panel'
 import { NotesToolbar } from './components/notes-toolbar/notes-toolbar'
 import type {
@@ -23,7 +24,11 @@ import type {
   NoteSortDirection,
 } from './components/notes-toolbar/notes-toolbar'
 import { useGeneralSettingsQuery } from './hooks/use-general-settings-query'
-import { useDeleteNoteMutation, useNotesQuery } from './hooks/use-notes-query'
+import {
+  useDeleteNoteMutation,
+  useNotesQuery,
+  useUpdateNoteBackgroundMutation,
+} from './hooks/use-notes-query'
 import { useNotesSearch } from './hooks/use-notes-search'
 import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
 import type { LabelMatchMode } from './types/label-match-mode'
@@ -59,6 +64,7 @@ export const NotesPage = () => {
     sortDirection,
   })
   const { mutate: deleteNote } = useDeleteNoteMutation()
+  const { mutate: updateNoteBackground } = useUpdateNoteBackgroundMutation()
   const generalSettingsQuery = useGeneralSettingsQuery()
   const noteTypeTitleById = useMemo(() => {
     return (noteTypesQuery.data ?? []).reduce<Record<string, string>>(
@@ -140,6 +146,15 @@ export const NotesPage = () => {
     [confirm, deleteNote, navigate, noteId, t]
   )
 
+  const handleUpdateNoteBackground = useCallback(
+    (note: NoteDto, background: BackgroundEnumDto) => {
+      updateNoteBackground({
+        id: note.id,
+        background: { background },
+      })
+    },
+    [updateNoteBackground]
+  )
   const handleOpenNoteDetail = useCallback(
     (note: NoteDto) => {
       navigate(`/notes/${note.id}`)
@@ -181,6 +196,13 @@ export const NotesPage = () => {
         >
           <ListItemText>{t('notes.detail.actions.edit')}</ListItemText>
         </MenuItem>,
+        <NoteBackgroundMenuItem
+          key="note-background"
+          background={selectedNote.background}
+          onSelect={(background) => {
+            handleUpdateNoteBackground(selectedNote, background)
+          }}
+        />,
         <MenuItem
           key="delete-note"
           onClick={() => {
@@ -211,6 +233,7 @@ export const NotesPage = () => {
     generalSettingsQuery.data,
     handleDeleteNote,
     handleOpenNoteDialog,
+    handleUpdateNoteBackground,
     hasCardConfigurationError,
     isCardConfigurationLoading,
     labelsQuery.data,
@@ -299,6 +322,7 @@ export const NotesPage = () => {
               onDeleteNote={handleDeleteNote}
               onEditNote={handleOpenNoteDialog}
               onOpenNoteDetail={handleOpenNoteDetail}
+              onUpdateNoteBackground={handleUpdateNoteBackground}
               selectedNoteId={noteId}
             />
           )}

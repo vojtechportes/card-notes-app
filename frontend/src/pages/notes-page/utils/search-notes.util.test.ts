@@ -10,6 +10,7 @@ const createNote = (
   timestamps?: Partial<Pick<NoteDto, 'createdAt' | 'updatedAt'>>
 ): NoteDto => {
   return {
+    background: null,
     createdAt: timestamps?.createdAt ?? '2026-07-07T10:00:00.000Z',
     id,
     noteTypeId,

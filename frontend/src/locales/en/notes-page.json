@@ -111,6 +111,28 @@
         "description": "This note does not currently expose any configured fields."
       }
     },
+    "background": {
+      "title": "Background options",
+      "colorsLabel": "Note background colors",
+      "actions": {
+        "open": "Background options"
+      },
+      "colors": {
+        "cream": "Cream",
+        "lemon": "Lemon",
+        "lime": "Lime",
+        "peach": "Peach",
+        "mauve": "Mauve",
+        "sky": "Sky",
+        "flesh": "Flesh",
+        "verde": "Verde",
+        "rouge": "Rouge",
+        "teal": "Teal",
+        "ochre": "Ochre",
+        "white": "White",
+        "silver": "Silver"
+      }
+    },
     "deleteConfirmation": {
       "title": "Delete note?",
       "description": "This note will be permanently removed.",

@@ -10,19 +10,29 @@ import {
   Typography,
 } from '@mui/material'
 import type {
+  CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
 } from 'react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
+  BackgroundEnumDto,
   ColumnDto,
   GeneralSettingsDto,
   LabelDto,
   NoteDto,
 } from '../../../../types/api'
 import { getNoteCardFields } from '../../utils/get-note-card-fields.util'
+import { getNoteBackgroundBorderColor } from '../../utils/get-note-background-border-color.util'
+import { getNoteBackgroundColor } from '../../utils/get-note-background-color.util'
+import { NoteBackgroundMenuItem } from '../note-background-menu-item/note-background-menu-item'
 import { NoteFieldValue as NoteCardFieldValue } from '../note-field-value/note-field-value'
+
+type NoteCardStyle = CSSProperties & {
+  '--note-background-color': string
+  '--note-background-border-color': string
+}
 
 interface NoteCardProps {
   columns: ColumnDto[]
@@ -33,6 +43,10 @@ interface NoteCardProps {
   onDeleteNote?: (note: NoteDto) => void
   onEditNote?: (note: NoteDto) => void
   onOpenNoteDetail?: (note: NoteDto) => void
+  onUpdateNoteBackground?: (
+    note: NoteDto,
+    background: BackgroundEnumDto
+  ) => void
 }
 
 const INTERACTIVE_ELEMENT_SELECTOR =
@@ -74,6 +88,7 @@ export const NoteCard = ({
   onDeleteNote,
   onEditNote,
   onOpenNoteDetail,
+  onUpdateNoteBackground,
 }: NoteCardProps) => {
   const { t } = useTranslation()
   const [actionsAnchorElement, setActionsAnchorElement] =
@@ -85,9 +100,16 @@ export const NoteCard = ({
     !!generalSettings.mergeDateTimeFields,
     t('notes.fields.lastUpdatedAt')
   )
+  const backgroundBorderColor = getNoteBackgroundBorderColor(note.background)
+  const noteCardStyle: NoteCardStyle = {
+    '--note-background-color': getNoteBackgroundColor(note.background),
+    '--note-background-border-color': backgroundBorderColor,
+  }
   const cardAccessibleLabel = resolveCardAccessibleLabel(fields) ?? note.id
   const canOpenDetail = Boolean(onOpenNoteDetail)
-  const hasActionMenu = Boolean(onEditNote || onDeleteNote)
+  const hasActionMenu = Boolean(
+    onEditNote || onDeleteNote || onUpdateNoteBackground
+  )
   const isActionsMenuOpen = Boolean(actionsAnchorElement)
 
   const handleOpenDetail = () => {
@@ -131,8 +153,12 @@ export const NoteCard = ({
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       role={canOpenDetail ? 'button' : undefined}
+      style={noteCardStyle}
       sx={{
-        borderColor: isSelected ? 'primary.main' : 'divider',
+        bgcolor: 'var(--note-background-color)',
+        borderColor: isSelected
+          ? 'primary.main'
+          : 'var(--note-background-border-color)',
         borderWidth: isSelected ? 2 : 1,
         cursor: canOpenDetail ? 'pointer' : 'default',
         height: '100%',
@@ -198,6 +224,17 @@ export const NoteCard = ({
                 {t('notes.card.actions.edit')}
               </MenuItem>
             )}
+            {onUpdateNoteBackground && (
+              <NoteBackgroundMenuItem
+                background={note.background}
+                onClick={() => {
+                  setActionsAnchorElement(null)
+                }}
+                onSelect={(background) => {
+                  onUpdateNoteBackground(note, background)
+                }}
+              />
+            )}
             {onDeleteNote && (
               <MenuItem
                 onClick={() => {
@@ -227,7 +264,15 @@ export const NoteCard = ({
             {t('notes.card.noVisibleFields')}
           </Typography>
         ) : (
-          <Stack divider={<Divider flexItem />} spacing={2}>
+          <Stack
+            divider={
+              <Divider
+                flexItem
+                sx={{ borderColor: 'var(--note-background-border-color)' }}
+              />
+            }
+            spacing={2}
+          >
             {fields.map((field) => (
               <Stack key={field.columnId} spacing={1}>
                 <Typography component="h3" variant="subtitle2">

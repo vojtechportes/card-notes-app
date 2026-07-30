@@ -474,6 +474,7 @@ describe('CreateUpdateDialog', () => {
         : column
     )
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -523,6 +524,7 @@ describe('CreateUpdateDialog', () => {
 
   it('keeps the note template fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -689,6 +691,7 @@ describe('CreateUpdateDialog', () => {
       updatedAt: '2026-07-21T10:00:00.000Z',
     }
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-21T10:00:00.000Z',
       id: 'note-with-label',
       noteTypeId: 'note-type-1',
@@ -756,6 +759,7 @@ describe('CreateUpdateDialog', () => {
       updatedAt: '2026-07-21T10:00:00.000Z',
     }
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-21T10:00:00.000Z',
       id: 'note-with-missing-label',
       noteTypeId: 'note-type-1',

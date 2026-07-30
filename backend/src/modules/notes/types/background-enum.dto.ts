@@ -1,0 +1,15 @@
+export enum BackgroundEnumDto {
+  Cream = 'CREAM',
+  Lemon = 'LEMON',
+  Lime = 'LIME',
+  Peach = 'PEACH',
+  Mauve = 'MAUVE',
+  Sky = 'SKY',
+  Flesh = 'FLESH',
+  Verde = 'VERDE',
+  Rouge = 'ROUGE',
+  Teal = 'TEAL',
+  Ochre = 'OCHRE',
+  White = 'WHITE',
+  Silver = 'SILVER',
+}

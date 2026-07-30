@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger'
 import { AnyFilesInterceptor } from '@nestjs/platform-express'
 import { NotesService } from './notes.service'
+import { BackgroundEnumDto } from './types/background-enum.dto'
 import { CreateNoteDto } from './types/create-note.dto'
 import { DeleteAllNotesResultDto } from './types/delete-all-notes-result.dto'
 import { ListNotesQueryDto } from './types/list-notes-query.dto'
@@ -37,6 +38,7 @@ import type {
   NoteValuePatch,
   NoteValues,
 } from './types/note-value'
+import { UpdateNoteBackgroundDto } from './types/update-note-background.dto'
 import { UpdateNoteDto } from './types/update-note.dto'
 
 interface NoteUploadFile {
@@ -108,6 +110,32 @@ export class NotesController {
     return this.notesService.getNote(id)
   }
 
+  @Patch(':noteId/background')
+  @ApiBody({ type: UpdateNoteBackgroundDto })
+  @ApiOperation({ summary: 'Update a note background' })
+  @ApiParam({ name: 'noteId', description: 'Note id.' })
+  @ApiOkResponse({ description: 'Updated note.', type: NoteDto })
+  updateNoteBackground(
+    @Param('noteId') noteId: string,
+    @Body() body: UpdateNoteBackgroundDto
+  ): NoteDto {
+    this.ensureRequestBodyIsRecord(body)
+
+    const keys = Object.keys(body)
+
+    if (
+      keys.length !== 1 ||
+      keys[0] !== 'background' ||
+      (body.background !== null &&
+        !Object.values(BackgroundEnumDto).includes(body.background))
+    ) {
+      throw new BadRequestException(
+        'Note background must be null or a supported background value.'
+      )
+    }
+
+    return this.notesService.updateNoteBackground(noteId, body.background)
+  }
   @Patch(':id')
   @UseInterceptors(
     AnyFilesInterceptor({

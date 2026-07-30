@@ -31,6 +31,7 @@ const generalSettings: GeneralSettingsDto = {
 }
 
 const note: NoteDto = {
+  background: 'SKY',
   createdAt: '2026-07-07T10:00:00.000Z',
   id: 'note-1',
   noteTypeId: 'note-type-1',
@@ -44,7 +45,7 @@ const note: NoteDto = {
 
 describe('NoteDetailPanel', () => {
   it('uses detail visibility independently and renders text and links in full', () => {
-    render(
+    const { container } = render(
       <NoteDetailPanel
         columns={[
           createColumn({
@@ -77,6 +78,11 @@ describe('NoteDetailPanel', () => {
     expect(
       screen.getByText('This full detail value is not truncated')
     ).toBeTruthy()
+    expect(
+      (container.firstElementChild as HTMLElement).style.getPropertyValue(
+        '--note-background-color'
+      )
+    ).toBe('#BEDDF1')
     expect(screen.queryByText('Detail hidden field')).toBeNull()
     expect(
       screen.getByRole('link', {

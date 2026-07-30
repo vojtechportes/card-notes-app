@@ -50,6 +50,7 @@ afterEach(() => {
 describe('NoteCardList', () => {
   it('renders cards in a linear field flow with separators, truncated text, external links, and wide images', () => {
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -134,6 +135,7 @@ describe('NoteCardList', () => {
         generalSettings={generalSettings}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
@@ -186,6 +188,7 @@ describe('NoteCardList', () => {
         generalSettings={generalSettings}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
@@ -232,6 +235,7 @@ describe('NoteCardList', () => {
         }}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
@@ -281,6 +285,7 @@ describe('NoteCardList', () => {
         }}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
@@ -302,6 +307,7 @@ describe('NoteCardList', () => {
   it('opens note detail from the card surface and marks the selected card', () => {
     const handleOpenNoteDetail = vi.fn()
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -355,6 +361,7 @@ describe('NoteCardList', () => {
         generalSettings={generalSettings}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
@@ -375,9 +382,63 @@ describe('NoteCardList', () => {
     expect(handleOpenNoteDetail).not.toHaveBeenCalled()
   })
 
+  it('renders the note background and updates it from the nested card menu', async () => {
+    const handleUpdateNoteBackground = vi.fn()
+    const note: NoteDto = {
+      background: 'PEACH',
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'note-1',
+      noteTypeId: 'note-type-1',
+      updatedAt: '2026-07-07T12:00:00.000Z',
+      values: {
+        'details-column': 'Matching divider',
+        'summary-column': 'Peach note',
+      },
+    }
+
+    render(
+      <NoteCardList
+        columns={[
+          createColumn({
+            id: 'summary-column',
+            name: 'summary',
+            title: 'Summary',
+          }),
+          createColumn({
+            id: 'details-column',
+            name: 'details',
+            sortOrder: 1,
+            title: 'Details',
+          }),
+        ]}
+        generalSettings={generalSettings}
+        notes={[note]}
+        onUpdateNoteBackground={handleUpdateNoteBackground}
+      />
+    )
+
+    const card = screen
+      .getByText('Peach note')
+      .closest('.MuiCard-root') as HTMLElement
+    expect(card.style.getPropertyValue('--note-background-color')).toBe(
+      '#F7DFC2'
+    )
+    expect(card.style.getPropertyValue('--note-background-border-color')).toBe(
+      'color-mix(in srgb, #F7DFC2, black 20%)'
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Background options' })
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Mauve' }))
+
+    expect(handleUpdateNoteBackground).toHaveBeenCalledWith(note, 'MAUVE')
+  })
   it('calls the edit handler when a card edit action is pressed from the menu', async () => {
     const handleEditNote = vi.fn()
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -412,6 +473,7 @@ describe('NoteCardList', () => {
   it('calls the delete handler when a card delete action is pressed from the menu', async () => {
     const handleDeleteNote = vi.fn()
     const note: NoteDto = {
+      background: null,
       createdAt: '2026-07-07T10:00:00.000Z',
       id: 'note-1',
       noteTypeId: 'note-type-1',
@@ -464,6 +526,7 @@ describe('NoteCardList', () => {
         generalSettings={generalSettings}
         notes={[
           {
+            background: null,
             createdAt: '2026-07-07T10:00:00.000Z',
             id: 'note-1',
             noteTypeId: 'note-type-1',
