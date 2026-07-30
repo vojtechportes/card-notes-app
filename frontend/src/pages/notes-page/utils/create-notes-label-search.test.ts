@@ -4,6 +4,7 @@ import { searchNotes } from './search-notes.util'
 
 const notes: NoteDto[] = [
   {
+    background: null,
     createdAt: '2026-07-21T10:00:00.000Z',
     id: 'assigned-note',
     noteTypeId: 'note-type-1',
@@ -11,6 +12,7 @@ const notes: NoteDto[] = [
     values: { labels: ['label-1', 'missing-label'] },
   },
   {
+    background: null,
     createdAt: '2026-07-21T10:00:00.000Z',
     id: 'unassigned-note',
     noteTypeId: 'note-type-1',

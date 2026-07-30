@@ -27,6 +27,7 @@ const note = (
   noteTypeId: string,
   values: NoteDto['values']
 ): NoteDto => ({
+  background: null,
   createdAt: '2026-07-21T10:00:00.000Z',
   id,
   noteTypeId,

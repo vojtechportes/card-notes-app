@@ -622,6 +622,12 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Report unknown, disallowed, and ambiguous label names without creating labels.
   - Add focused backend coverage and verify the backend test, lint, and build commands.
 
+- [x] TMSC-27. Add per-note backgrounds
+  - Persist an optional enum-backed background for each note with a backwards-compatible null default.
+  - Add a dedicated background-only note endpoint and expose the contract through Swagger.
+  - Add accessible nested background pickers to note card and detail action menus.
+  - Apply mapped background colors to note cards and details and verify the feature end to end.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

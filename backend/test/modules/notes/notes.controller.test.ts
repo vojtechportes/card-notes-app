@@ -4,6 +4,7 @@ import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesController } from '../../../src/modules/notes/notes.controller'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { NotesService } from '../../../src/modules/notes/notes.service'
+import { BackgroundEnumDto } from '../../../src/modules/notes/types/background-enum.dto'
 import { NoteSortDirectionEnum } from '../../../src/modules/notes/types/note-sort-direction-enum'
 import { NoteSortFieldEnum } from '../../../src/modules/notes/types/note-sort-field-enum'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
@@ -50,6 +51,7 @@ describe(NotesController.name, () => {
     })
 
     expect(createdNote.noteTypeId).toBe(getDefaultNoteTypeId())
+    expect(createdNote.background).toBeNull()
     expect(createdNote.values).toEqual({ [summaryColumn.id]: 'API note' })
     expect(notesController.getNote(createdNote.id)).toEqual(createdNote)
   })
@@ -187,6 +189,65 @@ describe(NotesController.name, () => {
     expect(updatedNote.values).toEqual({ [summaryColumn.id]: 'Updated' })
   })
 
+  it('updates and resets only the note background through the dedicated endpoint', () => {
+    const summaryColumn = settingsService.createColumn({
+      name: 'summary',
+      title: 'Summary',
+      type: ColumnTypeEnum.Text,
+    })
+    const note = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+      values: { [summaryColumn.id]: 'Keep this value' },
+    })
+
+    databaseService
+      .getConnection()
+      .prepare('UPDATE notes SET updated_at = ? WHERE id = ?')
+      .run('2026-07-01T10:00:00.000Z', note.id)
+
+    const updatedNote = notesController.updateNoteBackground(note.id, {
+      background: BackgroundEnumDto.Teal,
+    })
+
+    expect(updatedNote.background).toBe(BackgroundEnumDto.Teal)
+    expect(updatedNote.values).toEqual({
+      [summaryColumn.id]: 'Keep this value',
+    })
+    expect(updatedNote.noteTypeId).toBe(note.noteTypeId)
+    expect(updatedNote.updatedAt).toBe('2026-07-01T10:00:00.000Z')
+    const resetNote = notesController.updateNoteBackground(note.id, {
+      background: null,
+    })
+
+    expect(resetNote.background).toBeNull()
+    expect(resetNote.updatedAt).toBe('2026-07-01T10:00:00.000Z')
+  })
+
+  it('rejects invalid background requests and missing notes', () => {
+    const note = notesController.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+    })
+
+    expect(() =>
+      notesController.updateNoteBackground(note.id, {} as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.updateNoteBackground(note.id, {
+        background: 'PURPLE',
+      } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.updateNoteBackground(note.id, {
+        background: BackgroundEnumDto.Cream,
+        values: {},
+      } as never)
+    ).toThrow(BadRequestException)
+    expect(() =>
+      notesController.updateNoteBackground('missing-note', {
+        background: BackgroundEnumDto.Cream,
+      })
+    ).toThrow(NotFoundException)
+  })
   it('deletes notes through the API surface', () => {
     const note = notesController.createNote({
       noteTypeId: getDefaultNoteTypeId(),

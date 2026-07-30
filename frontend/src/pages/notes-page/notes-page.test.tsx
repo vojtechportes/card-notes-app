@@ -68,6 +68,7 @@ const useNoteTypeColumnsMapQueryMock = vi.hoisted(() => vi.fn())
 const useNoteTypesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesQueryMock = vi.hoisted(() => vi.fn())
 const useNotesSearchMock = vi.hoisted(() => vi.fn())
+const useUpdateNoteBackgroundMutationMock = vi.hoisted(() => vi.fn())
 const useUpdateNoteMutationMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../settings-page/hooks/use-labels-query', () => ({
@@ -94,6 +95,7 @@ vi.mock('./hooks/use-notes-query', () => ({
   useCreateNoteMutation: useCreateNoteMutationMock,
   useDeleteNoteMutation: useDeleteNoteMutationMock,
   useNotesQuery: useNotesQueryMock,
+  useUpdateNoteBackgroundMutation: useUpdateNoteBackgroundMutationMock,
   useUpdateNoteMutation: useUpdateNoteMutationMock,
 }))
 
@@ -256,6 +258,7 @@ const generalSettings: GeneralSettingsDto = {
 
 const notes: NoteDto[] = [
   {
+    background: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id: 'note-1',
     noteTypeId: 'note-type-1',
@@ -273,6 +276,7 @@ const notes: NoteDto[] = [
     },
   },
   {
+    background: null,
     createdAt: '2026-07-07T11:00:00.000Z',
     id: 'note-2',
     noteTypeId: 'note-type-2',
@@ -368,6 +372,10 @@ describe('NotesPage', () => {
       isLoading: false,
     })
     useNotesSearchMock.mockReturnValue(notes)
+    useUpdateNoteBackgroundMutationMock.mockReturnValue({
+      isPending: false,
+      mutate: vi.fn(),
+    })
     useUpdateNoteMutationMock.mockReturnValue({
       isPending: false,
       mutateAsync: vi.fn(),
@@ -799,6 +807,29 @@ describe('NotesPage', () => {
     expect(
       (screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value
     ).toBe('Alpha note')
+  })
+  it('updates the note background from the detail drawer nested menu', async () => {
+    const updateBackground = vi.fn()
+    useUpdateNoteBackgroundMutationMock.mockReturnValue({
+      isPending: false,
+      mutate: updateBackground,
+    })
+    renderNotesPage('#/notes/note-1')
+
+    const sideDrawer = await getRenderedSideDrawer()
+
+    fireEvent.click(
+      within(sideDrawer).getByRole('button', { name: 'More actions' })
+    )
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Background options' })
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Sky' }))
+
+    expect(updateBackground).toHaveBeenCalledWith({
+      id: 'note-1',
+      background: { background: 'SKY' },
+    })
   })
   it('closes the note detail drawer from the close action', async () => {
     renderNotesPage('#/notes/note-1')

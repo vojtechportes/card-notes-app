@@ -1,4 +1,5 @@
 import { Divider, Stack, Typography } from '@mui/material'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
   ColumnDto,
@@ -6,9 +7,14 @@ import type {
   LabelDto,
   NoteDto,
 } from '../../../../types/api'
+import { getNoteBackgroundColor } from '../../utils/get-note-background-color.util'
 import { getNoteDetailFields } from '../../utils/get-note-detail-fields.util'
 import { NoteDetailItem } from '../note-detail-item/note-detail-item'
 import { NoteFieldValue } from '../note-field-value/note-field-value'
+
+type NoteDetailPanelStyle = CSSProperties & {
+  '--note-background-color': string
+}
 
 interface NoteDetailPanelProps {
   columns: ColumnDto[]
@@ -35,10 +41,17 @@ export const NoteDetailPanel = ({
     !!generalSettings.mergeDateTimeFields,
     t('notes.fields.lastUpdatedAt')
   )
+  const noteDetailPanelStyle: NoteDetailPanelStyle = {
+    '--note-background-color': getNoteBackgroundColor(note.background),
+  }
 
   if (fields.length === 0) {
     return (
-      <Stack spacing={1} sx={{ p: 3 }}>
+      <Stack
+        spacing={1}
+        style={noteDetailPanelStyle}
+        sx={{ bgcolor: 'var(--note-background-color)', flex: 1, p: 3 }}
+      >
         <Typography component="h3" variant="h6">
           {t('notes.detail.empty.title')}
         </Typography>
@@ -50,7 +63,12 @@ export const NoteDetailPanel = ({
   }
 
   return (
-    <Stack divider={<Divider flexItem />} spacing={0} sx={{ p: 3 }}>
+    <Stack
+      divider={<Divider flexItem />}
+      spacing={0}
+      style={noteDetailPanelStyle}
+      sx={{ bgcolor: 'var(--note-background-color)', flex: 1, p: 3 }}
+    >
       <Stack spacing={2.5}>
         {noteTypeTitle ? (
           <NoteDetailItem label={t('notes.detail.noteType')}>

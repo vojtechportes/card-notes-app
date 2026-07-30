@@ -5,6 +5,7 @@ import { AppModule } from './app/app.module'
 import { appConfig } from './config/app.config'
 import { CreateNoteDto } from './modules/notes/types/create-note.dto'
 import { ListNotesQueryDto } from './modules/notes/types/list-notes-query.dto'
+import { UpdateNoteBackgroundDto } from './modules/notes/types/update-note-background.dto'
 import { UpdateNoteDto } from './modules/notes/types/update-note.dto'
 import { CreateColumnDto } from './modules/settings/types/create-column.dto'
 import { CreateNoteTypeDto } from './modules/settings/types/create-note-type.dto'
@@ -44,6 +45,7 @@ const swaggerExtraModels = [
   UpdateGeneralSettingsDto,
   UpdateLabelDto,
   UpdateNoteTypeDto,
+  UpdateNoteBackgroundDto,
   UpdateNoteDto,
 ]
 

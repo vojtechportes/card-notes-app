@@ -2,6 +2,7 @@ import { Card, CardContent, Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { Masonry } from '../../../../components/masonry/masonry'
 import type {
+  BackgroundEnumDto,
   ColumnDto,
   GeneralSettingsDto,
   LabelDto,
@@ -18,6 +19,10 @@ interface NoteCardListProps {
   onDeleteNote?: (note: NoteDto) => void
   onEditNote?: (note: NoteDto) => void
   onOpenNoteDetail?: (note: NoteDto) => void
+  onUpdateNoteBackground?: (
+    note: NoteDto,
+    background: BackgroundEnumDto
+  ) => void
   selectedNoteId?: string
 }
 
@@ -30,6 +35,7 @@ export const NoteCardList = ({
   onDeleteNote,
   onEditNote,
   onOpenNoteDetail,
+  onUpdateNoteBackground,
   selectedNoteId,
 }: NoteCardListProps) => {
   const { t } = useTranslation()
@@ -64,6 +70,7 @@ export const NoteCardList = ({
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}
           onOpenNoteDetail={onOpenNoteDetail}
+          onUpdateNoteBackground={onUpdateNoteBackground}
         />
       ))}
     </Masonry>

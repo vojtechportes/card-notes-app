@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { BackgroundEnumDto } from './background-enum.dto'
 
 const imageValueSchema = {
   type: 'object',
@@ -34,6 +35,14 @@ export class NoteDto {
 
   @ApiProperty({ type: String, description: 'Owning note type id.' })
   noteTypeId: string
+
+  @ApiProperty({
+    enum: BackgroundEnumDto,
+    enumName: 'BackgroundEnumDto',
+    nullable: true,
+    description: 'Enum-backed note background. Null resolves to white.',
+  })
+  background: BackgroundEnumDto | null
 
   @ApiProperty({
     type: 'object',

@@ -184,6 +184,7 @@ describe(DatabaseService.name, () => {
     expect(noteColumnNames).toContain('note_type_id')
     expect(noteColumnNames).toContain('is_hidden_in_detail')
     expect(noteNames).toContain('note_type_id')
+    expect(noteNames).toContain('background')
     service.close()
   })
 
@@ -247,10 +248,11 @@ describe(DatabaseService.name, () => {
     }
     const migratedNote = database
       .prepare(
-        'SELECT note_type_id, created_at, updated_at FROM notes WHERE id = ?'
+        'SELECT note_type_id, background, created_at, updated_at FROM notes WHERE id = ?'
       )
       .get('legacy-note-id') as {
       note_type_id: string
+      background: string | null
       created_at: string
       updated_at: string
     }
@@ -271,6 +273,7 @@ describe(DatabaseService.name, () => {
     })
     expect(migratedNote).toEqual({
       note_type_id: noteType.id,
+      background: null,
       created_at: '2026-07-02T10:00:00.000Z',
       updated_at: '2026-07-03T10:00:00.000Z',
     })
@@ -317,6 +320,23 @@ describe(DatabaseService.name, () => {
           '2026-07-05T10:00:00.000Z',
           '2026-07-05T10:00:00.000Z'
         )
+    ).toThrow()
+    database
+      .prepare(
+        'INSERT INTO notes (id, note_type_id, background, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(
+        'valid-background-note',
+        defaultNoteType.id,
+        'CREAM',
+        '2026-07-05T10:00:00.000Z',
+        '2026-07-05T10:00:00.000Z'
+      )
+
+    expect(() =>
+      database
+        .prepare('UPDATE notes SET background = ? WHERE id = ?')
+        .run('PURPLE', 'valid-background-note')
     ).toThrow()
 
     const insertColumn = database.prepare(
@@ -393,7 +413,7 @@ describe(DatabaseService.name, () => {
       .prepare('SELECT COUNT(*) as count FROM note_types WHERE title = ?')
       .get('Default') as CountRow
 
-    expect(migrationCount.count).toBe(4)
+    expect(migrationCount.count).toBe(5)
     expect(defaultNoteTypeCount.count).toBe(1)
     service.close()
   })

@@ -12,6 +12,7 @@ import { isMultiImageColumn } from '../settings/utils/is-multi-image-column.util
 import type { NoteColumn } from '../settings/types/note-column'
 import { NotesRepository } from './notes.repository'
 import type { ListNotesOptions } from './types/list-notes-options'
+import type { BackgroundEnumDto } from './types/background-enum.dto'
 import type { CreateNoteInput, Note, UpdateNoteInput } from './types/note'
 import type {
   NoteImageValue,
@@ -77,6 +78,15 @@ export class NotesService {
     ) as Note
   }
 
+  updateNoteBackground(id: string, background: BackgroundEnumDto | null): Note {
+    const note = this.notesRepository.updateBackground(id, background)
+
+    if (!note) {
+      throw new NotFoundException('Note was not found.')
+    }
+
+    return note
+  }
   deleteNote(id: string): void {
     const wasDeleted = this.notesRepository.delete(id)
 

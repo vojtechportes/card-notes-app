@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { NotesService } from '../../../src/modules/notes/notes.service'
+import { BackgroundEnumDto } from '../../../src/modules/notes/types/background-enum.dto'
 import { NoteSortDirectionEnum } from '../../../src/modules/notes/types/note-sort-direction-enum'
 import { NoteSortFieldEnum } from '../../../src/modules/notes/types/note-sort-field-enum'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
@@ -17,7 +18,8 @@ let databaseService: DatabaseService
 let settingsService: SettingsService
 let notesService: NotesService
 
-const getDefaultNoteTypeId = (): string => settingsService.getDefaultNoteType().id
+const getDefaultNoteTypeId = (): string =>
+  settingsService.getDefaultNoteType().id
 
 beforeEach(() => {
   databaseService = new DatabaseService({ filePath: ':memory:' })
@@ -70,6 +72,35 @@ describe(NotesService.name, () => {
     expect(notesService.getNote(note.id)).toEqual(note)
   })
 
+  it('round-trips every supported note background and resets it to null', () => {
+    const note = notesService.createNote({
+      noteTypeId: getDefaultNoteTypeId(),
+    })
+
+    expect(note.background).toBeNull()
+
+    const preservedUpdatedAt = '2026-07-01T10:00:00.000Z'
+    databaseService
+      .getConnection()
+      .prepare('UPDATE notes SET updated_at = ? WHERE id = ?')
+      .run(preservedUpdatedAt, note.id)
+
+    for (const background of Object.values(BackgroundEnumDto)) {
+      const updatedNote = notesService.updateNoteBackground(note.id, background)
+
+      expect(updatedNote.background).toBe(background)
+      expect(updatedNote.updatedAt).toBe(preservedUpdatedAt)
+      expect(notesService.getNote(note.id)).toMatchObject({
+        background,
+        updatedAt: preservedUpdatedAt,
+      })
+    }
+
+    const resetNote = notesService.updateNoteBackground(note.id, null)
+
+    expect(resetNote.background).toBeNull()
+    expect(resetNote.updatedAt).toBe(preservedUpdatedAt)
+  })
   it('round-trips supported text, date, number, link, and image values', () => {
     const textColumn = settingsService.createColumn({
       name: 'summary',
@@ -164,6 +195,12 @@ describe(NotesService.name, () => {
       },
     })
 
+    const previousUpdatedAt = '2026-07-01T10:00:00.000Z'
+    databaseService
+      .getConnection()
+      .prepare('UPDATE notes SET updated_at = ? WHERE id = ?')
+      .run(previousUpdatedAt, note.id)
+
     const updatedNote = notesService.updateNote(note.id, {
       values: {
         [summaryColumn.id]: 'Updated summary',
@@ -175,8 +212,8 @@ describe(NotesService.name, () => {
       [summaryColumn.id]: 'Updated summary',
       [ratingColumn.id]: 2,
     })
-    expect(new Date(updatedNote.updatedAt).getTime()).toBeGreaterThanOrEqual(
-      new Date(note.updatedAt).getTime()
+    expect(new Date(updatedNote.updatedAt).getTime()).toBeGreaterThan(
+      new Date(previousUpdatedAt).getTime()
     )
   })
 
@@ -332,18 +369,19 @@ describe(NotesService.name, () => {
       values: { [booksColumn.id]: 'Ursula K. Le Guin' },
     })
 
-    expect(notesService.listNotes().map((note) => note.id).sort()).toEqual(
-      [booksNote.id, recipeNote.id].sort()
-    )
+    expect(
+      notesService
+        .listNotes()
+        .map((note) => note.id)
+        .sort()
+    ).toEqual([booksNote.id, recipeNote.id].sort())
     expect(
       notesService
         .listNotes({ noteTypeIds: [recipes.id] })
         .map((note) => note.id)
     ).toEqual([recipeNote.id])
     expect(
-      notesService
-        .listNotes({ noteTypeIds: [books.id] })
-        .map((note) => note.id)
+      notesService.listNotes({ noteTypeIds: [books.id] }).map((note) => note.id)
     ).toEqual([booksNote.id])
   })
 
@@ -506,4 +544,3 @@ describe(NotesService.name, () => {
     expect(notesService.deleteAllNotes()).toBe(0)
   })
 })
-

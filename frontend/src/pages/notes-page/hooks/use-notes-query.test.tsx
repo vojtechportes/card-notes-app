@@ -9,6 +9,7 @@ import {
   useCreateNoteMutation,
   useDeleteNoteMutation,
   useNotesQuery,
+  useUpdateNoteBackgroundMutation,
   useUpdateNoteMutation,
 } from './use-notes-query'
 import {
@@ -16,6 +17,7 @@ import {
   deleteNote,
   getNotes,
   updateNote,
+  updateNoteBackground,
 } from '../../../api/notes/requests'
 
 vi.mock('../../../api/notes/requests', () => ({
@@ -23,6 +25,7 @@ vi.mock('../../../api/notes/requests', () => ({
   deleteNote: vi.fn(),
   getNotes: vi.fn(),
   updateNote: vi.fn(),
+  updateNoteBackground: vi.fn(),
 }))
 
 const createResponse = <TData,>(data: TData): AxiosResponse<TData> => {
@@ -36,6 +39,7 @@ const createResponse = <TData,>(data: TData): AxiosResponse<TData> => {
 }
 
 const createNoteDto = (id: string): NoteDto => ({
+  background: null,
   createdAt: '2026-07-07T10:00:00.000Z',
   id,
   noteTypeId: 'note-type-1',
@@ -139,6 +143,37 @@ describe('notes mutation hooks', () => {
     })
   })
 
+  it('updates a background and invalidates notes lists', async () => {
+    const updatedNote = {
+      ...createNoteDto('note-1'),
+      background: 'LEMON' as const,
+    }
+    vi.mocked(updateNoteBackground).mockResolvedValue(
+      createResponse(updatedNote)
+    )
+    const queryClient = createTestQueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useUpdateNoteBackgroundMutation(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          id: 'note-1',
+          background: { background: 'LEMON' },
+        })
+      ).resolves.toEqual(updatedNote)
+    })
+
+    expect(updateNoteBackground).toHaveBeenCalledWith('note-1', {
+      background: 'LEMON',
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notesQueryKeys.lists(),
+    })
+  })
   it('deletes notes and invalidates notes lists', async () => {
     vi.mocked(deleteNote).mockResolvedValue(createResponse<void>(undefined))
     const queryClient = createTestQueryClient()
@@ -149,7 +184,9 @@ describe('notes mutation hooks', () => {
     })
 
     await act(async () => {
-      await expect(result.current.mutateAsync('note-1')).resolves.toBeUndefined()
+      await expect(
+        result.current.mutateAsync('note-1')
+      ).resolves.toBeUndefined()
     })
 
     expect(deleteNote).toHaveBeenCalledWith('note-1')

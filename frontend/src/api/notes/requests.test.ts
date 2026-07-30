@@ -5,6 +5,7 @@ import type {
   DeleteAllNotesResultDto,
   ListNotesQueryDto,
   NoteDto,
+  UpdateNoteBackgroundDto,
   UpdateNoteDto,
 } from '../../types/api'
 import {
@@ -13,6 +14,7 @@ import {
   deleteNote,
   getNotes,
   updateNote,
+  updateNoteBackground,
 } from './requests'
 
 const apiClientMock = vi.hoisted(() => ({
@@ -142,6 +144,19 @@ describe('notes requests', () => {
     expect(apiClientMock.patch).toHaveBeenCalledWith('/notes/note-1', note)
   })
 
+  it('updates only a note background through the dedicated endpoint', () => {
+    const background: UpdateNoteBackgroundDto = { background: 'SKY' }
+    const response = Promise.resolve(createResponse({ id: 'note-1' }))
+    apiClientMock.patch.mockReturnValue(response)
+
+    const result = updateNoteBackground('note-1', background)
+
+    expect(result).toBe(response)
+    expect(apiClientMock.patch).toHaveBeenCalledWith(
+      '/notes/note-1/background',
+      background
+    )
+  })
   it('updates notes with existing data url images as multipart files', () => {
     const note: UpdateNoteDto = {
       values: {

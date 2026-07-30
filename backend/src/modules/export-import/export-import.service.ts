@@ -4,6 +4,7 @@ import { Workbook } from 'exceljs'
 import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
 import { NotesService } from '../notes/notes.service'
+import { BackgroundEnumDto } from '../notes/types/background-enum.dto'
 import { NoteSortDirectionEnum } from '../notes/types/note-sort-direction-enum'
 import { NoteSortFieldEnum } from '../notes/types/note-sort-field-enum'
 import type { Note } from '../notes/types/note'
@@ -615,7 +616,11 @@ export class ExportImportService {
         labelIssues
       )
 
-      if (skipEmptyNotes && Object.keys(values).length === 0) {
+      if (
+        skipEmptyNotes &&
+        Object.keys(values).length === 0 &&
+        note.background === null
+      ) {
         continue
       }
 
@@ -623,6 +628,7 @@ export class ExportImportService {
         uuidV4(),
         targetNoteTypeId,
         values,
+        note.background,
         note.createdAt,
         note.updatedAt
       )
@@ -1504,6 +1510,18 @@ export class ExportImportService {
       'Imported note values must be an object keyed by column id.'
     )
 
+    const background = value.background ?? null
+
+    if (
+      background !== null &&
+      !Object.values(BackgroundEnumDto).includes(
+        background as BackgroundEnumDto
+      )
+    ) {
+      throw new BadRequestException(
+        'Imported note background must be null or a supported background value.'
+      )
+    }
     const values = Object.entries(value.values).reduce<NoteValues>(
       (result, [columnId, noteValue]) => {
         this.ensureRequiredString(columnId, 'Imported note value column id')
@@ -1518,6 +1536,7 @@ export class ExportImportService {
     return {
       id: value.id,
       noteTypeId: value.noteTypeId.trim(),
+      background: background as BackgroundEnumDto | null,
       values,
       createdAt: value.createdAt,
       updatedAt: value.updatedAt,
@@ -1815,6 +1834,7 @@ export class ExportImportService {
     id: string,
     noteTypeId: string,
     values: NoteValues,
+    background: BackgroundEnumDto | null,
     createdAt: string,
     updatedAt: string
   ): void {
@@ -1822,9 +1842,9 @@ export class ExportImportService {
 
     database
       .prepare(
-        'INSERT INTO notes (id, note_type_id, created_at, updated_at) VALUES (?, ?, ?, ?)'
+        'INSERT INTO notes (id, note_type_id, background, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
       )
-      .run(id, noteTypeId, createdAt, updatedAt)
+      .run(id, noteTypeId, background, createdAt, updatedAt)
 
     const insertValue = database.prepare(`
       INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)

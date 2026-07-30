@@ -4,14 +4,20 @@ import {
   deleteNote,
   getNotes,
   updateNote,
+  updateNoteBackground,
 } from '../../../api/notes/requests'
 import type {
   CreateNoteDto,
   ListNotesQueryDto,
+  UpdateNoteBackgroundDto,
   UpdateNoteDto,
 } from '../../../types/api'
 import { notesQueryKeys } from '../constants/notes-query-keys'
 
+interface UpdateNoteBackgroundMutationVariables {
+  id: string
+  background: UpdateNoteBackgroundDto
+}
 interface UpdateNoteMutationVariables {
   id: string
   note: UpdateNoteDto
@@ -50,6 +56,20 @@ export const useUpdateNoteMutation = () => {
   })
 }
 
+export const useUpdateNoteBackgroundMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, background }: UpdateNoteBackgroundMutationVariables) => {
+      return updateNoteBackground(id, background).then(
+        (response) => response.data
+      )
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: notesQueryKeys.lists() })
+    },
+  })
+}
 export const useDeleteNoteMutation = () => {
   const queryClient = useQueryClient()
 

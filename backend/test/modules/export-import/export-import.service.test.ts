@@ -5,6 +5,7 @@ import { DatabaseService } from '../../../src/modules/database/database.service'
 import { ExportImportService } from '../../../src/modules/export-import/export-import.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { NotesService } from '../../../src/modules/notes/notes.service'
+import { BackgroundEnumDto } from '../../../src/modules/notes/types/background-enum.dto'
 import { ColumnsRepository } from '../../../src/modules/settings/columns.repository'
 import { GeneralSettingsRepository } from '../../../src/modules/settings/general-settings.repository'
 import { LabelsRepository } from '../../../src/modules/settings/labels.repository'
@@ -172,6 +173,51 @@ describe(ExportImportService.name, () => {
     })
   })
 
+  it('exports and imports note backgrounds while accepting legacy notes without them', () => {
+    const {
+      sourceDatabaseService,
+      sourceExportImportService,
+      sourceNotesService,
+      sourceSettingsService,
+    } = createServices()
+
+    try {
+      const sourceNote = sourceNotesService.createNote({
+        noteTypeId: sourceSettingsService.getDefaultNoteType().id,
+      })
+      sourceNotesService.updateNoteBackground(
+        sourceNote.id,
+        BackgroundEnumDto.Mauve
+      )
+
+      const exportData = sourceExportImportService.exportData()
+
+      expect(exportData.notes[0].background).toBe(BackgroundEnumDto.Mauve)
+
+      exportImportService.importData(exportData)
+
+      expect(
+        notesService
+          .listNotes()
+          .some((note) => note.background === BackgroundEnumDto.Mauve)
+      ).toBe(true)
+
+      const legacyPayload = {
+        ...exportData,
+        notes: exportData.notes.map(
+          ({ background: _background, ...note }) => note
+        ),
+      }
+
+      exportImportService.importData(legacyPayload)
+
+      expect(
+        notesService.listNotes().some((note) => note.background === null)
+      ).toBe(true)
+    } finally {
+      sourceDatabaseService.close()
+    }
+  })
   it('imports JSON while preserving note type relationships when no target type is selected', () => {
     const {
       sourceDatabaseService,
@@ -706,6 +752,17 @@ describe(ExportImportService.name, () => {
           {
             ...exportedData.notes[0],
             noteTypeId: '',
+          },
+        ],
+      })
+    ).toThrow(BadRequestException)
+    expect(() =>
+      exportImportService.importData({
+        ...exportedData,
+        notes: [
+          {
+            ...exportedData.notes[0],
+            background: 'PURPLE',
           },
         ],
       })

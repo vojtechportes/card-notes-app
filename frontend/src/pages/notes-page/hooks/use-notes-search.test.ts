@@ -5,6 +5,7 @@ import { useNotesSearch } from './use-notes-search'
 
 const createNote = (id: string, noteTypeId: string, title: string): NoteDto => {
   return {
+    background: null,
     createdAt: '2026-07-07T10:00:00.000Z',
     id,
     noteTypeId,
