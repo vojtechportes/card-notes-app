@@ -413,7 +413,7 @@ describe(DatabaseService.name, () => {
       .prepare('SELECT COUNT(*) as count FROM note_types WHERE title = ?')
       .get('Default') as CountRow
 
-    expect(migrationCount.count).toBe(5)
+    expect(migrationCount.count).toBe(6)
     expect(defaultNoteTypeCount.count).toBe(1)
     service.close()
   })

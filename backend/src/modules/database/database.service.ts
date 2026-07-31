@@ -3,10 +3,12 @@ import {
   Injectable,
   OnModuleDestroy,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common'
 import DatabaseConstructor, { type Database } from 'better-sqlite3'
+import { existsSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { DatabaseBackupService } from './database-backup.service'
 import { databaseMigrations } from './migrations'
 import { DATABASE_OPTIONS, type DatabaseOptions } from './database-options'
 import type { DatabaseMigration } from './database-migration'
@@ -15,13 +17,18 @@ interface MigrationRow {
   id: string
 }
 
+const PHASE_10_BACKUP_NAME = 'before-phase-10'
+
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private database?: Database
+  private databaseExistedBeforeInitialization = false
 
   constructor(
     @Inject(DATABASE_OPTIONS)
-    private readonly options: DatabaseOptions
+    private readonly options: DatabaseOptions,
+    @Optional()
+    private readonly backupService: DatabaseBackupService = new DatabaseBackupService()
   ) {}
 
   onModuleInit(): void {
@@ -33,12 +40,17 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   initialize(): void {
+    this.databaseExistedBeforeInitialization =
+      this.options.filePath !== ':memory:' && existsSync(this.options.filePath)
     const database = this.getConnection()
 
     database.pragma('foreign_keys = ON')
     database.pragma('journal_mode = WAL')
     this.ensureMigrationsTable(database)
-    this.runPendingMigrations(database)
+
+    const pendingMigrations = this.getPendingMigrations(database)
+    this.createRequiredBackup(database, pendingMigrations)
+    this.runPendingMigrations(database, pendingMigrations)
   }
 
   getConnection(): Database {
@@ -76,7 +88,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     `)
   }
 
-  private runPendingMigrations(database: Database): void {
+  private getPendingMigrations(database: Database): DatabaseMigration[] {
     const appliedMigrationIds = new Set(
       database
         .prepare('SELECT id FROM schema_migrations')
@@ -84,6 +96,33 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         .map((row) => (row as MigrationRow).id)
     )
 
+    return databaseMigrations.filter(
+      (migration) => !appliedMigrationIds.has(migration.id)
+    )
+  }
+
+  private createRequiredBackup(
+    database: Database,
+    pendingMigrations: DatabaseMigration[]
+  ): void {
+    if (
+      !this.databaseExistedBeforeInitialization ||
+      !pendingMigrations.some((migration) => migration.requiresBackup)
+    ) {
+      return
+    }
+
+    this.backupService.createVerifiedBackup(
+      database,
+      this.options.filePath,
+      PHASE_10_BACKUP_NAME
+    )
+  }
+
+  private runPendingMigrations(
+    database: Database,
+    pendingMigrations: DatabaseMigration[]
+  ): void {
     const applyMigration = database.transaction(
       (migration: DatabaseMigration) => {
         migration.up(database)
@@ -93,10 +132,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       }
     )
 
-    for (const migration of databaseMigrations) {
-      if (!appliedMigrationIds.has(migration.id)) {
-        applyMigration(migration)
-      }
+    for (const migration of pendingMigrations) {
+      applyMigration(migration)
     }
   }
 }

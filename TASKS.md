@@ -500,7 +500,7 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
 
 Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
 
-- [ ] T100. Define versioned synchronization contracts and local sync metadata
+- [x] T100. Define versioned synchronization contracts and local sync metadata
   - Add provider-neutral workspace/document contracts and schema versioning for the workspace manifest, complete configuration document, per-note documents, asset references, mutations, and tombstones.
   - Add and verify a recoverable local SQLite backup facility before any Phase 10 migration can change existing data, then add idempotent migrations for stable workspace/device IDs, provider-independent remote state, merge bases, cursors, conflicts, and non-secret sync-account metadata whose default is disabled with no provider.
   - Treat hashes, mutation IDs, merge bases, and provider versions as authoritative; timestamps are descriptive and must not be the sole conflict resolution mechanism.
