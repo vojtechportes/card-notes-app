@@ -2,6 +2,7 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { DatabaseService } from '../database/database.service'
 import type { NoteImageValue, NoteValue } from '../notes/types/note-value'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueNoteSyncMutation } from '../sync/utils/enqueue-note-sync-mutation.util'
 import { AssetsService } from './assets.service'
 
 interface LegacyValueRow {
@@ -25,9 +26,10 @@ export class AssetMigrationService implements OnModuleInit {
     const database = this.databaseService.getConnection()
     const rows = database
       .prepare(
-        'SELECT note_id, column_id, value_json FROM note_values ' +
-          "WHERE value_json LIKE '%data:image/%' OR " +
-          'value_json LIKE \'%"path"%\' ORDER BY note_id, column_id'
+        'SELECT note_values.note_id, note_values.column_id, note_values.value_json ' +
+          'FROM note_values INNER JOIN notes ON notes.id = note_values.note_id ' +
+          "WHERE notes.deleted_at IS NULL AND (value_json LIKE '%data:image/%' OR " +
+          'value_json LIKE \'%"path"%\') ORDER BY note_values.note_id, note_values.column_id'
       )
       .all() as LegacyValueRow[]
     const migrateRow = database.transaction((row: LegacyValueRow) => {
@@ -49,7 +51,7 @@ export class AssetMigrationService implements OnModuleInit {
       if (result.changes > 0) {
         const mutation = createLocalMutationMetadata(database)
 
-        database
+        const noteUpdate = database
           .prepare(
             `
             UPDATE notes
@@ -60,6 +62,10 @@ export class AssetMigrationService implements OnModuleInit {
           `
           )
           .run({ id: row.note_id, ...mutation })
+
+        if (noteUpdate.changes > 0) {
+          enqueueNoteSyncMutation(database, row.note_id, mutation)
+        }
       }
     })
 

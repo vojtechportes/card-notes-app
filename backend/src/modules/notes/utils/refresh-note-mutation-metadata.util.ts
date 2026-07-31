@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3'
 import { createLocalMutationMetadata } from '../../sync/utils/create-local-mutation-metadata.util'
+import { enqueueNoteSyncMutation } from '../../sync/utils/enqueue-note-sync-mutation.util'
 
 export const refreshNoteMutationMetadata = (
   database: Database,
@@ -16,10 +17,15 @@ export const refreshNoteMutationMetadata = (
   `)
 
   for (const id of noteIds) {
-    updateNote.run({
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const result = updateNote.run({
       id,
       updatedAt: timestamp,
-      ...createLocalMutationMetadata(database, timestamp),
+      ...mutation,
     })
+
+    if (result.changes > 0) {
+      enqueueNoteSyncMutation(database, id, mutation)
+    }
   }
 }

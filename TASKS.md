@@ -523,7 +523,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Keep remote tombstones indefinitely until an all-device acknowledgement and compaction design exists.
   - Add tests proving stale state cannot resurrect deleted notes/configuration and existing destructive confirmation behavior remains intact.
 
-- [ ] T103. Add a durable transactional sync outbox
+- [x] T103. Add a durable transactional sync outbox
   - Once a workspace is active, append or coalesce outbox entries in the same SQLite transaction as every local mutation, including indirect and cascade changes.
   - Add idempotent mutation IDs, base/target hashes, retry state, attempt classification, next-attempt time, and crash-safe claim leases.
   - Audit all existing backend write paths and expose focused repository/service operations instead of leaking synchronization logic into controllers.

@@ -10,6 +10,8 @@ import { v4 as uuidV4 } from 'uuid'
 import { AssetsService } from '../assets/assets.service'
 import { DatabaseService } from '../database/database.service'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueConfigurationSyncMutation } from '../sync/utils/enqueue-configuration-sync-mutation.util'
+import { enqueueNoteSyncMutation } from '../sync/utils/enqueue-note-sync-mutation.util'
 import { NotesService } from '../notes/notes.service'
 import { BackgroundEnumDto } from '../notes/types/background-enum.dto'
 import { NoteSortDirectionEnum } from '../notes/types/note-sort-direction-enum'
@@ -1724,12 +1726,14 @@ export class ExportImportService {
       `
       )
       .run({ ...importedLabel, ...mutation })
+    enqueueConfigurationSyncMutation(database, mutation)
 
     return importedLabel
   }
 
   private insertImportedNoteType(id: string, noteType: NoteType): void {
     const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database)
 
     database
       .prepare(
@@ -1748,8 +1752,9 @@ export class ExportImportService {
         title: noteType.title,
         createdAt: noteType.createdAt,
         updatedAt: noteType.updatedAt,
-        ...createLocalMutationMetadata(database),
+        ...mutation,
       })
+    enqueueConfigurationSyncMutation(database, mutation)
   }
 
   private insertDefaultColumnsForImportedNoteType(
@@ -1777,6 +1782,7 @@ export class ExportImportService {
 
   private insertImportedColumn(column: NoteColumn): void {
     const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database)
 
     database
       .prepare(
@@ -1805,8 +1811,9 @@ export class ExportImportService {
         configJson: column.config ? JSON.stringify(column.config) : null,
         createdAt: column.createdAt,
         updatedAt: column.updatedAt,
-        ...createLocalMutationMetadata(database),
+        ...mutation,
       })
+    enqueueConfigurationSyncMutation(database, mutation)
   }
 
   private syncImportedColumn(
@@ -1814,6 +1821,7 @@ export class ExportImportService {
     importedColumn: NoteColumn
   ): void {
     const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database)
 
     database
       .prepare(
@@ -1839,8 +1847,9 @@ export class ExportImportService {
           ? JSON.stringify(importedColumn.config)
           : null,
         updatedAt: importedColumn.updatedAt,
-        ...createLocalMutationMetadata(database),
+        ...mutation,
       })
+    enqueueConfigurationSyncMutation(database, mutation)
   }
 
   private insertImportedNote(
@@ -1852,6 +1861,7 @@ export class ExportImportService {
     updatedAt: string
   ): void {
     const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database)
 
     database
       .prepare(
@@ -1871,7 +1881,7 @@ export class ExportImportService {
         background,
         createdAt,
         updatedAt,
-        ...createLocalMutationMetadata(database),
+        ...mutation,
       })
 
     const insertValue = database.prepare(`
@@ -1888,11 +1898,13 @@ export class ExportImportService {
         updatedAt,
       })
     }
+    enqueueNoteSyncMutation(database, id, mutation)
   }
 
   private applyImportedColumnOrder(columnIds: string[]): void {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
+    const mutation = createLocalMutationMetadata(database, timestamp)
     const updateColumn = database.prepare(`
       UPDATE note_columns
       SET sort_order = @sortOrder,
@@ -1908,9 +1920,10 @@ export class ExportImportService {
         id,
         sortOrder,
         updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
+        ...mutation,
       })
     })
+    enqueueConfigurationSyncMutation(database, mutation)
   }
   private getNextColumnSortOrder(noteTypeId: string): number {
     const row = this.getDatabase()
