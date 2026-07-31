@@ -5,6 +5,7 @@ import { DatabaseService } from '../database/database.service'
 import { refreshNoteMutationMetadata } from '../notes/utils/refresh-note-mutation-metadata.util'
 import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueConfigurationSyncMutation } from '../sync/utils/enqueue-configuration-sync-mutation.util'
 import type { DefaultNoteColumnDefinition } from './constants/default-note-columns'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import type { NoteColumn } from './types/note-column'
@@ -89,6 +90,9 @@ export class ColumnsRepository {
         )
     `)
     const seedDefaultColumns = database.transaction(() => {
+      let latestMutation:
+        ReturnType<typeof createLocalMutationMetadata> | undefined
+
       for (const column of defaultColumns) {
         const existing = findExistingColumn.get(noteTypeId, column.name) as
           { id: string } | undefined
@@ -106,10 +110,11 @@ export class ColumnsRepository {
             updatedAt: timestamp,
             ...mutation,
           })
+          latestMutation = mutation
           continue
         }
 
-        markAsDefault.run({
+        const result = markAsDefault.run({
           noteTypeId,
           name: column.name,
           title: column.title,
@@ -118,6 +123,13 @@ export class ColumnsRepository {
           updatedAt: timestamp,
           ...mutation,
         })
+        if (result.changes > 0) {
+          latestMutation = mutation
+        }
+      }
+
+      if (latestMutation) {
+        enqueueConfigurationSyncMutation(database, latestMutation)
       }
     })
 
@@ -185,67 +197,79 @@ export class ColumnsRepository {
   create(column: Omit<NoteColumn, 'createdAt' | 'updatedAt'>): NoteColumn {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
-
-    database
-      .prepare(
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const createColumn = database.transaction(() => {
+      database
+        .prepare(
+          `
+          INSERT INTO note_columns (
+            id, note_type_id, name, title, type, sort_order, is_hidden,
+            is_hidden_in_detail, is_default, config_json, created_at, updated_at,
+            mutation_id, modified_by_device_id, modified_at
+          ) VALUES (
+            @id, @noteTypeId, @name, @title, @type, @sortOrder, @isHidden,
+            @isHiddenInDetail, @isDefault, @configJson, @createdAt, @updatedAt,
+            @mutationId, @modifiedByDeviceId, @modifiedAt
+          )
         `
-        INSERT INTO note_columns (
-          id, note_type_id, name, title, type, sort_order, is_hidden,
-          is_hidden_in_detail, is_default, config_json, created_at, updated_at,
-          mutation_id, modified_by_device_id, modified_at
-        ) VALUES (
-          @id, @noteTypeId, @name, @title, @type, @sortOrder, @isHidden,
-          @isHiddenInDetail, @isDefault, @configJson, @createdAt, @updatedAt,
-          @mutationId, @modifiedByDeviceId, @modifiedAt
         )
-      `
-      )
-      .run({
-        ...this.mapColumnParameters(column),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      })
+        .run({
+          ...this.mapColumnParameters(column),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          ...mutation,
+        })
+      enqueueConfigurationSyncMutation(database, mutation)
+    })
+
+    createColumn()
 
     return this.findById(column.id) as NoteColumn
   }
-
   update(column: NoteColumn): NoteColumn {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
-
-    database
-      .prepare(
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const updateColumn = database.transaction(() => {
+      const result = database
+        .prepare(
+          `
+          UPDATE note_columns
+          SET note_type_id = @noteTypeId,
+              name = @name,
+              title = @title,
+              type = @type,
+              sort_order = @sortOrder,
+              is_hidden = @isHidden,
+              is_hidden_in_detail = @isHiddenInDetail,
+              is_default = @isDefault,
+              config_json = @configJson,
+              updated_at = @updatedAt,
+              mutation_id = @mutationId,
+              modified_by_device_id = @modifiedByDeviceId,
+              modified_at = @modifiedAt
+          WHERE id = @id AND deleted_at IS NULL
         `
-        UPDATE note_columns
-        SET note_type_id = @noteTypeId,
-            name = @name,
-            title = @title,
-            type = @type,
-            sort_order = @sortOrder,
-            is_hidden = @isHidden,
-            is_hidden_in_detail = @isHiddenInDetail,
-            is_default = @isDefault,
-            config_json = @configJson,
-            updated_at = @updatedAt,
-            mutation_id = @mutationId,
-            modified_by_device_id = @modifiedByDeviceId,
-            modified_at = @modifiedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `
-      )
-      .run({
-        ...this.mapColumnParameters(column),
-        updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      })
+        )
+        .run({
+          ...this.mapColumnParameters(column),
+          updatedAt: timestamp,
+          ...mutation,
+        })
+
+      if (result.changes > 0) {
+        enqueueConfigurationSyncMutation(database, mutation)
+      }
+    })
+
+    updateColumn()
 
     return this.findById(column.id) as NoteColumn
   }
-
   updateSortOrders(columnIds: string[]): void {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
+    const mutation = createLocalMutationMetadata(database, timestamp)
     const updateSortOrder = database.prepare(`
       UPDATE note_columns
       SET sort_order = @sortOrder,
@@ -256,19 +280,24 @@ export class ColumnsRepository {
       WHERE id = @id AND deleted_at IS NULL
     `)
     const applySortOrders = database.transaction(() => {
-      columnIds.forEach((id, sortOrder) =>
-        updateSortOrder.run({
-          id,
-          sortOrder,
-          updatedAt: timestamp,
-          ...createLocalMutationMetadata(database, timestamp),
-        })
-      )
+      let changed = false
+      columnIds.forEach((id, sortOrder) => {
+        changed =
+          updateSortOrder.run({
+            id,
+            sortOrder,
+            updatedAt: timestamp,
+            ...mutation,
+          }).changes > 0 || changed
+      })
+
+      if (changed) {
+        enqueueConfigurationSyncMutation(database, mutation)
+      }
     })
 
     applySortOrders()
   }
-
   delete(
     id: string,
     options: DeleteColumnOptions = {},
@@ -318,18 +347,28 @@ export class ColumnsRepository {
       WHERE id = @id AND deleted_at IS NULL
     `)
     let deletedCount = 0
+    let latestMutation:
+      ReturnType<typeof createLocalMutationMetadata> | undefined
 
     for (const id of columnIds) {
-      deletedCount += tombstoneColumn.run({
+      const mutation = createLocalMutationMetadata(database, timestamp)
+      const result = tombstoneColumn.run({
         id,
         deletedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      }).changes
+        ...mutation,
+      })
+      deletedCount += result.changes
+      if (result.changes > 0) {
+        latestMutation = mutation
+      }
+    }
+
+    if (latestMutation) {
+      enqueueConfigurationSyncMutation(database, latestMutation)
     }
 
     return deletedCount
   }
-
   private findLiveNoteIdsWithColumnValue(columnId: string): string[] {
     return (
       this.getDatabase()

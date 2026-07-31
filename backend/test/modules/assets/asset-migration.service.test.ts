@@ -77,6 +77,18 @@ describe('AssetMigrationService', () => {
         ])
       )
 
+    database
+      .prepare(
+        `
+        UPDATE sync_account_state
+        SET provider_workspace_id = 'provider-workspace',
+            active_provider = 'google-drive',
+            connection_state = 'disconnected'
+        WHERE id = 1
+      `
+      )
+      .run()
+
     migrationService.migrateLegacyNoteImages()
     migrationService.migrateLegacyNoteImages()
 
@@ -97,8 +109,59 @@ describe('AssetMigrationService', () => {
     expect(
       database.prepare('SELECT COUNT(*) AS count FROM assets').get()
     ).toEqual({ count: 1 })
+    expect(
+      database
+        .prepare('SELECT entity_kind FROM sync_outbox ORDER BY entity_kind ASC')
+        .all()
+    ).toEqual([{ entity_kind: 'asset' }, { entity_kind: 'note' }])
   })
 
+  it('leaves retained tombstone image values untouched and unjournaled', () => {
+    const database = databaseService.getConnection()
+    const originalValue = JSON.stringify({
+      dataUrl: pngDataUrl,
+      fileName: 'deleted.png',
+    })
+    database
+      .prepare(
+        'INSERT INTO note_values (' +
+          'note_id, column_id, value_json, created_at, updated_at' +
+          ') VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+      )
+      .run('note-id', 'image-column', originalValue)
+    database
+      .prepare(
+        `UPDATE notes
+         SET deleted_at = ?, deletion_mutation_id = ?, deletion_device_id = ?
+         WHERE id = 'note-id'`
+      )
+      .run('2026-07-31T10:00:00.000Z', 'deletion-mutation', 'deletion-device')
+    database
+      .prepare(
+        `UPDATE sync_account_state
+         SET provider_workspace_id = 'provider-workspace',
+             active_provider = 'google-drive',
+             connection_state = 'disconnected'
+         WHERE id = 1`
+      )
+      .run()
+
+    migrationService.migrateLegacyNoteImages()
+
+    expect(
+      database
+        .prepare("SELECT value_json FROM note_values WHERE note_id = 'note-id'")
+        .get()
+    ).toEqual({ value_json: originalValue })
+    expect(
+      database.prepare('SELECT COUNT(*) AS count FROM assets').get()
+    ).toEqual({
+      count: 0,
+    })
+    expect(
+      database.prepare('SELECT COUNT(*) AS count FROM sync_outbox').get()
+    ).toEqual({ count: 0 })
+  })
   it('leaves an invalid legacy value untouched for recovery', () => {
     const database = databaseService.getConnection()
     const originalValue = JSON.stringify({

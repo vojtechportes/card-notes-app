@@ -7,6 +7,7 @@ import { addNoteBackgroundMigration } from './005-add-note-background'
 import { addSyncMetadataMigration } from './006-add-sync-metadata'
 import { addManagedAssetsMigration } from './007-add-managed-assets'
 import { addSoftDeletionMetadataMigration } from './008-add-soft-deletion-metadata'
+import { addSyncOutboxMigration } from './009-add-sync-outbox'
 
 export const databaseMigrations: DatabaseMigration[] = [
   createAppSchemaMigration,
@@ -17,4 +18,5 @@ export const databaseMigrations: DatabaseMigration[] = [
   addSyncMetadataMigration,
   addManagedAssetsMigration,
   addSoftDeletionMetadataMigration,
+  addSyncOutboxMigration,
 ]

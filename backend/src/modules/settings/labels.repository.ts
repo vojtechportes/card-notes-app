@@ -5,6 +5,7 @@ import { DatabaseService } from '../database/database.service'
 import { refreshNoteMutationMetadata } from '../notes/utils/refresh-note-mutation-metadata.util'
 import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueConfigurationSyncMutation } from '../sync/utils/enqueue-configuration-sync-mutation.util'
 import type { Label } from './types/label'
 
 interface LabelRow {
@@ -81,30 +82,34 @@ export class LabelsRepository {
     const database = this.getDatabase()
     const id = uuidV4()
     const timestamp = new Date().toISOString()
-
-    database
-      .prepare(
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const createLabel = database.transaction(() => {
+      database
+        .prepare(
+          `
+          INSERT INTO labels (
+            id, title, name, color, note_type_id, created_at, updated_at,
+            mutation_id, modified_by_device_id, modified_at
+          ) VALUES (
+            @id, @title, @name, @color, @noteTypeId, @createdAt, @updatedAt,
+            @mutationId, @modifiedByDeviceId, @modifiedAt
+          )
         `
-        INSERT INTO labels (
-          id, title, name, color, note_type_id, created_at, updated_at,
-          mutation_id, modified_by_device_id, modified_at
-        ) VALUES (
-          @id, @title, @name, @color, @noteTypeId, @createdAt, @updatedAt,
-          @mutationId, @modifiedByDeviceId, @modifiedAt
         )
-      `
-      )
-      .run({
-        id,
-        ...input,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      })
+        .run({
+          id,
+          ...input,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          ...mutation,
+        })
+      enqueueConfigurationSyncMutation(database, mutation)
+    })
+
+    createLabel()
 
     return this.findById(id) as Label
   }
-
   update(
     id: string,
     input: {
@@ -116,32 +121,34 @@ export class LabelsRepository {
   ): Label | undefined {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
-
-    database
-      .prepare(
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const updateLabel = database.transaction(() => {
+      const result = database
+        .prepare(
+          `
+          UPDATE labels
+          SET title = @title,
+              name = @name,
+              color = @color,
+              note_type_id = @noteTypeId,
+              updated_at = @updatedAt,
+              mutation_id = @mutationId,
+              modified_by_device_id = @modifiedByDeviceId,
+              modified_at = @modifiedAt
+          WHERE id = @id AND deleted_at IS NULL
         `
-        UPDATE labels
-        SET title = @title,
-            name = @name,
-            color = @color,
-            note_type_id = @noteTypeId,
-            updated_at = @updatedAt,
-            mutation_id = @mutationId,
-            modified_by_device_id = @modifiedByDeviceId,
-            modified_at = @modifiedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `
-      )
-      .run({
-        id,
-        ...input,
-        updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      })
+        )
+        .run({ id, ...input, updatedAt: timestamp, ...mutation })
+
+      if (result.changes > 0) {
+        enqueueConfigurationSyncMutation(database, mutation)
+      }
+    })
+
+    updateLabel()
 
     return this.findById(id)
   }
-
   deleteWithValueCleanup(id: string): boolean {
     return this.deleteWithValueCleanupAndCount(id).deleted
   }
@@ -268,18 +275,28 @@ export class LabelsRepository {
       WHERE id = @id AND deleted_at IS NULL
     `)
     let deletedCount = 0
+    let latestMutation:
+      ReturnType<typeof createLocalMutationMetadata> | undefined
 
     for (const id of labelIds) {
-      deletedCount += tombstoneLabel.run({
+      const mutation = createLocalMutationMetadata(database, timestamp)
+      const result = tombstoneLabel.run({
         id,
         deletedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      }).changes
+        ...mutation,
+      })
+      deletedCount += result.changes
+      if (result.changes > 0) {
+        latestMutation = mutation
+      }
+    }
+
+    if (latestMutation) {
+      enqueueConfigurationSyncMutation(database, latestMutation)
     }
 
     return deletedCount
   }
-
   private parseLabelIds(valueJson: string | null): string[] | undefined {
     if (valueJson === null) {
       return undefined

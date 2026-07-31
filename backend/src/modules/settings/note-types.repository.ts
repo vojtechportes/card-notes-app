@@ -4,6 +4,7 @@ import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
 import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueConfigurationSyncMutation } from '../sync/utils/enqueue-configuration-sync-mutation.util'
 import { defaultNoteTypeTitle } from './constants/default-note-type'
 import type { NoteType } from './types/note-type'
 
@@ -91,26 +92,30 @@ export class NoteTypesRepository {
     const id = input.id ?? uuidV4()
     const timestamp = new Date().toISOString()
     const mutation = createLocalMutationMetadata(database, timestamp)
-
-    database
-      .prepare(
+    const createNoteType = database.transaction(() => {
+      database
+        .prepare(
+          `
+          INSERT INTO note_types (
+            id, title, created_at, updated_at, mutation_id,
+            modified_by_device_id, modified_at
+          ) VALUES (
+            @id, @title, @createdAt, @updatedAt, @mutationId,
+            @modifiedByDeviceId, @modifiedAt
+          )
         `
-        INSERT INTO note_types (
-          id, title, created_at, updated_at, mutation_id,
-          modified_by_device_id, modified_at
-        ) VALUES (
-          @id, @title, @createdAt, @updatedAt, @mutationId,
-          @modifiedByDeviceId, @modifiedAt
         )
-      `
-      )
-      .run({
-        id,
-        title: input.title,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        ...mutation,
-      })
+        .run({
+          id,
+          title: input.title,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          ...mutation,
+        })
+      enqueueConfigurationSyncMutation(database, mutation)
+    })
+
+    createNoteType()
 
     return this.findById(id) as NoteType
   }
@@ -118,25 +123,28 @@ export class NoteTypesRepository {
   updateTitle(id: string, title: string): NoteType {
     const database = this.getDatabase()
     const timestamp = new Date().toISOString()
-
-    database
-      .prepare(
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const updateNoteType = database.transaction(() => {
+      const result = database
+        .prepare(
+          `
+          UPDATE note_types
+          SET title = @title,
+              updated_at = @updatedAt,
+              mutation_id = @mutationId,
+              modified_by_device_id = @modifiedByDeviceId,
+              modified_at = @modifiedAt
+          WHERE id = @id AND deleted_at IS NULL
         `
-        UPDATE note_types
-        SET title = @title,
-            updated_at = @updatedAt,
-            mutation_id = @mutationId,
-            modified_by_device_id = @modifiedByDeviceId,
-            modified_at = @modifiedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `
-      )
-      .run({
-        id,
-        title,
-        updatedAt: timestamp,
-        ...createLocalMutationMetadata(database, timestamp),
-      })
+        )
+        .run({ id, title, updatedAt: timestamp, ...mutation })
+
+      if (result.changes > 0) {
+        enqueueConfigurationSyncMutation(database, mutation)
+      }
+    })
+
+    updateNoteType()
 
     return this.findById(id) as NoteType
   }
@@ -144,9 +152,8 @@ export class NoteTypesRepository {
   delete(id: string, timestamp: string): boolean {
     const database = this.getDatabase()
     const mutation = createLocalMutationMetadata(database, timestamp)
-
-    return (
-      database
+    const deleteNoteType = database.transaction(() => {
+      const result = database
         .prepare(
           `
           UPDATE note_types
@@ -160,8 +167,16 @@ export class NoteTypesRepository {
           WHERE id = @id AND deleted_at IS NULL
         `
         )
-        .run({ id, deletedAt: timestamp, ...mutation }).changes > 0
-    )
+        .run({ id, deletedAt: timestamp, ...mutation })
+
+      if (result.changes > 0) {
+        enqueueConfigurationSyncMutation(database, mutation)
+      }
+
+      return result.changes > 0
+    })
+
+    return deleteNoteType()
   }
 
   private findFirst(): NoteType | undefined {

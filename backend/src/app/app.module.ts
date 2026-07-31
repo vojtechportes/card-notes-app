@@ -5,6 +5,7 @@ import { ExportImportModule } from '../modules/export-import/export-import.modul
 import { HealthModule } from '../modules/health/health.module'
 import { NotesModule } from '../modules/notes/notes.module'
 import { SettingsModule } from '../modules/settings/settings.module'
+import { SyncModule } from '../modules/sync/sync.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SettingsModule } from '../modules/settings/settings.module'
     SettingsModule,
     NotesModule,
     ExportImportModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

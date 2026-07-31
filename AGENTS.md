@@ -245,6 +245,10 @@ Type files should not use suffixes such as `.interface` or `.type`. Enums should
 
 Small groups of tightly related types can live in one file when splitting them would add noise instead of clarity, such as simple component-local prop/supporting types.
 
+## Code style
+
+- Never use nested ternary expressions. Use if/else, switch, or a clearly named helper instead.
+
 ## Editing tools
 
 - Do not use `apply_patch` in this repository. It is consistently blocked in the current environment.

@@ -3,6 +3,7 @@ import type { Database } from 'better-sqlite3'
 import { DatabaseService } from '../database/database.service'
 import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueNoteSyncMutation } from '../sync/utils/enqueue-note-sync-mutation.util'
 import { refreshNoteMutationMetadata } from './utils/refresh-note-mutation-metadata.util'
 import type { Note } from './types/note'
 import type { BackgroundEnumDto } from './types/background-enum.dto'
@@ -76,6 +77,7 @@ export class NotesRepository {
           ...mutation,
         })
         this.upsertValues(noteId, noteValues, timestamp)
+        enqueueNoteSyncMutation(database, noteId, mutation)
       }
     )
 
@@ -155,20 +157,28 @@ export class NotesRepository {
   ): Note | undefined {
     const database = this.getDatabase()
     const mutation = createLocalMutationMetadata(database, timestamp)
-    const result = database
-      .prepare(
+    const updateBackground = database.transaction(() => {
+      const result = database
+        .prepare(
+          `
+          UPDATE notes
+          SET background = @background,
+              mutation_id = @mutationId,
+              modified_by_device_id = @modifiedByDeviceId,
+              modified_at = @modifiedAt
+          WHERE id = @id AND deleted_at IS NULL
         `
-        UPDATE notes
-        SET background = @background,
-            mutation_id = @mutationId,
-            modified_by_device_id = @modifiedByDeviceId,
-            modified_at = @modifiedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `
-      )
-      .run({ id, background, ...mutation })
+        )
+        .run({ id, background, ...mutation })
 
-    return result.changes > 0 ? this.findById(id) : undefined
+      if (result.changes > 0) {
+        enqueueNoteSyncMutation(database, id, mutation)
+      }
+
+      return result.changes
+    })
+
+    return updateBackground() > 0 ? this.findById(id) : undefined
   }
 
   delete(id: string, timestamp: string): boolean {
@@ -377,11 +387,17 @@ export class NotesRepository {
       let deletedCount = 0
 
       for (const id of noteIds) {
-        deletedCount += tombstoneNote.run({
+        const mutation = createLocalMutationMetadata(database, timestamp)
+        const result = tombstoneNote.run({
           id,
           deletedAt: timestamp,
-          ...createLocalMutationMetadata(database, timestamp),
-        }).changes
+          ...mutation,
+        })
+        deletedCount += result.changes
+
+        if (result.changes > 0) {
+          enqueueNoteSyncMutation(database, id, mutation, true)
+        }
       }
 
       return deletedCount

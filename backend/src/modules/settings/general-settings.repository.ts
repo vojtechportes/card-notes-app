@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { DatabaseService } from '../database/database.service'
 import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { enqueueConfigurationSyncMutation } from '../sync/utils/enqueue-configuration-sync-mutation.util'
 import type { GeneralSettingSyncRecord } from './types/general-setting-sync-record'
 
 interface SettingRow {
@@ -76,6 +77,7 @@ export class GeneralSettingsRepository {
           ...mutation,
         })
       }
+      enqueueConfigurationSyncMutation(database, mutation)
     })
 
     applyValues()

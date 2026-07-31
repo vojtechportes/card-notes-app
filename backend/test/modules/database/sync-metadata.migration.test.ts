@@ -75,6 +75,7 @@ describe('sync metadata migration', () => {
       'sync_account_state',
       'sync_conflicts',
       'sync_identity',
+      'sync_outbox',
       'sync_provider_cursors',
       'sync_remote_objects',
     ])
