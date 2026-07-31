@@ -42,8 +42,12 @@ export const isSyncNoteDocumentValid = (
   }
 
   return Object.values(value.payload.values).every((noteValue) => {
-    if (typeof noteValue === 'string' || typeof noteValue === 'number') {
+    if (typeof noteValue === 'string') {
       return true
+    }
+
+    if (typeof noteValue === 'number') {
+      return Number.isFinite(noteValue)
     }
 
     if (Array.isArray(noteValue)) {
