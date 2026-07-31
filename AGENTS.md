@@ -249,6 +249,12 @@ Small groups of tightly related types can live in one file when splitting them w
 
 - Never use nested ternary expressions. Use if/else, switch, or a clearly named helper instead.
 
+## Formatting
+
+- Use blank lines to separate variable declarations from following control-flow blocks, function declarations, and other distinct statement blocks
+- Adjacent single-line variable declarations may stay together; when either adjacent declaration spans multiple lines, place a blank line between them
+- Always prettier when done with all changes
+
 ## Editing tools
 
 - Do not use `apply_patch` in this repository. It is consistently blocked in the current environment.
