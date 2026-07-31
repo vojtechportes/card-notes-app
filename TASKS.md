@@ -616,6 +616,12 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Preserve genuine missing-preload failure handling and add focused regression coverage.
   - Verify frontend and Electron tests, lint, builds, and the standalone development flow.
 
+- [x] TMSC-28. Automate release package versions
+  - Derive a stable semantic package version from the published release tag without the `v` prefix.
+  - Update the root, Electron, frontend, and backend package versions and commit the changes before packaging begins.
+  - Build every release stage from the version-update commit without moving the published release tag.
+  - Verify explicit package version updates and the release workflow dependency chain.
+
 - [x] TMSC-26. Add XLSX label imports
   - Map XLSX headers matching configured Labels fields.
   - Resolve comma-separated label names to existing allowed label IDs while respecting field cardinality.

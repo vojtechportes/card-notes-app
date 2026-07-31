@@ -21,14 +21,18 @@ const bumpFlags = new Map([
   ["--major", "major"],
 ]);
 
-const usage = `Usage: node scripts/update-package-version.mjs --patch|--minor|--major`;
-
-const selectedFlags = process.argv
-  .slice(2)
-  .filter((argument) => bumpFlags.has(argument));
-const unknownFlags = process.argv
-  .slice(2)
-  .filter((argument) => argument.startsWith("-") && !bumpFlags.has(argument));
+const exactVersionFlag = "--version";
+const usage = `Usage: node scripts/update-package-version.mjs --patch|--minor|--major|--version <x.y.z>`;
+const argumentsList = process.argv.slice(2);
+const selectedFlags = argumentsList.filter((argument) =>
+  bumpFlags.has(argument),
+);
+const unknownFlags = argumentsList.filter(
+  (argument) =>
+    argument.startsWith("-") &&
+    !bumpFlags.has(argument) &&
+    argument !== exactVersionFlag,
+);
 
 if (unknownFlags.length > 0) {
   console.error(`Unknown flag: ${unknownFlags.join(", ")}`);
@@ -36,16 +40,23 @@ if (unknownFlags.length > 0) {
   process.exit(1);
 }
 
-if (selectedFlags.length !== 1 || process.argv.slice(2).length !== 1) {
-  console.error("Pass exactly one version bump flag.");
+const usesExactVersion = argumentsList[0] === exactVersionFlag;
+
+if (
+  (usesExactVersion && argumentsList.length !== 2) ||
+  (!usesExactVersion &&
+    (selectedFlags.length !== 1 || argumentsList.length !== 1))
+) {
+  console.error("Pass exactly one version bump flag or an explicit version.");
   console.error(usage);
   process.exit(1);
 }
 
-const bumpType = bumpFlags.get(selectedFlags[0]);
+const bumpType = usesExactVersion ? undefined : bumpFlags.get(selectedFlags[0]);
+const requestedVersion = usesExactVersion ? argumentsList[1] : undefined;
 
 const parseVersion = (version, filePath) => {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(version);
 
   if (!match) {
     throw new Error(
@@ -104,7 +115,8 @@ try {
     );
   }
 
-  const nextVersion = bumpVersion(currentVersion);
+  const nextVersion = requestedVersion ?? bumpVersion(currentVersion);
+  parseVersion(nextVersion, exactVersionFlag);
 
   await Promise.all(
     packageJsonFiles.map(({ fullPath, packageJson }) => {
