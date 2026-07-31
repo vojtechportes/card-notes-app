@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Optional,
   NotFoundException,
 } from '@nestjs/common'
 import { v4 as uuidV4 } from 'uuid'
+import { AssetsService } from '../assets/assets.service'
 import { LabelsService } from '../settings/labels.service'
 import { SettingsService } from '../settings/settings.service'
 import { ColumnTypeEnum } from '../settings/types/column-type-enum'
@@ -29,19 +31,21 @@ export class NotesService {
     @Inject(SettingsService)
     private readonly settingsService: SettingsService,
     @Inject(LabelsService)
-    private readonly labelsService?: LabelsService
+    private readonly labelsService?: LabelsService,
+    @Optional()
+    private readonly assetsService?: AssetsService
   ) {}
 
   createNote(input: CreateNoteInput): Note {
-    const values = input.values ?? {}
+    const values = this.manageValuePatch(input.values ?? {})
     const noteTypeId = this.settingsService.getNoteType(input.noteTypeId).id
 
-    this.ensureValuesAreValid(noteTypeId, values)
+    this.ensureValuesAreValid(noteTypeId, values as NoteValues)
 
     return this.notesRepository.create(
       uuidV4(),
       noteTypeId,
-      values,
+      values as NoteValues,
       this.createTimestamp()
     )
   }
@@ -67,7 +71,7 @@ export class NotesService {
       throw new NotFoundException('Note was not found.')
     }
 
-    const values = input.values ?? {}
+    const values = this.manageValuePatch(input.values ?? {})
 
     this.ensureValuePatchIsValid(note.noteTypeId, values)
 
@@ -103,6 +107,20 @@ export class NotesService {
     return this.notesRepository.deleteValuesForColumn(columnId)
   }
 
+  private manageValuePatch(values: NoteValuePatch): NoteValuePatch {
+    const assetsService = this.assetsService
+
+    if (!assetsService) {
+      return values
+    }
+
+    return Object.fromEntries(
+      Object.entries(values).map(([columnId, value]) => [
+        columnId,
+        value === null ? null : assetsService.manageNoteValue(value),
+      ])
+    )
+  }
   private ensureValuesAreValid(noteTypeId: string, values: NoteValues): void {
     for (const value of Object.values(values)) {
       if (value === null) {
@@ -273,6 +291,7 @@ export class NotesService {
 
     const imageValue = value as NoteImageValue
     const hasImageSource =
+      typeof imageValue.assetId === 'string' ||
       typeof imageValue.dataUrl === 'string' ||
       typeof imageValue.path === 'string' ||
       typeof imageValue.url === 'string'

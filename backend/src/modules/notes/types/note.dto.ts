@@ -5,6 +5,7 @@ const imageValueSchema = {
   type: 'object',
   additionalProperties: true,
   properties: {
+    assetId: { type: 'string', pattern: '^[a-f0-9]{64}$' },
     fileName: { type: 'string' },
     mimeType: { type: 'string' },
     size: { type: 'number' },
@@ -29,6 +30,7 @@ const noteValueSchema = {
     },
   ],
 }
+
 export class NoteDto {
   @ApiProperty({ type: String, description: 'Stable note id.' })
   id: string

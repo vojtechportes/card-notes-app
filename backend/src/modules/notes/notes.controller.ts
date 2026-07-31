@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
@@ -24,6 +25,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { AnyFilesInterceptor } from '@nestjs/platform-express'
+import { AssetsService } from '../assets/assets.service'
 import { NotesService } from './notes.service'
 import { BackgroundEnumDto } from './types/background-enum.dto'
 import { CreateNoteDto } from './types/create-note.dto'
@@ -59,7 +61,9 @@ interface NoteSortOptions {
 @Controller('notes')
 export class NotesController {
   constructor(
-    @Inject(NotesService) private readonly notesService: NotesService
+    @Inject(NotesService) private readonly notesService: NotesService,
+    @Optional()
+    private readonly assetsService?: AssetsService
   ) {}
 
   @Post()
@@ -342,6 +346,15 @@ export class NotesController {
         ? value.fileName
         : file.originalname
 
+    if (this.assetsService) {
+      return this.assetsService.storeImage(file.buffer, {
+        altText: typeof value.altText === 'string' ? value.altText : undefined,
+        fileName,
+        height: typeof value.height === 'number' ? value.height : undefined,
+        mimeType,
+        width: typeof value.width === 'number' ? value.width : undefined,
+      })
+    }
     return {
       altText: typeof value.altText === 'string' ? value.altText : undefined,
       dataUrl: `data:${mimeType};base64,${file.buffer.toString('base64')}`,

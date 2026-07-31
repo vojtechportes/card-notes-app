@@ -508,7 +508,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Keep this slice provider-independent and do not add provider SDKs yet.
   - Add focused migration, validation, and restart tests while keeping all existing local behavior working.
 
-- [ ] T101. Extract note images into managed content-addressed assets
+- [x] T101. Extract note images into managed content-addressed assets
   - Replace base64 and machine-path-dependent note image persistence with portable asset references and files under app-managed local storage.
   - Pass one consistent Electron application data root to the backend for SQLite and managed assets.
   - Hash bytes with SHA-256, deduplicate, validate MIME type/size/integrity, write atomically, and migrate existing single/multiple base64 images without data loss.

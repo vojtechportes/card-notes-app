@@ -1,7 +1,13 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common'
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { Workbook } from 'exceljs'
 import { v4 as uuidV4 } from 'uuid'
+import { AssetsService } from '../assets/assets.service'
 import { DatabaseService } from '../database/database.service'
 import { NotesService } from '../notes/notes.service'
 import { BackgroundEnumDto } from '../notes/types/background-enum.dto'
@@ -94,7 +100,9 @@ export class ExportImportService {
     @Inject(SettingsService)
     private readonly settingsService: SettingsService,
     @Inject(NotesService)
-    private readonly notesService: NotesService
+    private readonly notesService: NotesService,
+    @Optional()
+    private readonly assetsService?: AssetsService
   ) {}
 
   exportData(): ExportImportDataDto {
@@ -109,10 +117,20 @@ export class ExportImportService {
       ),
       labels: this.listLabels(),
       generalSettings: this.settingsService.getGeneralSettings(),
-      notes: this.notesService.listNotes({
-        sortBy: NoteSortFieldEnum.CreatedAt,
-        sortDirection: NoteSortDirectionEnum.Asc,
-      }),
+      notes: this.notesService
+        .listNotes({
+          sortBy: NoteSortFieldEnum.CreatedAt,
+          sortDirection: NoteSortDirectionEnum.Asc,
+        })
+        .map((note) => ({
+          ...note,
+          values: Object.fromEntries(
+            Object.entries(note.values).map(([columnId, value]) => [
+              columnId,
+              this.assetsService?.materializeNoteValue(value) ?? value,
+            ])
+          ),
+        })),
     }
   }
 
@@ -707,7 +725,10 @@ export class ExportImportService {
         continue
       }
 
-      resolvedValues[targetColumnId] = value
+      resolvedValues[targetColumnId] =
+        targetColumn.type === ColumnTypeEnum.Image
+          ? (this.assetsService?.manageNoteValue(value) ?? value)
+          : value
     }
 
     return resolvedValues
@@ -1280,10 +1301,7 @@ export class ExportImportService {
       throw new BadRequestException('Import payload notes must be an array.')
     }
 
-    if (
-      payload.version === exportDataVersion &&
-      !Array.isArray(payload.labels)
-    ) {
+    if ((payload.version as number) >= 3 && !Array.isArray(payload.labels)) {
       throw new BadRequestException('Import payload labels must be an array.')
     }
 
@@ -1296,7 +1314,7 @@ export class ExportImportService {
     const notes = payload.notes.map((note) => this.resolveImportedNote(note))
     const generalSettings = this.resolveGeneralSettings(payload.generalSettings)
     const resolvedLabels =
-      payload.version === exportDataVersion
+      (payload.version as number) >= 3
         ? this.resolveImportedLabels(
             payload.labels as unknown[],
             new Set(noteTypes.map((noteType) => noteType.id))
@@ -1329,7 +1347,7 @@ export class ExportImportService {
     this.ensureNoteValuesMatchImport(columns, notes)
 
     return {
-      version: payload.version,
+      version: payload.version as number,
       exportedAt: payload.exportedAt,
       noteTypes,
       columns,
@@ -1983,6 +2001,7 @@ export class ExportImportService {
 
     const imageValue = value as NoteImageValue
     const hasImageSource =
+      typeof imageValue.assetId === 'string' ||
       typeof imageValue.dataUrl === 'string' ||
       typeof imageValue.path === 'string' ||
       typeof imageValue.url === 'string'

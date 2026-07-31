@@ -467,7 +467,7 @@ describe('CreateUpdateDialog', () => {
     })
   })
 
-  it('renders existing multi-image values when editing a note', () => {
+  it('renders and preserves existing managed multi-image values when editing a note', async () => {
     const multiImageColumns = bookColumns.map((column) =>
       column.id === 'receipt-column'
         ? { ...column, config: { isMultiImage: true } }
@@ -483,13 +483,19 @@ describe('CreateUpdateDialog', () => {
         'receipt-column': [
           {
             altText: 'First stored image',
-            dataUrl: 'data:image/png;base64,first-stored',
+            assetId:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             fileName: 'first-stored.png',
+            mimeType: 'image/png',
+            size: 100,
           },
           {
             altText: 'Second stored image',
-            dataUrl: 'data:image/png;base64,second-stored',
+            assetId:
+              'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
             fileName: 'second-stored.png',
+            mimeType: 'image/png',
+            size: 200,
           },
         ],
       },
@@ -520,6 +526,19 @@ describe('CreateUpdateDialog', () => {
     expect(
       screen.getByRole('button', { name: 'Remove second-stored.png' })
     ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'note-1',
+        note: {
+          values: expect.objectContaining({
+            'receipt-column': note.values['receipt-column'],
+          }),
+        },
+      })
+    })
   })
 
   it('keeps the note template fixed in edit mode, blocks invalid numbers, and preserves existing type fields', async () => {
@@ -533,6 +552,13 @@ describe('CreateUpdateDialog', () => {
         'amount-column': 12.5,
         'due-date-column': '2026-07-08T00:30:00+02:00',
         'link-column': 'https://example.com/current',
+        'receipt-column': {
+          assetId:
+            'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+          fileName: 'stored.png',
+          mimeType: 'image/png',
+          size: 300,
+        },
         'title-column': 'Existing title',
       },
     }
@@ -574,7 +600,13 @@ describe('CreateUpdateDialog', () => {
             'amount-column': null,
             'due-date-column': '2026-07-08',
             'link-column': 'https://example.com/current',
-            'receipt-column': null,
+            'receipt-column': {
+              assetId:
+                'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+              fileName: 'stored.png',
+              mimeType: 'image/png',
+              size: 300,
+            },
             'title-column': 'Updated title',
           },
         },

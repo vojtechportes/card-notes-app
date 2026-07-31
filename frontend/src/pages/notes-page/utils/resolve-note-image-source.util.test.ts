@@ -1,7 +1,31 @@
 import { describe, expect, it } from 'vitest'
+import { apiClient } from '../../../utils/api-client'
 import { resolveNoteImageSource } from './resolve-note-image-source.util'
 
 describe('resolveNoteImageSource', () => {
+  it('resolves managed assets against the runtime backend URL', () => {
+    const previousBaseUrl = apiClient.defaults.baseURL
+    apiClient.defaults.baseURL = 'http://127.0.0.1:4312/api'
+
+    try {
+      expect(
+        resolveNoteImageSource({
+          assetId:
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          fileName: 'receipt.png',
+          mimeType: 'image/png',
+          size: 100,
+        })
+      ).toBe(
+        'http://127.0.0.1:4312/api/assets/' +
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+          '/content'
+      )
+    } finally {
+      apiClient.defaults.baseURL = previousBaseUrl
+    }
+  })
+
   it('returns safe local image sources', () => {
     expect(
       resolveNoteImageSource({

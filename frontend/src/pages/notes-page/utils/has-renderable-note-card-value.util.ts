@@ -30,6 +30,7 @@ export const hasRenderableNoteCardValue = (
   }
 
   return [
+    value.assetId,
     value.dataUrl,
     value.url,
     value.path,
