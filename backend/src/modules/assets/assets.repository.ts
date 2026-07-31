@@ -61,6 +61,25 @@ export class AssetsRepository {
 
     upsertAsset()
   }
+  upsertSynchronized(record: AssetRecord): void {
+    this.databaseService
+      .getConnection()
+      .prepare(
+        `INSERT INTO assets (
+          asset_id, mime_type, size, extension, relative_path, integrity_state
+        ) VALUES (
+          @assetId, @mimeType, @size, @extension, @relativePath, @integrityState
+        ) ON CONFLICT(asset_id) DO UPDATE SET
+          mime_type = excluded.mime_type,
+          size = excluded.size,
+          extension = excluded.extension,
+          relative_path = excluded.relative_path,
+          integrity_state = 'available',
+          updated_at = CURRENT_TIMESTAMP,
+          last_verified_at = CURRENT_TIMESTAMP`
+      )
+      .run(record)
+  }
   updateIntegrityState(
     assetId: string,
     integrityState: AssetRecord['integrityState']
