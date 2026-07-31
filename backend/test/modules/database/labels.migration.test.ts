@@ -46,6 +46,12 @@ describe('labels database migration', () => {
       'note_type_id',
       'created_at',
       'updated_at',
+      'mutation_id',
+      'modified_by_device_id',
+      'modified_at',
+      'deleted_at',
+      'deletion_mutation_id',
+      'deletion_device_id',
     ])
     expect(columns.find((column) => column.name === 'id')).toEqual(
       expect.objectContaining({ pk: 1 })
@@ -58,7 +64,7 @@ describe('labels database migration', () => {
         table: 'note_types',
         from: 'note_type_id',
         to: 'id',
-        on_delete: 'CASCADE',
+        on_delete: 'RESTRICT',
       })
     )
     expect(indexes).toEqual(

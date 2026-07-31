@@ -113,6 +113,7 @@ export class SettingsService implements OnModuleInit {
   deleteNoteType(id: string, input: DeleteNoteTypeInput): DeleteNoteTypeResult {
     const noteType = this.getNoteTypeOrThrow(id)
     const noteTypeCountBeforeDelete = this.getNoteTypesRepository().count()
+    const timestamp = this.createTimestamp()
 
     if (input.mode === DeleteNoteTypeModeEnum.DeleteNotes) {
       return this.columnsRepository
@@ -120,10 +121,14 @@ export class SettingsService implements OnModuleInit {
         .getConnection()
         .transaction(() => {
           const deletedNotesCount =
-            this.getNotesRepository().deleteByNoteTypeId(id)
+            this.getNotesRepository().deleteByNoteTypeId(id, timestamp)
 
-          this.getLabelsRepository().deleteByNoteTypeIdWithValueCleanup(id)
-          this.getNoteTypesRepository().delete(id)
+          this.getLabelsRepository().deleteByNoteTypeIdWithValueCleanup(
+            id,
+            timestamp
+          )
+          this.columnsRepository.deleteByNoteTypeId(id, timestamp)
+          this.getNoteTypesRepository().delete(id, timestamp)
 
           if (noteTypeCountBeforeDelete === 1) {
             this.seedDefaultColumnsForAllNoteTypes()
@@ -157,13 +162,15 @@ export class SettingsService implements OnModuleInit {
           sourceColumnIds: sourceColumns.map((column) => column.id),
           sourceNoteTypeId: noteType.id,
           targetNoteTypeId: targetNoteType.id,
-          timestamp: this.createTimestamp(),
+          timestamp,
         })
 
         this.getLabelsRepository().deleteByNoteTypeIdWithValueCleanup(
-          noteType.id
+          noteType.id,
+          timestamp
         )
-        this.getNoteTypesRepository().delete(noteType.id)
+        this.columnsRepository.deleteByNoteTypeId(noteType.id, timestamp)
+        this.getNoteTypesRepository().delete(noteType.id, timestamp)
 
         return {
           deletedNoteTypeId: noteType.id,
@@ -333,9 +340,11 @@ export class SettingsService implements OnModuleInit {
       throw new BadRequestException('Default columns cannot be deleted.')
     }
 
-    this.columnsRepository.delete(id, {
-      deleteNoteData: options.deleteNoteData ?? false,
-    })
+    this.columnsRepository.delete(
+      id,
+      { deleteNoteData: options.deleteNoteData ?? false },
+      this.createTimestamp()
+    )
   }
 
   getDefaultNoteType(): NoteType {
@@ -366,15 +375,14 @@ export class SettingsService implements OnModuleInit {
   }
 
   updateGeneralSettings(input: UpdateGeneralSettingsInput): GeneralSettings {
+    const updates = new Map<string, unknown>()
+
     if (input.textTruncationLength !== undefined) {
       this.ensureOptionalPositiveInteger(
         input.textTruncationLength,
         'Text truncation length'
       )
-      this.generalSettingsRepository.setValue(
-        textTruncationLengthSettingKey,
-        input.textTruncationLength
-      )
+      updates.set(textTruncationLengthSettingKey, input.textTruncationLength)
     }
 
     if (input.cardFieldDisplayCount !== undefined) {
@@ -382,10 +390,7 @@ export class SettingsService implements OnModuleInit {
         input.cardFieldDisplayCount,
         'Card field display count'
       )
-      this.generalSettingsRepository.setValue(
-        cardFieldDisplayCountSettingKey,
-        input.cardFieldDisplayCount
-      )
+      updates.set(cardFieldDisplayCountSettingKey, input.cardFieldDisplayCount)
     }
 
     if (input.mergeDateTimeFields !== undefined) {
@@ -393,15 +398,13 @@ export class SettingsService implements OnModuleInit {
         input.mergeDateTimeFields,
         'Merge date and time fields'
       )
-      this.generalSettingsRepository.setValue(
-        mergeDateTimeFieldsSettingKey,
-        input.mergeDateTimeFields
-      )
+      updates.set(mergeDateTimeFieldsSettingKey, input.mergeDateTimeFields)
     }
+
+    this.generalSettingsRepository.setValues(updates)
 
     return this.getGeneralSettings()
   }
-
   private normalizeColumnConfig(
     type: ColumnTypeEnum,
     config: Record<string, unknown> | null | undefined

@@ -509,7 +509,7 @@ describe(NotesService.name, () => {
     expect(() => notesService.getNote(note.id)).toThrow(NotFoundException)
   })
 
-  it('deletes all notes, cascades their values, and preserves settings', () => {
+  it('tombstones all notes while preserving recoverable values and settings', () => {
     const summaryColumn = settingsService.createColumn({
       name: 'summary',
       title: 'Summary',
@@ -537,7 +537,7 @@ describe(NotesService.name, () => {
         .getConnection()
         .prepare('SELECT COUNT(*) as count FROM note_values')
         .get()
-    ).toEqual({ count: 0 })
+    ).toEqual({ count: 2 })
   })
 
   it('returns zero when deleting all notes from an empty collection', () => {

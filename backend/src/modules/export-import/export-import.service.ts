@@ -9,6 +9,7 @@ import { Workbook } from 'exceljs'
 import { v4 as uuidV4 } from 'uuid'
 import { AssetsService } from '../assets/assets.service'
 import { DatabaseService } from '../database/database.service'
+import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
 import { NotesService } from '../notes/notes.service'
 import { BackgroundEnumDto } from '../notes/types/background-enum.dto'
 import { NoteSortDirectionEnum } from '../notes/types/note-sort-direction-enum'
@@ -1674,7 +1675,9 @@ export class ExportImportService {
 
   private listLabels(): Label[] {
     return this.getDatabase()
-      .prepare('SELECT * FROM labels ORDER BY created_at ASC, id ASC')
+      .prepare(
+        'SELECT * FROM labels WHERE deleted_at IS NULL ORDER BY created_at ASC, id ASC'
+      )
       .all()
       .map((row) => {
         const label = row as {
@@ -1700,44 +1703,44 @@ export class ExportImportService {
   }
 
   private insertImportedLabel(label: Label, noteTypeId: string | null): Label {
+    const database = this.getDatabase()
     const importedLabel: Label = {
       ...label,
       id: uuidV4(),
       noteTypeId,
     }
+    const mutation = createLocalMutationMetadata(database)
 
-    this.getDatabase()
+    database
       .prepare(
         `
         INSERT INTO labels (
-          id,
-          title,
-          name,
-          color,
-          note_type_id,
-          created_at,
-          updated_at
+          id, title, name, color, note_type_id, created_at, updated_at,
+          mutation_id, modified_by_device_id, modified_at
         ) VALUES (
-          @id,
-          @title,
-          @name,
-          @color,
-          @noteTypeId,
-          @createdAt,
-          @updatedAt
+          @id, @title, @name, @color, @noteTypeId, @createdAt, @updatedAt,
+          @mutationId, @modifiedByDeviceId, @modifiedAt
         )
       `
       )
-      .run(importedLabel)
+      .run({ ...importedLabel, ...mutation })
 
     return importedLabel
   }
+
   private insertImportedNoteType(id: string, noteType: NoteType): void {
-    this.getDatabase()
+    const database = this.getDatabase()
+
+    database
       .prepare(
         `
-        INSERT INTO note_types (id, title, created_at, updated_at)
-        VALUES (@id, @title, @createdAt, @updatedAt)
+        INSERT INTO note_types (
+          id, title, created_at, updated_at, mutation_id,
+          modified_by_device_id, modified_at
+        ) VALUES (
+          @id, @title, @createdAt, @updatedAt, @mutationId,
+          @modifiedByDeviceId, @modifiedAt
+        )
       `
       )
       .run({
@@ -1745,6 +1748,7 @@ export class ExportImportService {
         title: noteType.title,
         createdAt: noteType.createdAt,
         updatedAt: noteType.updatedAt,
+        ...createLocalMutationMetadata(database),
       })
   }
 
@@ -1772,35 +1776,19 @@ export class ExportImportService {
   }
 
   private insertImportedColumn(column: NoteColumn): void {
-    this.getDatabase()
+    const database = this.getDatabase()
+
+    database
       .prepare(
         `
         INSERT INTO note_columns (
-          id,
-          note_type_id,
-          name,
-          title,
-          type,
-          sort_order,
-          is_hidden,
-          is_hidden_in_detail,
-          is_default,
-          config_json,
-          created_at,
-          updated_at
+          id, note_type_id, name, title, type, sort_order, is_hidden,
+          is_hidden_in_detail, is_default, config_json, created_at, updated_at,
+          mutation_id, modified_by_device_id, modified_at
         ) VALUES (
-          @id,
-          @noteTypeId,
-          @name,
-          @title,
-          @type,
-          @sortOrder,
-          @isHidden,
-          @isHiddenInDetail,
-          @isDefault,
-          @configJson,
-          @createdAt,
-          @updatedAt
+          @id, @noteTypeId, @name, @title, @type, @sortOrder, @isHidden,
+          @isHiddenInDetail, @isDefault, @configJson, @createdAt, @updatedAt,
+          @mutationId, @modifiedByDeviceId, @modifiedAt
         )
       `
       )
@@ -1817,6 +1805,7 @@ export class ExportImportService {
         configJson: column.config ? JSON.stringify(column.config) : null,
         createdAt: column.createdAt,
         updatedAt: column.updatedAt,
+        ...createLocalMutationMetadata(database),
       })
   }
 
@@ -1824,7 +1813,9 @@ export class ExportImportService {
     existingColumn: NoteColumn,
     importedColumn: NoteColumn
   ): void {
-    this.getDatabase()
+    const database = this.getDatabase()
+
+    database
       .prepare(
         `
         UPDATE note_columns
@@ -1832,8 +1823,11 @@ export class ExportImportService {
             is_hidden = @isHidden,
             is_hidden_in_detail = @isHiddenInDetail,
             config_json = @configJson,
-            updated_at = @updatedAt
-        WHERE id = @id
+            updated_at = @updatedAt,
+            mutation_id = @mutationId,
+            modified_by_device_id = @modifiedByDeviceId,
+            modified_at = @modifiedAt
+        WHERE id = @id AND deleted_at IS NULL
       `
       )
       .run({
@@ -1845,6 +1839,7 @@ export class ExportImportService {
           ? JSON.stringify(importedColumn.config)
           : null,
         updatedAt: importedColumn.updatedAt,
+        ...createLocalMutationMetadata(database),
       })
   }
 
@@ -1860,9 +1855,24 @@ export class ExportImportService {
 
     database
       .prepare(
-        'INSERT INTO notes (id, note_type_id, background, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        `
+        INSERT INTO notes (
+          id, note_type_id, background, created_at, updated_at, mutation_id,
+          modified_by_device_id, modified_at
+        ) VALUES (
+          @id, @noteTypeId, @background, @createdAt, @updatedAt, @mutationId,
+          @modifiedByDeviceId, @modifiedAt
+        )
+      `
       )
-      .run(id, noteTypeId, background, createdAt, updatedAt)
+      .run({
+        id,
+        noteTypeId,
+        background,
+        createdAt,
+        updatedAt,
+        ...createLocalMutationMetadata(database),
+      })
 
     const insertValue = database.prepare(`
       INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
@@ -1881,19 +1891,31 @@ export class ExportImportService {
   }
 
   private applyImportedColumnOrder(columnIds: string[]): void {
-    columnIds.forEach((columnId, index) => {
-      this.getDatabase()
-        .prepare(
-          'UPDATE note_columns SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-        )
-        .run(index, columnId)
+    const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+    const updateColumn = database.prepare(`
+      UPDATE note_columns
+      SET sort_order = @sortOrder,
+          updated_at = @updatedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt
+      WHERE id = @id AND deleted_at IS NULL
+    `)
+
+    columnIds.forEach((id, sortOrder) => {
+      updateColumn.run({
+        id,
+        sortOrder,
+        updatedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
+      })
     })
   }
-
   private getNextColumnSortOrder(noteTypeId: string): number {
     const row = this.getDatabase()
       .prepare(
-        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ?'
+        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ? AND deleted_at IS NULL'
       )
       .get(noteTypeId) as { sort_order: number } | undefined
 

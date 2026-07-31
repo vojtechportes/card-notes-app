@@ -2,6 +2,9 @@ import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
+import { refreshNoteMutationMetadata } from '../notes/utils/refresh-note-mutation-metadata.util'
+import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
+import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
 import type { DefaultNoteColumnDefinition } from './constants/default-note-columns'
 import { ColumnTypeEnum } from './types/column-type-enum'
 import type { NoteColumn } from './types/note-column'
@@ -19,6 +22,12 @@ interface NoteColumnRow {
   config_json: string | null
   created_at: string
   updated_at: string
+  mutation_id: string
+  modified_by_device_id: string
+  modified_at: string
+  deleted_at: string | null
+  deletion_mutation_id: string | null
+  deletion_device_id: string | null
 }
 
 interface SortOrderRow {
@@ -44,29 +53,21 @@ export class ColumnsRepository {
     defaultColumns: DefaultNoteColumnDefinition[]
   ): void {
     const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+    const findExistingColumn = database.prepare(`
+      SELECT id FROM note_columns
+      WHERE note_type_id = ? AND name = ? AND deleted_at IS NULL
+      LIMIT 1
+    `)
     const insertDefaultColumn = database.prepare(`
       INSERT INTO note_columns (
-        id,
-        note_type_id,
-        name,
-        title,
-        type,
-        sort_order,
-        is_hidden,
-        is_hidden_in_detail,
-        is_default,
-        config_json
+        id, note_type_id, name, title, type, sort_order, is_hidden,
+        is_hidden_in_detail, is_default, config_json, created_at, updated_at,
+        mutation_id, modified_by_device_id, modified_at
       ) VALUES (
-        @id,
-        @noteTypeId,
-        @name,
-        @title,
-        @type,
-        @sortOrder,
-        0,
-        0,
-        1,
-        NULL
+        @id, @noteTypeId, @name, @title, @type, @sortOrder, 0,
+        0, 1, NULL, @createdAt, @updatedAt,
+        @mutationId, @modifiedByDeviceId, @modifiedAt
       )
     `)
     const markAsDefault = database.prepare(`
@@ -75,75 +76,80 @@ export class ColumnsRepository {
           type = @type,
           sort_order = @sortOrder,
           is_default = 1,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = @updatedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt
       WHERE note_type_id = @noteTypeId
         AND name = @name
+        AND deleted_at IS NULL
         AND (
-          title != @title OR
-          type != @type OR
-          sort_order != @sortOrder OR
+          title != @title OR type != @type OR sort_order != @sortOrder OR
           is_default != 1
         )
     `)
-    const findExistingColumn = database.prepare(`
-      SELECT id FROM note_columns
-      WHERE note_type_id = ?
-        AND name = ?
-      LIMIT 1
-    `)
+    const seedDefaultColumns = database.transaction(() => {
+      for (const column of defaultColumns) {
+        const existing = findExistingColumn.get(noteTypeId, column.name) as
+          { id: string } | undefined
+        const mutation = createLocalMutationMetadata(database, timestamp)
 
-    const seedDefaultColumns = database.transaction(
-      (typeId: string, columns: DefaultNoteColumnDefinition[]) => {
-        for (const column of columns) {
-          const existingColumn = findExistingColumn.get(typeId, column.name) as
-            { id: string } | undefined
-
-          if (!existingColumn) {
-            insertDefaultColumn.run({
-              id: uuidV4(),
-              noteTypeId: typeId,
-              name: column.name,
-              title: column.title,
-              type: column.type,
-              sortOrder: column.sortOrder,
-            })
-          }
-
-          markAsDefault.run({
-            noteTypeId: typeId,
+        if (!existing) {
+          insertDefaultColumn.run({
+            id: uuidV4(),
+            noteTypeId,
             name: column.name,
             title: column.title,
             type: column.type,
             sortOrder: column.sortOrder,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            ...mutation,
           })
+          continue
         }
-      }
-    )
 
-    seedDefaultColumns(noteTypeId, defaultColumns)
+        markAsDefault.run({
+          noteTypeId,
+          name: column.name,
+          title: column.title,
+          type: column.type,
+          sortOrder: column.sortOrder,
+          updatedAt: timestamp,
+          ...mutation,
+        })
+      }
+    })
+
+    seedDefaultColumns()
   }
 
   findAll(noteTypeId?: string): NoteColumn[] {
-    if (!noteTypeId) {
-      return this.getDatabase()
-        .prepare(
-          'SELECT * FROM note_columns ORDER BY sort_order ASC, title ASC, id ASC'
-        )
-        .all()
-        .map((row) => this.mapColumnRow(row as NoteColumnRow))
-    }
+    const whereClause = noteTypeId
+      ? 'WHERE note_type_id = ? AND deleted_at IS NULL'
+      : 'WHERE deleted_at IS NULL'
 
     return this.getDatabase()
       .prepare(
-        'SELECT * FROM note_columns WHERE note_type_id = ? ORDER BY sort_order ASC, title ASC, id ASC'
+        `SELECT * FROM note_columns ${whereClause}
+         ORDER BY sort_order ASC, title ASC, id ASC`
       )
-      .all(noteTypeId)
+      .all(...(noteTypeId ? [noteTypeId] : []))
       .map((row) => this.mapColumnRow(row as NoteColumnRow))
+  }
+
+  findAllIncludingDeleted(): Array<NoteColumn & SyncEntityMetadata> {
+    return this.getDatabase()
+      .prepare(
+        'SELECT * FROM note_columns ORDER BY sort_order ASC, title ASC, id ASC'
+      )
+      .all()
+      .map((row) => this.mapSyncColumnRow(row as NoteColumnRow))
   }
 
   findById(id: string): NoteColumn | undefined {
     const row = this.getDatabase()
-      .prepare('SELECT * FROM note_columns WHERE id = ?')
+      .prepare('SELECT * FROM note_columns WHERE id = ? AND deleted_at IS NULL')
       .get(id) as NoteColumnRow | undefined
 
     return row ? this.mapColumnRow(row) : undefined
@@ -151,7 +157,12 @@ export class ColumnsRepository {
 
   findByName(name: string, noteTypeId: string): NoteColumn | undefined {
     const row = this.getDatabase()
-      .prepare('SELECT * FROM note_columns WHERE note_type_id = ? AND name = ?')
+      .prepare(
+        `
+        SELECT * FROM note_columns
+        WHERE note_type_id = ? AND name = ? AND deleted_at IS NULL
+      `
+      )
       .get(noteTypeId, name) as NoteColumnRow | undefined
 
     return row ? this.mapColumnRow(row) : undefined
@@ -160,7 +171,11 @@ export class ColumnsRepository {
   getNextSortOrder(noteTypeId: string): number {
     const row = this.getDatabase()
       .prepare(
-        'SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order FROM note_columns WHERE note_type_id = ?'
+        `
+        SELECT COALESCE(MAX(sort_order) + 1, 0) as sort_order
+        FROM note_columns
+        WHERE note_type_id = ? AND deleted_at IS NULL
+      `
       )
       .get(noteTypeId) as SortOrderRow | undefined
 
@@ -168,52 +183,38 @@ export class ColumnsRepository {
   }
 
   create(column: Omit<NoteColumn, 'createdAt' | 'updatedAt'>): NoteColumn {
-    this.getDatabase()
+    const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+
+    database
       .prepare(
         `
         INSERT INTO note_columns (
-          id,
-          note_type_id,
-          name,
-          title,
-          type,
-          sort_order,
-          is_hidden,
-          is_hidden_in_detail,
-          is_default,
-          config_json
+          id, note_type_id, name, title, type, sort_order, is_hidden,
+          is_hidden_in_detail, is_default, config_json, created_at, updated_at,
+          mutation_id, modified_by_device_id, modified_at
         ) VALUES (
-          @id,
-          @noteTypeId,
-          @name,
-          @title,
-          @type,
-          @sortOrder,
-          @isHidden,
-          @isHiddenInDetail,
-          @isDefault,
-          @configJson
+          @id, @noteTypeId, @name, @title, @type, @sortOrder, @isHidden,
+          @isHiddenInDetail, @isDefault, @configJson, @createdAt, @updatedAt,
+          @mutationId, @modifiedByDeviceId, @modifiedAt
         )
       `
       )
       .run({
-        id: column.id,
-        noteTypeId: column.noteTypeId,
-        name: column.name,
-        title: column.title,
-        type: column.type,
-        sortOrder: column.sortOrder,
-        isHidden: column.isHidden ? 1 : 0,
-        isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
-        isDefault: column.isDefault ? 1 : 0,
-        configJson: column.config ? JSON.stringify(column.config) : null,
+        ...this.mapColumnParameters(column),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
       })
 
     return this.findById(column.id) as NoteColumn
   }
 
   update(column: NoteColumn): NoteColumn {
-    this.getDatabase()
+    const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+
+    database
       .prepare(
         `
         UPDATE note_columns
@@ -226,21 +227,17 @@ export class ColumnsRepository {
             is_hidden_in_detail = @isHiddenInDetail,
             is_default = @isDefault,
             config_json = @configJson,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = @id
+            updated_at = @updatedAt,
+            mutation_id = @mutationId,
+            modified_by_device_id = @modifiedByDeviceId,
+            modified_at = @modifiedAt
+        WHERE id = @id AND deleted_at IS NULL
       `
       )
       .run({
-        id: column.id,
-        noteTypeId: column.noteTypeId,
-        name: column.name,
-        title: column.title,
-        type: column.type,
-        sortOrder: column.sortOrder,
-        isHidden: column.isHidden ? 1 : 0,
-        isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
-        isDefault: column.isDefault ? 1 : 0,
-        configJson: column.config ? JSON.stringify(column.config) : null,
+        ...this.mapColumnParameters(column),
+        updatedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
       })
 
     return this.findById(column.id) as NoteColumn
@@ -248,39 +245,122 @@ export class ColumnsRepository {
 
   updateSortOrders(columnIds: string[]): void {
     const database = this.getDatabase()
-    const updateSortOrder = database.prepare(
-      'UPDATE note_columns SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    )
-    const applySortOrders = database.transaction((ids: string[]) => {
-      ids.forEach((id, index) => updateSortOrder.run(index, id))
+    const timestamp = new Date().toISOString()
+    const updateSortOrder = database.prepare(`
+      UPDATE note_columns
+      SET sort_order = @sortOrder,
+          updated_at = @updatedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt
+      WHERE id = @id AND deleted_at IS NULL
+    `)
+    const applySortOrders = database.transaction(() => {
+      columnIds.forEach((id, sortOrder) =>
+        updateSortOrder.run({
+          id,
+          sortOrder,
+          updatedAt: timestamp,
+          ...createLocalMutationMetadata(database, timestamp),
+        })
+      )
     })
 
-    applySortOrders(columnIds)
+    applySortOrders()
   }
 
-  delete(id: string, options: DeleteColumnOptions = {}): void {
+  delete(
+    id: string,
+    options: DeleteColumnOptions = {},
+    timestamp = new Date().toISOString()
+  ): boolean {
     const database = this.getDatabase()
-    const deleteColumn = database.prepare(
-      'DELETE FROM note_columns WHERE id = ?'
-    )
-    const deleteNoteValues = database.prepare(
-      'DELETE FROM note_values WHERE column_id = ?'
-    )
-    const deleteWithOptionalValues = database.transaction(
-      (columnId: string) => {
-        if (options.deleteNoteData) {
-          deleteNoteValues.run(columnId)
-        }
-
-        deleteColumn.run(columnId)
+    const deleteWithOptionalValues = database.transaction(() => {
+      if (options.deleteNoteData) {
+        const noteIds = this.findLiveNoteIdsWithColumnValue(id)
+        database.prepare('DELETE FROM note_values WHERE column_id = ?').run(id)
+        refreshNoteMutationMetadata(database, noteIds, timestamp)
       }
-    )
 
-    deleteWithOptionalValues(id)
+      return this.tombstoneColumns([id], timestamp) > 0
+    })
+
+    return deleteWithOptionalValues()
   }
 
-  private getDatabase(): Database {
-    return this.databaseService.getConnection()
+  deleteByNoteTypeId(noteTypeId: string, timestamp: string): number {
+    const columnIds = (
+      this.getDatabase()
+        .prepare(
+          `
+          SELECT id FROM note_columns
+          WHERE note_type_id = ? AND deleted_at IS NULL
+          ORDER BY id ASC
+        `
+        )
+        .all(noteTypeId) as Array<{ id: string }>
+    ).map((row) => row.id)
+
+    return this.tombstoneColumns(columnIds, timestamp)
+  }
+
+  private tombstoneColumns(columnIds: string[], timestamp: string): number {
+    const database = this.getDatabase()
+    const tombstoneColumn = database.prepare(`
+      UPDATE note_columns
+      SET updated_at = @deletedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt,
+          deleted_at = @deletedAt,
+          deletion_mutation_id = @mutationId,
+          deletion_device_id = @modifiedByDeviceId
+      WHERE id = @id AND deleted_at IS NULL
+    `)
+    let deletedCount = 0
+
+    for (const id of columnIds) {
+      deletedCount += tombstoneColumn.run({
+        id,
+        deletedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
+      }).changes
+    }
+
+    return deletedCount
+  }
+
+  private findLiveNoteIdsWithColumnValue(columnId: string): string[] {
+    return (
+      this.getDatabase()
+        .prepare(
+          `
+          SELECT DISTINCT note_values.note_id AS id
+          FROM note_values
+          INNER JOIN notes ON notes.id = note_values.note_id
+          WHERE note_values.column_id = ? AND notes.deleted_at IS NULL
+          ORDER BY note_values.note_id ASC
+        `
+        )
+        .all(columnId) as Array<{ id: string }>
+    ).map((row) => row.id)
+  }
+
+  private mapColumnParameters(
+    column: Omit<NoteColumn, 'createdAt' | 'updatedAt'>
+  ): Record<string, unknown> {
+    return {
+      id: column.id,
+      noteTypeId: column.noteTypeId,
+      name: column.name,
+      title: column.title,
+      type: column.type,
+      sortOrder: column.sortOrder,
+      isHidden: column.isHidden ? 1 : 0,
+      isHiddenInDetail: column.isHiddenInDetail ? 1 : 0,
+      isDefault: column.isDefault ? 1 : 0,
+      configJson: column.config ? JSON.stringify(column.config) : null,
+    }
   }
 
   private mapColumnRow(row: NoteColumnRow): NoteColumn {
@@ -300,5 +380,23 @@ export class ColumnsRepository {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }
+  }
+
+  private mapSyncColumnRow(
+    row: NoteColumnRow
+  ): NoteColumn & SyncEntityMetadata {
+    return {
+      ...this.mapColumnRow(row),
+      mutationId: row.mutation_id,
+      modifiedByDeviceId: row.modified_by_device_id,
+      modifiedAt: row.modified_at,
+      deletedAt: row.deleted_at,
+      deletionMutationId: row.deletion_mutation_id,
+      deletionDeviceId: row.deletion_device_id,
+    }
+  }
+
+  private getDatabase(): Database {
+    return this.databaseService.getConnection()
   }
 }

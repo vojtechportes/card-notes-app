@@ -516,7 +516,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Preserve portable JSON/XLSX import/export behavior through the new asset model and use conservative orphan retention without unsafe garbage collection.
   - Add migration, byte-integrity, interruption, deduplication, import/export, and rendering tests.
 
-- [ ] T102. Add soft deletion and synchronization mutation metadata
+- [x] T102. Add soft deletion and synchronization mutation metadata
   - Convert notes and sync-relevant settings/configuration entities to tombstones with deletion mutation/device metadata.
   - Update ordinary application queries to hide tombstones while synchronization, recovery, and appropriate export paths can include them.
   - Make note deletion, delete-all, label/field/template deletion, destructive imports, moves, and cascade cleanup create sync-visible changes transactionally.
