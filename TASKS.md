@@ -538,7 +538,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Reject unsupported newer schemas and quarantine corrupt/incomplete documents without partially applying them.
   - Add round-trip, cross-order determinism, format-version, unknown-field/version, relationship, and corruption tests.
 
-- [ ] T105. Build the provider-neutral reconciliation engine with a fake provider
+- [x] T105. Build the provider-neutral reconciliation engine with a fake provider
   - Define a narrow adapter for workspace discovery, initial enumeration, cursor-based changes, reads, conditional creates/updates, immutable asset transfer, and provider identity/version metadata.
   - Implement serialized pull-first runs, transactional local application, local/base/remote classification, conditional outbox push, retry after precondition failure, verification pull, and cursor commit only after local success.
   - Implement an in-memory/fake provider and shared adapter contract tests before adding cloud SDKs.
