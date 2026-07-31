@@ -256,7 +256,7 @@ export const NoteCard = ({
           flexDirection: 'column',
           height: '100%',
           p: 2,
-          pr: hasActionMenu ? 7 : 2,
+          pr: 2,
         }}
       >
         {fields.length === 0 ? (
@@ -273,8 +273,12 @@ export const NoteCard = ({
             }
             spacing={2}
           >
-            {fields.map((field) => (
-              <Stack key={field.columnId} spacing={1}>
+            {fields.map((field, index) => (
+              <Stack
+                key={field.columnId}
+                spacing={1}
+                sx={{ pr: hasActionMenu && index === 0 ? 4 : 0 }}
+              >
                 <Typography component="h3" variant="subtitle2">
                   {field.title}
                 </Typography>
