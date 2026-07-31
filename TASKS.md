@@ -496,6 +496,134 @@ Detailed implementation plan: [TASK_PHASE-9.md](TASK_PHASE-9.md).
   - Regenerate Swagger types, run Prettier on all modified files, run affected lint/tests/builds, and verify the root build.
   - Mark T90-T97 done only after their behavior and verification checklist have landed.
 
+## Phase 10: Cloud Synchronization
+
+Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
+
+- [ ] T100. Define versioned synchronization contracts and local sync metadata
+  - Add provider-neutral workspace/document contracts and schema versioning for the workspace manifest, complete configuration document, per-note documents, asset references, mutations, and tombstones.
+  - Add and verify a recoverable local SQLite backup facility before any Phase 10 migration can change existing data, then add idempotent migrations for stable workspace/device IDs, provider-independent remote state, merge bases, cursors, conflicts, and non-secret sync-account metadata whose default is disabled with no provider.
+  - Treat hashes, mutation IDs, merge bases, and provider versions as authoritative; timestamps are descriptive and must not be the sole conflict resolution mechanism.
+  - Define the provider-transported notification authentication key, encoding, validation, rotation metadata, and redaction rules used to authorize relay routing on another device.
+  - Keep this slice provider-independent and do not add provider SDKs yet.
+  - Add focused migration, validation, and restart tests while keeping all existing local behavior working.
+
+- [ ] T101. Extract note images into managed content-addressed assets
+  - Replace base64 and machine-path-dependent note image persistence with portable asset references and files under app-managed local storage.
+  - Pass one consistent Electron application data root to the backend for SQLite and managed assets.
+  - Hash bytes with SHA-256, deduplicate, validate MIME type/size/integrity, write atomically, and migrate existing single/multiple base64 images without data loss.
+  - Import supported local-path images into managed storage before they become syncable; never write machine-local paths into remote documents.
+  - Preserve portable JSON/XLSX import/export behavior through the new asset model and use conservative orphan retention without unsafe garbage collection.
+  - Add migration, byte-integrity, interruption, deduplication, import/export, and rendering tests.
+
+- [ ] T102. Add soft deletion and synchronization mutation metadata
+  - Convert notes and sync-relevant settings/configuration entities to tombstones with deletion mutation/device metadata.
+  - Update ordinary application queries to hide tombstones while synchronization, recovery, and appropriate export paths can include them.
+  - Make note deletion, delete-all, label/field/template deletion, destructive imports, moves, and cascade cleanup create sync-visible changes transactionally.
+  - Keep remote tombstones indefinitely until an all-device acknowledgement and compaction design exists.
+  - Add tests proving stale state cannot resurrect deleted notes/configuration and existing destructive confirmation behavior remains intact.
+
+- [ ] T103. Add a durable transactional sync outbox
+  - Once a workspace is active, append or coalesce outbox entries in the same SQLite transaction as every local mutation, including indirect and cascade changes.
+  - Add idempotent mutation IDs, base/target hashes, retry state, attempt classification, next-attempt time, and crash-safe claim leases.
+  - Audit all existing backend write paths and expose focused repository/service operations instead of leaking synchronization logic into controllers.
+  - Before pairing, keep changes local without accumulating historical outbox operations; pairing creates a current-state baseline and only journals the resolved seed/merge result after workspace binding.
+  - Ensure rollback cannot leave domain state and outbox state inconsistent.
+  - Add crash/restart, rollback, duplicate-delivery, coalescing, and mutation-path coverage.
+
+- [ ] T104. Implement canonical serialization, hashing, and remote document mapping
+  - Produce deterministic provider-neutral JSON for `workspace.json`, full `config.json`, one JSON file per note, and content-addressed asset references.
+  - Canonicalize ordering and normalization before SHA-256 and persist content hash, parent hash, mutation ID, author device, and last reconciled base.
+  - Keep logical remote keys provider-neutral so adapters can flatten or map them without leaking provider paths.
+  - Reject unsupported newer schemas and quarantine corrupt/incomplete documents without partially applying them.
+  - Add round-trip, cross-order determinism, format-version, unknown-field/version, relationship, and corruption tests.
+
+- [ ] T105. Build the provider-neutral reconciliation engine with a fake provider
+  - Define a narrow adapter for workspace discovery, initial enumeration, cursor-based changes, reads, conditional creates/updates, immutable asset transfer, and provider identity/version metadata.
+  - Implement serialized pull-first runs, transactional local application, local/base/remote classification, conditional outbox push, retry after precondition failure, verification pull, and cursor commit only after local success.
+  - Implement an in-memory/fake provider and shared adapter contract tests before adding cloud SDKs.
+  - Handle interrupted runs and repeated operations idempotently.
+  - Add tests at every outbox, remote-write, local-apply, and cursor-commit crash boundary.
+
+- [ ] T106. Implement deterministic merge and recoverable conflict handling
+  - Auto-merge independent notes and independent note/configuration fields by stable UUID using the stored merge base.
+  - Preserve concurrent same-field changes and delete-versus-edit as explicit recoverable conflict records/copies; never silently discard user data.
+  - Define deterministic configuration scalar and ordering behavior, UUID collision handling, and safe missing/corrupt remote-object repair behavior.
+  - Validate template/field/label references before committing merged configuration.
+  - Add tests for edit/edit, edit/delete, create/create UUID collision, reorder, repeated delivery, conflict resolution, and retry convergence.
+
+- [ ] T107. Add the Google Drive storage adapter
+  - Use hidden `appDataFolder` with the narrow `drive.appdata` scope.
+  - Implement workspace discovery, provider file-ID/version mapping, start/change page tokens, `changes.list`, conditional writes, and appropriate resumable asset transfer.
+  - Classify logical objects without depending on user-visible paths.
+  - Recover invalid/expired cursors through a safe full metadata rescan and normal three-way reconciliation without overwriting local changes.
+  - Pass the shared provider contract tests and add focused authentication, pagination, throttling, quota, transfer, and corruption tests.
+  - Keep correctness independent of webhook delivery in this slice.
+
+- [ ] T108. Add the OneDrive storage adapter and adaptive delta scheduler
+  - Use `special/approot` with delegated `Files.ReadWrite.AppFolder`, Graph delta links, drive item IDs, conditional ETag writes, and resumable asset transfers where needed.
+  - Poll immediately on startup, focus, resume, manual request, and network recovery; while active use adaptive polling around 30-60 seconds and a background watchdog around 10-15 minutes.
+  - Honor Retry-After, throttling, transient failures, invalid delta state, and safe full enumeration.
+  - Do not request `Files.Read`, `Files.Read.All`, or other full-drive permissions for notifications.
+  - Pass the shared provider contract tests and add cadence/backoff, pagination, ETag, transfer, and recovery coverage.
+
+- [ ] T109. Add Electron OAuth and secure credential brokering
+  - Register/connect Google and Microsoft through system-browser Authorization Code with PKCE and validated callbacks suitable for development and packaged Electron.
+  - Keep provider authentication lazy: create no OAuth session or stored credential until the user explicitly enables synchronization and selects a provider.
+  - Store refresh credentials only through OS-backed secure storage owned by Electron; React, normal SQLite settings, logs, and the notification service receive no credentials.
+  - Give backend provider adapters only short-lived access through a narrow authenticated local credential-broker boundary.
+  - Support refresh, reconnect, revoke/sign-out, cancellation, callback timeout/state mismatch, wrong-account/workspace detection, and redaction.
+  - Add Electron tests and packaged-flow verification for both providers.
+
+- [ ] T110. Add synchronization orchestration and backend API
+  - Serialize runs and expose stable status, account/workspace metadata, manual sync, pending-change, conflict, disconnect/switch, and repair APIs through Swagger.
+  - Regenerate frontend API types and keep request functions returning full Axios promises without `await`.
+  - Make every sync trigger a no-op while synchronization is disabled; once enabled, push local changes after a 3-5 second debounce capped at 30 seconds and reconcile on startup, focus, resume, connectivity recovery, provider signal, manual request, and watchdog intervals.
+  - Add exponential backoff with jitter, Retry-After handling, post-push verification, trigger coalescing, and protection from overlapping runs.
+  - Add orchestration, status-transition, API, retry, trigger-storm, and cache-invalidation contract tests.
+
+- [ ] T111. Build the content-free synchronization notification service
+  - Add a separately deployable TypeScript control-plane service with a public Google webhook endpoint, authenticated device WebSockets, opaque channel/subscription registry, notification coalescing, expiry/renewal leases, rate limits, health checks, and redacted structured logs.
+  - Persist only opaque workspace/channel/device routing metadata and verifier hashes; never persist notes, settings, assets, provider account identifiers, or provider credentials.
+  - Define the workspace-secret challenge/token protocol and channel registration/finalization so webhook routing cannot be spoofed across workspaces.
+  - Lock and document the managed runtime, durable-state, horizontal broadcast, deployment, monitoring, retention, backup, and rollback choices.
+  - Add abuse, replay, duplicate, reconnect, renewal-owner, unavailable-service, and horizontal-worker tests.
+
+- [ ] T112. Integrate Google webhook channels and relay wake-ups
+  - Create and replace expiring Google `changes.watch` channels pointing to the relay with unguessable channel IDs and verification tokens.
+  - Coordinate a single renewal ownership lease among connected credential-bearing devices without giving Google credentials to the relay.
+  - Validate and coalesce webhook notifications and broadcast only `workspace-changed`; desktops always fetch authoritative changes using their stored change token.
+  - Reconcile on WebSocket reconnect, retain an active watchdog around 15 minutes, and fall back to adaptive polling around 60 seconds when relay/channel health is unavailable.
+  - Add expiration overlap, missed/duplicate signal, reconnect, relay outage, spoofing, renewal, and convergence tests.
+
+- [ ] T113. Implement initial pairing, provider switching, backup reuse, and repair flows
+  - Handle cloud-empty/local-populated seeding, cloud-populated/local-empty restore, same-workspace reconciliation, and both-populated mismatched-workspace preview/confirmation.
+  - Reuse and verify the T100 local SQLite backup facility before pairing or other destructive local replacement.
+  - Convert the resolved current state into the first workspace baseline after binding; do not replay pre-pairing local history as remote outbox operations.
+  - Settle or explicitly retain old pending work before switching, initialize and verify the new workspace, and activate the new provider only after successful reconciliation.
+  - Never delete the old provider's cloud data automatically.
+  - Detect wrong accounts/workspaces, manually removed provider files, missing assets, schema incompatibility, and damaged remote state, then expose safe repair/reset operations.
+  - Add backup/restore, all pairing modes, switch interruption, account mismatch, manual deletion, repair, and baseline/outbox tests.
+
+- [ ] T114. Add user-facing Synchronization settings, status, startup gate, and recovery UX
+  - Add a localized Settings > Synchronization page with synchronization disabled and no provider selected by default on fresh installs and upgrades.
+  - Perform no provider OAuth, cloud API, relay, polling, or synchronization network activity until the user explicitly enables synchronization and chooses Google Drive or OneDrive.
+  - Once enabled, support exactly one active provider with connect, reconnect, disconnect, switch, account/workspace status, last success, pending changes, current error/conflict state, and Sync now.
+  - Disabling an already paired workspace must stop all sync network activity while retaining the workspace binding and journaling local changes for upload after re-enablement; disconnect and credential removal remain separate confirmed actions.
+  - Drive Connect and Switch through the completed T113 pairing state machine, including preview/confirmation before activation.
+  - Extend startup so configured devices reconcile before notes are displayed, with a bounded wait and localized Retry/Work offline path using the last valid local state.
+  - Keep synchronization controls out of the app bar while disabled; once enabled, add an accessible app-bar status/action for syncing, synced, offline/pending, and attention-required states.
+  - Add understandable conflict inspection/recovery UI and invalidate affected TanStack Query data after remote application.
+  - Require confirmation for destructive disconnect, reset, repair, or cloud-data actions.
+  - Add frontend integration tests for the default disabled state, opt-in enablement, disable/re-enable with retained pending changes, pairing decisions, all status states, accessibility, localization, and query behavior.
+
+- [ ] T115. Add end-to-end resilience, security, packaging, and operational verification
+  - Test two packaged instances/devices, concurrent note/configuration edits and deletions, long offline periods, crashes at every cursor/outbox boundary, duplicated/lost notifications, expired channels/tokens/cursors, throttling, large assets, provider outages, relay outages, and provider switching.
+  - Complete security review for OAuth, local credential broker, remote input validation, relay routing/isolation, replay/abuse protection, secret rotation, and log redaction.
+  - Run backend, frontend, Electron, notification-service, root build, packaging, and deployment checks.
+  - Document OAuth registrations, redirects/scopes, notification-service deployment/secrets/monitoring/privacy retention, diagnostics, rollout/rollback, migration backup, and activation criteria.
+  - Mark Phase 10 complete only after the detailed definition of done in `TASK_PHASE-10.md` is satisfied.
+
 ## Misc tasks
 
 - [x] TMSC-10. Add logo, favicon and eletron app logo
