@@ -10,10 +10,10 @@ import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { syncLogicalKeys } from '../../../src/modules/sync/constants/sync-logical-keys'
 import { FakeSyncProviderAdapter } from '../../../src/modules/sync/fake-provider/fake-sync-provider.adapter'
+import { SyncConflictRepository } from '../../../src/modules/sync/sync-conflict.repository'
 import { SyncOutboxRepository } from '../../../src/modules/sync/sync-outbox.repository'
 import { SyncReconciliationRepository } from '../../../src/modules/sync/sync-reconciliation.repository'
 import { SyncReconciliationService } from '../../../src/modules/sync/sync-reconciliation.service'
-import { SyncConcurrentChangeError } from '../../../src/modules/sync/types/sync-concurrent-change-error'
 import { SyncEntityKindEnum } from '../../../src/modules/sync/types/sync-entity-kind-enum'
 import type { SyncConfigurationDocument } from '../../../src/modules/sync/types/sync-configuration-document'
 import type { SyncReconciliationFaultInjector } from '../../../src/modules/sync/types/sync-reconciliation-fault-injector'
@@ -25,6 +25,7 @@ const timestamp = '2026-07-31T12:00:00.000Z'
 let databaseService: DatabaseService
 let adapter: FakeSyncProviderAdapter
 let outboxRepository: SyncOutboxRepository
+let conflictRepository: SyncConflictRepository
 let reconciliationRepository: SyncReconciliationRepository
 let assetsService: AssetsService
 
@@ -66,7 +67,11 @@ beforeEach(() => {
   databaseService.initialize()
   adapter = new FakeSyncProviderAdapter({ pageSize: 1 })
   outboxRepository = new SyncOutboxRepository(databaseService)
-  reconciliationRepository = new SyncReconciliationRepository(databaseService)
+  conflictRepository = new SyncConflictRepository(databaseService)
+  reconciliationRepository = new SyncReconciliationRepository(
+    databaseService,
+    conflictRepository
+  )
   assetsService = {
     readAsset: () => {
       throw new Error('No local assets expected in this test.')
@@ -180,7 +185,7 @@ describe('SyncReconciliationService', () => {
     ])
   })
 
-  it('does not overwrite divergent local and remote documents', async () => {
+  it('preserves a create/create collision without overwriting either note', async () => {
     const { workspaceId, noteTypeId } = activateSynchronization()
     const noteId = uuidV4()
     new NotesRepository(databaseService).create(
@@ -207,17 +212,25 @@ describe('SyncReconciliationService', () => {
       remote.canonicalJson
     )
 
-    await expect(
-      createService().run(adapter, { claimedBy: 'test' })
-    ).rejects.toBeInstanceOf(SyncConcurrentChangeError)
-    expect(
-      databaseService
-        .getConnection()
-        .prepare('SELECT background FROM notes WHERE id = ?')
-        .get(noteId)
-    ).toEqual({ background: null })
-  })
+    await createService().run(adapter, { claimedBy: 'test' })
 
+    const notes = databaseService
+      .getConnection()
+      .prepare('SELECT id, background FROM notes ORDER BY id')
+      .all() as Array<{ id: string; background: string | null }>
+    const conflicts = conflictRepository.listUnresolved(workspaceId)
+
+    expect(notes).toHaveLength(2)
+    expect(notes.some((note) => note.background === null)).toBe(true)
+    expect(notes.some((note) => note.background === 'CREAM')).toBe(true)
+    expect(conflicts).toEqual([
+      expect.objectContaining({
+        conflictCopyEntityId: expect.any(String),
+        conflictType: 'uuid-collision',
+        entityId: noteId,
+      }),
+    ])
+  })
   it('falls back to enumeration when an incremental cursor expires', async () => {
     const context = activateSynchronization()
     await createService().run(adapter, { claimedBy: 'test' })
@@ -606,6 +619,104 @@ describe('SyncReconciliationService', () => {
     })
   })
 
+  it('conditionally repairs a corrupt known remote document without conflict churn', async () => {
+    const { workspaceId, noteTypeId } = activateSynchronization()
+    const noteId = uuidV4()
+    const remote = mapSyncDocument({
+      formatVersion: 1,
+      workspaceId,
+      parentHash: null,
+      mutationId: uuidV4(),
+      modifiedBy: remoteDeviceId,
+      modifiedAt: timestamp,
+      entityType: 'note',
+      entityId: noteId,
+      deletedAt: null,
+      payload: { noteTypeId, background: null, values: {} },
+    })
+    adapter.seedDocument(
+      remote.logicalKey,
+      SyncEntityKindEnum.Note,
+      remote.canonicalJson
+    )
+    await createService().run(adapter, { claimedBy: 'initial' })
+    adapter.seedDocument(
+      remote.logicalKey,
+      SyncEntityKindEnum.Note,
+      JSON.stringify({ ...remote.document, contentHash: '0'.repeat(64) })
+    )
+
+    let shouldInterrupt = true
+    const interruptedService = createService({
+      reach: (boundary) => {
+        if (shouldInterrupt && boundary === 'before-local-apply') {
+          shouldInterrupt = false
+          throw new Error('interrupt-corrupt-repair')
+        }
+      },
+    })
+
+    await expect(
+      interruptedService.run(adapter, { claimedBy: 'interrupt-repair' })
+    ).rejects.toThrow('interrupt-corrupt-repair')
+    const pendingRepair = outboxRepository.findAll().at(-1)!
+    expect(conflictRepository.listUnresolved(workspaceId)).toHaveLength(1)
+
+    const repaired = await createService().run(adapter, {
+      claimedBy: 'repair-corrupt',
+    })
+    const conflictsAfterRepair = conflictRepository.listUnresolved(workspaceId)
+
+    expect(repaired.pushedCount).toBe(1)
+    expect(outboxRepository.findAll().at(-1)?.mutationId).toBe(
+      pendingRepair.mutationId
+    )
+    expect(conflictsAfterRepair).toEqual([
+      expect.objectContaining({
+        conflictType: 'remote-corruption',
+        entityId: noteId,
+      }),
+    ])
+    await createService().run(adapter, { claimedBy: 'verify-repair' })
+    expect(conflictRepository.listUnresolved(workspaceId)).toHaveLength(1)
+    expect(outboxRepository.findAll().at(-1)).toMatchObject({
+      entityId: noteId,
+      status: 'completed',
+    })
+  })
+  it('does not overwrite a remote document from a newer format version', async () => {
+    const { workspaceId, noteTypeId } = activateSynchronization()
+    const noteId = uuidV4()
+    const remote = mapSyncDocument({
+      formatVersion: 1,
+      workspaceId,
+      parentHash: null,
+      mutationId: uuidV4(),
+      modifiedBy: remoteDeviceId,
+      modifiedAt: timestamp,
+      entityType: 'note',
+      entityId: noteId,
+      deletedAt: null,
+      payload: { noteTypeId, background: null, values: {} },
+    })
+    adapter.seedDocument(
+      remote.logicalKey,
+      SyncEntityKindEnum.Note,
+      remote.canonicalJson
+    )
+    await createService().run(adapter, { claimedBy: 'initial' })
+    adapter.seedDocument(
+      remote.logicalKey,
+      SyncEntityKindEnum.Note,
+      JSON.stringify({ ...remote.document, formatVersion: 99 })
+    )
+
+    await expect(
+      createService().run(adapter, { claimedBy: 'newer-format' })
+    ).rejects.toThrow(/requires a newer application version/)
+    expect(conflictRepository.listUnresolved(workspaceId)).toEqual([])
+    expect(outboxRepository.findAll()).toEqual([])
+  })
   it('treats a known object missing from a full enumeration as a repair condition', async () => {
     const { noteTypeId } = activateSynchronization()
     const note = new NotesRepository(databaseService).create(
@@ -628,6 +739,37 @@ describe('SyncReconciliationService', () => {
     )
     expect(reconciliationRepository.getCursor(context)).toMatchObject({
       isInvalidated: true,
+    })
+    expect(
+      reconciliationRepository.findRemoteState(
+        context,
+        syncLogicalKeys.note(note.id)
+      )
+    ).toBeNull()
+    expect(conflictRepository.listUnresolved(context.workspaceId)).toEqual([
+      expect.objectContaining({
+        conflictType: 'remote-corruption',
+        entityId: note.id,
+        fieldPaths: ['$remote.missing'],
+      }),
+    ])
+    expect(outboxRepository.findAll().at(-1)).toMatchObject({
+      entityId: note.id,
+      status: 'pending',
+    })
+
+    await createService().run(adapter, { claimedBy: 'repair' })
+
+    expect(adapter.getObject(syncLogicalKeys.note(note.id))).toBeDefined()
+    expect(
+      reconciliationRepository.findRemoteState(
+        context,
+        syncLogicalKeys.note(note.id)
+      )
+    ).not.toBeNull()
+    expect(outboxRepository.findAll().at(-1)).toMatchObject({
+      entityId: note.id,
+      status: 'completed',
     })
   })
 
