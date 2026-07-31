@@ -531,7 +531,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Ensure rollback cannot leave domain state and outbox state inconsistent.
   - Add crash/restart, rollback, duplicate-delivery, coalescing, and mutation-path coverage.
 
-- [ ] T104. Implement canonical serialization, hashing, and remote document mapping
+- [x] T104. Implement canonical serialization, hashing, and remote document mapping
   - Produce deterministic provider-neutral JSON for `workspace.json`, full `config.json`, one JSON file per note, and content-addressed asset references.
   - Canonicalize ordering and normalization before SHA-256 and persist content hash, parent hash, mutation ID, author device, and last reconciled base.
   - Keep logical remote keys provider-neutral so adapters can flatten or map them without leaking provider paths.
