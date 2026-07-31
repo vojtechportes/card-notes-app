@@ -17,6 +17,7 @@ import { createWindowsUpdateSignatureVerifier } from './updater/create-windows-u
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
+import { getApplicationDataRoot } from './backend/utils/get-application-data-root.util.js'
 import { BackendEntrypointMissingError } from './startup/backend-entrypoint-missing-error.js'
 import { createBackendStartupController } from './startup/create-backend-startup-controller.js'
 import { registerStartupIpc } from './startup/register-startup-ipc.js'
@@ -63,6 +64,7 @@ const applicationIconPath = path.join(
   'icon.png'
 )
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
+const applicationDataRoot = getApplicationDataRoot(app.getPath('appData'))
 let backendPort: number | null = null
 let backendHealthUrl: string | null = null
 const backendStartupSoftThresholdMs = 30_000
@@ -319,6 +321,7 @@ function startBackendProcess(): ChildProcess {
       BACKEND_HOST: backendHost,
       PORT: String(port),
       BACKEND_PORT: String(port),
+      CARD_NOTES_DATA_ROOT: applicationDataRoot,
     },
     stdio: 'pipe',
   })

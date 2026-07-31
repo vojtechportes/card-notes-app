@@ -92,6 +92,8 @@ export const createNoteFormSchema = (
                   }
 
                   return (
+                    (typeof imageValue.assetId === 'string' &&
+                      /^[a-f0-9]{64}$/.test(imageValue.assetId)) ||
                     typeof imageValue.dataUrl === 'string' ||
                     typeof imageValue.path === 'string' ||
                     typeof imageValue.url === 'string'

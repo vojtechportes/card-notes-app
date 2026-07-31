@@ -13,6 +13,7 @@ export type NoteDto = {
     | number
     | Array<string>
     | {
+        assetId?: string
         fileName?: string
         mimeType?: string
         size?: number
@@ -25,6 +26,7 @@ export type NoteDto = {
         [key: string]: unknown
       }
     | Array<{
+        assetId?: string
         fileName?: string
         mimeType?: string
         size?: number

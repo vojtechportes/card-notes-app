@@ -9,6 +9,7 @@ export type UpdateNoteDto = {
     | Array<string>
     | null
     | {
+        assetId?: string
         fileName?: string
         mimeType?: string
         size?: number
@@ -21,6 +22,7 @@ export type UpdateNoteDto = {
         [key: string]: unknown
       }
     | Array<{
+        assetId?: string
         fileName?: string
         mimeType?: string
         size?: number

@@ -1,4 +1,5 @@
 export interface NoteImageValue {
+  assetId?: string
   fileName?: string
   mimeType?: string
   size?: number
