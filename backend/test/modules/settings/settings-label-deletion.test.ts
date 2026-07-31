@@ -118,7 +118,8 @@ describe('Settings label deletion behavior', () => {
     insertTestValue(database, 'target-note', 'target-labels', [ownedLabel.id])
     database.exec(`
       CREATE TRIGGER prevent_note_type_delete
-      BEFORE DELETE ON note_types
+      BEFORE UPDATE OF deleted_at ON note_types
+      WHEN OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL
       BEGIN
         SELECT RAISE(ABORT, 'note type delete blocked');
       END;
@@ -157,7 +158,8 @@ describe('Settings label deletion behavior', () => {
     insertTestValue(database, 'target-note', 'target-labels', [ownedLabel.id])
     database.exec(`
       CREATE TRIGGER prevent_note_type_delete
-      BEFORE DELETE ON note_types
+      BEFORE UPDATE OF deleted_at ON note_types
+      WHEN OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL
       BEGIN
         SELECT RAISE(ABORT, 'note type delete blocked');
       END;

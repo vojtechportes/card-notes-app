@@ -83,7 +83,11 @@ export class NotesService {
   }
 
   updateNoteBackground(id: string, background: BackgroundEnumDto | null): Note {
-    const note = this.notesRepository.updateBackground(id, background)
+    const note = this.notesRepository.updateBackground(
+      id,
+      background,
+      this.createTimestamp()
+    )
 
     if (!note) {
       throw new NotFoundException('Note was not found.')
@@ -92,7 +96,7 @@ export class NotesService {
     return note
   }
   deleteNote(id: string): void {
-    const wasDeleted = this.notesRepository.delete(id)
+    const wasDeleted = this.notesRepository.delete(id, this.createTimestamp())
 
     if (!wasDeleted) {
       throw new NotFoundException('Note was not found.')
@@ -100,11 +104,14 @@ export class NotesService {
   }
 
   deleteAllNotes(): number {
-    return this.notesRepository.deleteAll()
+    return this.notesRepository.deleteAll(this.createTimestamp())
   }
 
   deleteValuesForColumn(columnId: string): number {
-    return this.notesRepository.deleteValuesForColumn(columnId)
+    return this.notesRepository.deleteValuesForColumn(
+      columnId,
+      this.createTimestamp()
+    )
   }
 
   private manageValuePatch(values: NoteValuePatch): NoteValuePatch {

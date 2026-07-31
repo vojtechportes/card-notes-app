@@ -177,7 +177,8 @@ describe(LabelsRepository.name, () => {
     insertTestValue(database, 'note-id', 'labels-column', [label.id])
     database.exec(`
       CREATE TRIGGER prevent_label_delete
-      BEFORE DELETE ON labels
+      BEFORE UPDATE OF deleted_at ON labels
+      WHEN OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL
       BEGIN
         SELECT RAISE(ABORT, 'label delete blocked');
       END;

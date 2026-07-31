@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { DatabaseService } from '../database/database.service'
+import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
+import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
+import { refreshNoteMutationMetadata } from './utils/refresh-note-mutation-metadata.util'
 import type { Note } from './types/note'
 import type { BackgroundEnumDto } from './types/background-enum.dto'
 import { NoteSortDirectionEnum } from './types/note-sort-direction-enum'
@@ -14,6 +17,12 @@ interface NoteRow {
   background: BackgroundEnumDto | null
   created_at: string
   updated_at: string
+  mutation_id: string
+  modified_by_device_id: string
+  modified_at: string
+  deleted_at: string | null
+  deletion_mutation_id: string | null
+  deletion_device_id: string | null
 }
 
 interface NoteValueRow {
@@ -47,9 +56,15 @@ export class NotesRepository {
     timestamp: string
   ): Note {
     const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database, timestamp)
     const insertNote = database.prepare(`
-      INSERT INTO notes (id, note_type_id, created_at, updated_at)
-      VALUES (@id, @noteTypeId, @createdAt, @updatedAt)
+      INSERT INTO notes (
+        id, note_type_id, created_at, updated_at, mutation_id,
+        modified_by_device_id, modified_at
+      ) VALUES (
+        @id, @noteTypeId, @createdAt, @updatedAt, @mutationId,
+        @modifiedByDeviceId, @modifiedAt
+      )
     `)
     const createNote = database.transaction(
       (noteId: string, typeId: string, noteValues: NoteValues) => {
@@ -58,6 +73,7 @@ export class NotesRepository {
           noteTypeId: typeId,
           createdAt: timestamp,
           updatedAt: timestamp,
+          ...mutation,
         })
         this.upsertValues(noteId, noteValues, timestamp)
       }
@@ -77,36 +93,39 @@ export class NotesRepository {
     const notes = this.findNoteRows(
       options.noteTypeIds,
       sortColumn,
-      sortDirection
+      sortDirection,
+      false
     )
 
-    if (notes.length === 0) {
-      return []
-    }
+    return this.attachValues(notes)
+  }
 
-    const valuesByNoteId = this.findValuesByNoteIds(
-      notes.map((note) => note.id)
-    )
+  findAllIncludingDeleted(): Array<Note & SyncEntityMetadata> {
+    const notes = this.findNoteRows(undefined, 'created_at', 'ASC', true)
 
-    return notes.map((note) => ({
-      ...note,
-      values: valuesByNoteId.get(note.id) ?? {},
-    }))
+    return this.attachValues(notes)
   }
 
   findById(id: string): Note | undefined {
     const row = this.getDatabase()
+      .prepare('SELECT * FROM notes WHERE id = ? AND deleted_at IS NULL')
+      .get(id) as NoteRow | undefined
+
+    return row
+      ? { ...this.mapNoteRow(row), values: this.findValuesByNoteId(id) }
+      : undefined
+  }
+
+  findByIdIncludingDeleted(
+    id: string
+  ): (Note & SyncEntityMetadata) | undefined {
+    const row = this.getDatabase()
       .prepare('SELECT * FROM notes WHERE id = ?')
       .get(id) as NoteRow | undefined
 
-    if (!row) {
-      return undefined
-    }
-
-    return {
-      ...this.mapNoteRow(row),
-      values: this.findValuesByNoteId(id),
-    }
+    return row
+      ? { ...this.mapSyncNoteRow(row), values: this.findValuesByNoteId(id) }
+      : undefined
   }
 
   updateValues(
@@ -119,54 +138,74 @@ export class NotesRepository {
     }
 
     const database = this.getDatabase()
-    const updateNote = database.prepare(
-      'UPDATE notes SET updated_at = @updatedAt WHERE id = @id'
-    )
-    const updateNoteValues = database.transaction(
-      (noteId: string, noteValues: NoteValuePatch) => {
-        this.applyValuePatch(noteId, noteValues, timestamp)
-        updateNote.run({ id: noteId, updatedAt: timestamp })
-      }
-    )
+    const updateNoteValues = database.transaction(() => {
+      this.applyValuePatch(id, values, timestamp)
+      refreshNoteMutationMetadata(database, [id], timestamp)
+    })
 
-    updateNoteValues(id, values)
+    updateNoteValues()
 
     return this.findById(id)
   }
 
   updateBackground(
     id: string,
-    background: BackgroundEnumDto | null
+    background: BackgroundEnumDto | null,
+    timestamp: string
   ): Note | undefined {
-    const result = this.getDatabase()
-      .prepare('UPDATE notes SET background = @background WHERE id = @id')
-      .run({ id, background })
+    const database = this.getDatabase()
+    const mutation = createLocalMutationMetadata(database, timestamp)
+    const result = database
+      .prepare(
+        `
+        UPDATE notes
+        SET background = @background,
+            mutation_id = @mutationId,
+            modified_by_device_id = @modifiedByDeviceId,
+            modified_at = @modifiedAt
+        WHERE id = @id AND deleted_at IS NULL
+      `
+      )
+      .run({ id, background, ...mutation })
 
     return result.changes > 0 ? this.findById(id) : undefined
   }
-  delete(id: string): boolean {
-    const result = this.getDatabase()
-      .prepare('DELETE FROM notes WHERE id = ?')
-      .run(id)
 
-    return result.changes > 0
+  delete(id: string, timestamp: string): boolean {
+    return this.tombstoneNotes([id], timestamp) > 0
   }
 
-  deleteAll(): number {
-    return this.getDatabase().prepare('DELETE FROM notes').run().changes
+  deleteAll(timestamp: string): number {
+    const noteIds = (
+      this.getDatabase()
+        .prepare(
+          'SELECT id FROM notes WHERE deleted_at IS NULL ORDER BY id ASC'
+        )
+        .all() as Array<{ id: string }>
+    ).map((row) => row.id)
+
+    return this.tombstoneNotes(noteIds, timestamp)
   }
 
-  deleteByNoteTypeId(noteTypeId: string): number {
-    return this.getDatabase()
-      .prepare('DELETE FROM notes WHERE note_type_id = ?')
-      .run(noteTypeId).changes
+  deleteByNoteTypeId(noteTypeId: string, timestamp: string): number {
+    const noteIds = (
+      this.getDatabase()
+        .prepare(
+          'SELECT id FROM notes WHERE note_type_id = ? AND deleted_at IS NULL ORDER BY id ASC'
+        )
+        .all(noteTypeId) as Array<{ id: string }>
+    ).map((row) => row.id)
+
+    return this.tombstoneNotes(noteIds, timestamp)
   }
 
   moveNotesToType(options: MoveNotesToTypeOptions): number {
     const database = this.getDatabase()
     const noteIds = (
       database
-        .prepare('SELECT id FROM notes WHERE note_type_id = ? ORDER BY id ASC')
+        .prepare(
+          'SELECT id FROM notes WHERE note_type_id = ? AND deleted_at IS NULL ORDER BY id ASC'
+        )
         .all(options.sourceNoteTypeId) as Array<{ id: string }>
     ).map((row) => row.id)
 
@@ -188,63 +227,55 @@ export class NotesRepository {
             note_id: string
             value_json: string | null
           }>
-          const upsertTransformedValue = database.prepare(
-            `
+          const upsertTransformedValue = database.prepare(`
             INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(note_id, column_id) DO UPDATE SET
               value_json = excluded.value_json,
               updated_at = excluded.updated_at
-          `
-          )
+          `)
 
           for (const sourceRow of sourceRows) {
-            const transformedValue = fieldMapping.transformValue(
-              this.parseValue(sourceRow.value_json)
-            )
-
             upsertTransformedValue.run(
               sourceRow.note_id,
               fieldMapping.targetColumnId,
-              JSON.stringify(transformedValue),
+              JSON.stringify(
+                fieldMapping.transformValue(
+                  this.parseValue(sourceRow.value_json)
+                )
+              ),
               options.timestamp,
               options.timestamp
             )
           }
-
-          continue
-        }
-
-        database
-          .prepare(
+        } else {
+          database
+            .prepare(
+              `
+              INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
+              SELECT note_id, ?, value_json, ?, ?
+              FROM note_values
+              WHERE note_id IN (${noteIdPlaceholders}) AND column_id = ?
+              ON CONFLICT(note_id, column_id) DO UPDATE SET
+                value_json = excluded.value_json,
+                updated_at = excluded.updated_at
             `
-            INSERT INTO note_values (note_id, column_id, value_json, created_at, updated_at)
-            SELECT note_id, ?, value_json, ?, ?
-            FROM note_values
-            WHERE note_id IN (${noteIdPlaceholders})
-              AND column_id = ?
-            ON CONFLICT(note_id, column_id) DO UPDATE SET
-              value_json = excluded.value_json,
-              updated_at = excluded.updated_at
-          `
-          )
-          .run(
-            fieldMapping.targetColumnId,
-            options.timestamp,
-            options.timestamp,
-            ...noteIds,
-            fieldMapping.sourceColumnId
-          )
+            )
+            .run(
+              fieldMapping.targetColumnId,
+              options.timestamp,
+              options.timestamp,
+              ...noteIds,
+              fieldMapping.sourceColumnId
+            )
+        }
       }
 
       database
         .prepare(
-          `
-          UPDATE notes
-          SET note_type_id = ?,
-              updated_at = ?
-          WHERE id IN (${noteIdPlaceholders})
-        `
+          `UPDATE notes
+           SET note_type_id = ?, updated_at = ?
+           WHERE id IN (${noteIdPlaceholders}) AND deleted_at IS NULL`
         )
         .run(options.targetNoteTypeId, options.timestamp, ...noteIds)
 
@@ -255,23 +286,31 @@ export class NotesRepository {
 
         database
           .prepare(
-            `
-            DELETE FROM note_values
-            WHERE note_id IN (${noteIdPlaceholders})
-              AND column_id IN (${sourceColumnPlaceholders})
-          `
+            `DELETE FROM note_values
+             WHERE note_id IN (${noteIdPlaceholders})
+               AND column_id IN (${sourceColumnPlaceholders})`
           )
           .run(...noteIds, ...options.sourceColumnIds)
       }
+
+      refreshNoteMutationMetadata(database, noteIds, options.timestamp)
     })
 
     copyMappedValues()
 
     return noteIds.length
   }
+
   hasMultipleLabelValuesForColumn(columnId: string): boolean {
     const rows = this.getDatabase()
-      .prepare('SELECT value_json FROM note_values WHERE column_id = ?')
+      .prepare(
+        `
+        SELECT note_values.value_json
+        FROM note_values
+        INNER JOIN notes ON notes.id = note_values.note_id
+        WHERE note_values.column_id = ? AND notes.deleted_at IS NULL
+      `
+      )
       .all(columnId) as Array<{ value_json: string | null }>
 
     return rows.some((row) => {
@@ -289,10 +328,66 @@ export class NotesRepository {
     })
   }
 
-  deleteValuesForColumn(columnId: string): number {
-    return this.getDatabase()
-      .prepare('DELETE FROM note_values WHERE column_id = ?')
-      .run(columnId).changes
+  deleteValuesForColumn(columnId: string, timestamp: string): number {
+    const database = this.getDatabase()
+    const noteIds = (
+      database
+        .prepare(
+          `
+          SELECT DISTINCT note_values.note_id AS id
+          FROM note_values
+          INNER JOIN notes ON notes.id = note_values.note_id
+          WHERE note_values.column_id = ? AND notes.deleted_at IS NULL
+          ORDER BY note_values.note_id ASC
+        `
+        )
+        .all(columnId) as Array<{ id: string }>
+    ).map((row) => row.id)
+    const deleteValues = database.transaction(() => {
+      const changes = database
+        .prepare('DELETE FROM note_values WHERE column_id = ?')
+        .run(columnId).changes
+
+      refreshNoteMutationMetadata(database, noteIds, timestamp)
+
+      return changes
+    })
+
+    return deleteValues()
+  }
+
+  private tombstoneNotes(noteIds: string[], timestamp: string): number {
+    if (noteIds.length === 0) {
+      return 0
+    }
+
+    const database = this.getDatabase()
+    const tombstoneNote = database.prepare(`
+      UPDATE notes
+      SET updated_at = @deletedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt,
+          deleted_at = @deletedAt,
+          deletion_mutation_id = @mutationId,
+          deletion_device_id = @modifiedByDeviceId
+      WHERE id = @id AND deleted_at IS NULL
+    `)
+    const applyTombstones = database.transaction(() => {
+      let deletedCount = 0
+
+      for (const id of noteIds) {
+        deletedCount += tombstoneNote.run({
+          id,
+          deletedAt: timestamp,
+          ...createLocalMutationMetadata(database, timestamp),
+        }).changes
+      }
+
+      return deletedCount
+    })
+
+    return applyTombstones()
   }
 
   private getSortColumn(sortBy: NoteSortFieldEnum): string {
@@ -306,30 +401,46 @@ export class NotesRepository {
     }
   }
 
-  private findNoteRows(
+  private findNoteRows<TIncludeDeleted extends boolean>(
     noteTypeIds: string[] | undefined,
     sortColumn: string,
-    sortDirection: 'ASC' | 'DESC'
-  ): Note[] {
-    const database = this.getDatabase()
+    sortDirection: 'ASC' | 'DESC',
+    includeDeleted: TIncludeDeleted
+  ): TIncludeDeleted extends true ? Array<Note & SyncEntityMetadata> : Note[] {
+    const deletedFilter = includeDeleted ? '' : 'deleted_at IS NULL'
+    const typeFilter = noteTypeIds?.length
+      ? `note_type_id IN (${noteTypeIds.map(() => '?').join(', ')})`
+      : ''
+    const whereClause = [typeFilter, deletedFilter]
+      .filter(Boolean)
+      .join(' AND ')
+    const rows = this.getDatabase()
+      .prepare(
+        `SELECT * FROM notes ${whereClause ? `WHERE ${whereClause}` : ''}
+         ORDER BY ${sortColumn} ${sortDirection}, id ASC`
+      )
+      .all(...(noteTypeIds ?? [])) as NoteRow[]
 
-    if (!noteTypeIds || noteTypeIds.length === 0) {
-      return database
-        .prepare(
-          `SELECT * FROM notes ORDER BY ${sortColumn} ${sortDirection}, id ASC`
-        )
-        .all()
-        .map((row) => this.mapNoteRow(row as NoteRow))
+    return rows.map((row) =>
+      includeDeleted ? this.mapSyncNoteRow(row) : this.mapNoteRow(row)
+    ) as TIncludeDeleted extends true
+      ? Array<Note & SyncEntityMetadata>
+      : Note[]
+  }
+
+  private attachValues<TNote extends Note>(notes: TNote[]): TNote[] {
+    if (notes.length === 0) {
+      return []
     }
 
-    const placeholders = noteTypeIds.map(() => '?').join(', ')
+    const valuesByNoteId = this.findValuesByNoteIds(
+      notes.map((note) => note.id)
+    )
 
-    return database
-      .prepare(
-        `SELECT * FROM notes WHERE note_type_id IN (${placeholders}) ORDER BY ${sortColumn} ${sortDirection}, id ASC`
-      )
-      .all(...noteTypeIds)
-      .map((row) => this.mapNoteRow(row as NoteRow))
+    return notes.map((note) => ({
+      ...note,
+      values: valuesByNoteId.get(note.id) ?? {},
+    }))
   }
 
   private upsertValues(
@@ -410,11 +521,7 @@ export class NotesRepository {
   }
 
   private parseValue(valueJson: string | null): NoteValue {
-    if (valueJson === null) {
-      return ''
-    }
-
-    return JSON.parse(valueJson) as NoteValue
+    return valueJson === null ? '' : (JSON.parse(valueJson) as NoteValue)
   }
 
   private mapNoteRow(row: NoteRow): Note {
@@ -425,6 +532,18 @@ export class NotesRepository {
       values: {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+    }
+  }
+
+  private mapSyncNoteRow(row: NoteRow): Note & SyncEntityMetadata {
+    return {
+      ...this.mapNoteRow(row),
+      mutationId: row.mutation_id,
+      modifiedByDeviceId: row.modified_by_device_id,
+      modifiedAt: row.modified_at,
+      deletedAt: row.deleted_at,
+      deletionMutationId: row.deletion_mutation_id,
+      deletionDeviceId: row.deletion_device_id,
     }
   }
 

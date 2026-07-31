@@ -6,6 +6,7 @@ import { addDetailColumnVisibilityMigration } from './004-add-detail-column-visi
 import { addNoteBackgroundMigration } from './005-add-note-background'
 import { addSyncMetadataMigration } from './006-add-sync-metadata'
 import { addManagedAssetsMigration } from './007-add-managed-assets'
+import { addSoftDeletionMetadataMigration } from './008-add-soft-deletion-metadata'
 
 export const databaseMigrations: DatabaseMigration[] = [
   createAppSchemaMigration,
@@ -15,4 +16,5 @@ export const databaseMigrations: DatabaseMigration[] = [
   addNoteBackgroundMigration,
   addSyncMetadataMigration,
   addManagedAssetsMigration,
+  addSoftDeletionMetadataMigration,
 ]

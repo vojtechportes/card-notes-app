@@ -2,6 +2,9 @@ import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
 import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
+import { refreshNoteMutationMetadata } from '../notes/utils/refresh-note-mutation-metadata.util'
+import type { SyncEntityMetadata } from '../sync/types/sync-entity-metadata'
+import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
 import type { Label } from './types/label'
 
 interface LabelRow {
@@ -12,6 +15,12 @@ interface LabelRow {
   note_type_id: string | null
   created_at: string
   updated_at: string
+  mutation_id: string
+  modified_by_device_id: string
+  modified_at: string
+  deleted_at: string | null
+  deletion_mutation_id: string | null
+  deletion_device_id: string | null
 }
 
 @Injectable()
@@ -22,14 +31,23 @@ export class LabelsRepository {
 
   findAll(): Label[] {
     return this.getDatabase()
-      .prepare('SELECT * FROM labels ORDER BY created_at ASC, id ASC')
+      .prepare(
+        'SELECT * FROM labels WHERE deleted_at IS NULL ORDER BY created_at ASC, id ASC'
+      )
       .all()
       .map((row) => this.mapLabelRow(row as LabelRow))
   }
 
+  findAllIncludingDeleted(): Array<Label & SyncEntityMetadata> {
+    return this.getDatabase()
+      .prepare('SELECT * FROM labels ORDER BY created_at ASC, id ASC')
+      .all()
+      .map((row) => this.mapSyncLabelRow(row as LabelRow))
+  }
+
   findById(id: string): Label | undefined {
     const row = this.getDatabase()
-      .prepare('SELECT * FROM labels WHERE id = ?')
+      .prepare('SELECT * FROM labels WHERE id = ? AND deleted_at IS NULL')
       .get(id) as LabelRow | undefined
 
     return row ? this.mapLabelRow(row) : undefined
@@ -39,16 +57,17 @@ export class LabelsRepository {
     noteTypeId: string | null,
     name: string
   ): Label | undefined {
-    const row =
-      noteTypeId === null
-        ? (this.getDatabase()
-            .prepare(
-              'SELECT * FROM labels WHERE note_type_id IS NULL AND name = ?'
-            )
-            .get(name) as LabelRow | undefined)
-        : (this.getDatabase()
-            .prepare('SELECT * FROM labels WHERE note_type_id = ? AND name = ?')
-            .get(noteTypeId, name) as LabelRow | undefined)
+    const sourceFilter =
+      noteTypeId === null ? 'note_type_id IS NULL' : 'note_type_id = ?'
+    const row = this.getDatabase()
+      .prepare(
+        `
+        SELECT * FROM labels
+        WHERE ${sourceFilter} AND name = ? AND deleted_at IS NULL
+      `
+      )
+      .get(...(noteTypeId === null ? [name] : [noteTypeId, name])) as
+      LabelRow | undefined
 
     return row ? this.mapLabelRow(row) : undefined
   }
@@ -59,16 +78,29 @@ export class LabelsRepository {
     color: string
     noteTypeId: string | null
   }): Label {
+    const database = this.getDatabase()
     const id = uuidV4()
+    const timestamp = new Date().toISOString()
 
-    this.getDatabase()
+    database
       .prepare(
         `
-        INSERT INTO labels (id, title, name, color, note_type_id)
-        VALUES (@id, @title, @name, @color, @noteTypeId)
+        INSERT INTO labels (
+          id, title, name, color, note_type_id, created_at, updated_at,
+          mutation_id, modified_by_device_id, modified_at
+        ) VALUES (
+          @id, @title, @name, @color, @noteTypeId, @createdAt, @updatedAt,
+          @mutationId, @modifiedByDeviceId, @modifiedAt
+        )
       `
       )
-      .run({ id, ...input })
+      .run({
+        id,
+        ...input,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
+      })
 
     return this.findById(id) as Label
   }
@@ -82,7 +114,10 @@ export class LabelsRepository {
       noteTypeId: string | null
     }
   ): Label | undefined {
-    this.getDatabase()
+    const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+
+    database
       .prepare(
         `
         UPDATE labels
@@ -90,11 +125,19 @@ export class LabelsRepository {
             name = @name,
             color = @color,
             note_type_id = @noteTypeId,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = @id
+            updated_at = @updatedAt,
+            mutation_id = @mutationId,
+            modified_by_device_id = @modifiedByDeviceId,
+            modified_at = @modifiedAt
+        WHERE id = @id AND deleted_at IS NULL
       `
       )
-      .run({ id, ...input })
+      .run({
+        id,
+        ...input,
+        updatedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
+      })
 
     return this.findById(id)
   }
@@ -107,54 +150,67 @@ export class LabelsRepository {
     deleted: boolean
     affectedNoteValuesCount: number
   } {
-    const deleteLabel = this.getDatabase().transaction((labelId: string) => {
-      const affectedNoteValuesCount = this.pruneLabelIdsFromNoteValues([
-        labelId,
-      ])
-      const deleted =
-        this.getDatabase()
-          .prepare('DELETE FROM labels WHERE id = ?')
-          .run(labelId).changes > 0
+    const database = this.getDatabase()
+    const timestamp = new Date().toISOString()
+    const deleteLabel = database.transaction(() => {
+      const affectedNoteValuesCount = this.pruneLabelIdsFromNoteValues(
+        [id],
+        timestamp
+      )
+      const deleted = this.tombstoneLabels([id], timestamp) > 0
 
       return { deleted, affectedNoteValuesCount }
     })
 
-    return deleteLabel(id)
+    return deleteLabel()
   }
 
-  deleteByNoteTypeIdWithValueCleanup(noteTypeId: string): number {
-    const deleteLabels = this.getDatabase().transaction((sourceId: string) => {
+  deleteByNoteTypeIdWithValueCleanup(
+    noteTypeId: string,
+    timestamp = new Date().toISOString()
+  ): number {
+    const database = this.getDatabase()
+    const deleteLabels = database.transaction(() => {
       const labelIds = (
-        this.getDatabase()
+        database
           .prepare(
-            'SELECT id FROM labels WHERE note_type_id = ? ORDER BY id ASC'
+            `
+            SELECT id FROM labels
+            WHERE note_type_id = ? AND deleted_at IS NULL
+            ORDER BY id ASC
+          `
           )
-          .all(sourceId) as Array<{ id: string }>
+          .all(noteTypeId) as Array<{ id: string }>
       ).map((row) => row.id)
 
-      this.pruneLabelIdsFromNoteValues(labelIds)
+      this.pruneLabelIdsFromNoteValues(labelIds, timestamp)
 
-      return this.getDatabase()
-        .prepare('DELETE FROM labels WHERE note_type_id = ?')
-        .run(sourceId).changes
+      return this.tombstoneLabels(labelIds, timestamp)
     })
 
-    return deleteLabels(noteTypeId)
+    return deleteLabels()
   }
 
-  private pruneLabelIdsFromNoteValues(labelIds: string[]): number {
+  private pruneLabelIdsFromNoteValues(
+    labelIds: string[],
+    timestamp: string
+  ): number {
     if (labelIds.length === 0) {
       return 0
     }
 
+    const database = this.getDatabase()
     const labelIdSet = new Set(labelIds)
-    const rows = this.getDatabase()
+    const rows = database
       .prepare(
         `
         SELECT note_values.note_id, note_values.column_id, note_values.value_json
         FROM note_values
         INNER JOIN note_columns ON note_columns.id = note_values.column_id
+        INNER JOIN notes ON notes.id = note_values.note_id
         WHERE note_columns.type = 'labels'
+          AND note_columns.deleted_at IS NULL
+          AND notes.deleted_at IS NULL
       `
       )
       .all() as Array<{
@@ -162,14 +218,12 @@ export class LabelsRepository {
       column_id: string
       value_json: string | null
     }>
-    const updateValue = this.getDatabase().prepare(
-      `
+    const updateValue = database.prepare(`
       UPDATE note_values
-      SET value_json = ?, updated_at = CURRENT_TIMESTAMP
+      SET value_json = ?, updated_at = ?
       WHERE note_id = ? AND column_id = ?
-    `
-    )
-
+    `)
+    const affectedNoteIds = new Set<string>()
     let affectedNoteValuesCount = 0
 
     for (const row of rows) {
@@ -185,11 +239,45 @@ export class LabelsRepository {
         continue
       }
 
-      updateValue.run(JSON.stringify(nextValue), row.note_id, row.column_id)
+      updateValue.run(
+        JSON.stringify(nextValue),
+        timestamp,
+        row.note_id,
+        row.column_id
+      )
+      affectedNoteIds.add(row.note_id)
       affectedNoteValuesCount += 1
     }
 
+    refreshNoteMutationMetadata(database, [...affectedNoteIds], timestamp)
+
     return affectedNoteValuesCount
+  }
+
+  private tombstoneLabels(labelIds: string[], timestamp: string): number {
+    const database = this.getDatabase()
+    const tombstoneLabel = database.prepare(`
+      UPDATE labels
+      SET updated_at = @deletedAt,
+          mutation_id = @mutationId,
+          modified_by_device_id = @modifiedByDeviceId,
+          modified_at = @modifiedAt,
+          deleted_at = @deletedAt,
+          deletion_mutation_id = @mutationId,
+          deletion_device_id = @modifiedByDeviceId
+      WHERE id = @id AND deleted_at IS NULL
+    `)
+    let deletedCount = 0
+
+    for (const id of labelIds) {
+      deletedCount += tombstoneLabel.run({
+        id,
+        deletedAt: timestamp,
+        ...createLocalMutationMetadata(database, timestamp),
+      }).changes
+    }
+
+    return deletedCount
   }
 
   private parseLabelIds(valueJson: string | null): string[] | undefined {
@@ -218,6 +306,18 @@ export class LabelsRepository {
       noteTypeId: row.note_type_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+    }
+  }
+
+  private mapSyncLabelRow(row: LabelRow): Label & SyncEntityMetadata {
+    return {
+      ...this.mapLabelRow(row),
+      mutationId: row.mutation_id,
+      modifiedByDeviceId: row.modified_by_device_id,
+      modifiedAt: row.modified_at,
+      deletedAt: row.deleted_at,
+      deletionMutationId: row.deletion_mutation_id,
+      deletionDeviceId: row.deletion_device_id,
     }
   }
 

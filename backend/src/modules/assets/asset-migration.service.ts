@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { DatabaseService } from '../database/database.service'
 import type { NoteImageValue, NoteValue } from '../notes/types/note-value'
+import { createLocalMutationMetadata } from '../sync/utils/create-local-mutation-metadata.util'
 import { AssetsService } from './assets.service'
 
 interface LegacyValueRow {
@@ -32,8 +33,7 @@ export class AssetMigrationService implements OnModuleInit {
     const migrateRow = database.transaction((row: LegacyValueRow) => {
       const value = JSON.parse(row.value_json) as NoteValue
       const managedValue = this.manageLegacyValue(value)
-
-      database
+      const result = database
         .prepare(
           'UPDATE note_values SET value_json = ?, ' +
             'updated_at = CURRENT_TIMESTAMP ' +
@@ -45,6 +45,22 @@ export class AssetMigrationService implements OnModuleInit {
           row.column_id,
           row.value_json
         )
+
+      if (result.changes > 0) {
+        const mutation = createLocalMutationMetadata(database)
+
+        database
+          .prepare(
+            `
+            UPDATE notes
+            SET mutation_id = @mutationId,
+                modified_by_device_id = @modifiedByDeviceId,
+                modified_at = @modifiedAt
+            WHERE id = @id AND deleted_at IS NULL
+          `
+          )
+          .run({ id: row.note_id, ...mutation })
+      }
     })
 
     for (const row of rows) {
