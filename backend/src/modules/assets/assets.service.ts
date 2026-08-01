@@ -90,6 +90,54 @@ export class AssetsService {
     }
   }
 
+  storeSynchronizedImage(
+    buffer: Buffer,
+    expectedAssetId: string,
+    options: StoreImageOptions = {}
+  ): AssetReference {
+    this.ensureValidSize(buffer)
+    const mimeType = detectImageMimeType(buffer)
+    const assetId = createHash('sha256').update(buffer).digest('hex')
+
+    if (
+      !mimeType ||
+      assetId !== expectedAssetId ||
+      (options.mimeType && options.mimeType !== mimeType)
+    ) {
+      throw new BadRequestException(
+        'Synchronized image failed MIME type or hash validation.'
+      )
+    }
+
+    const extension = getImageExtension(mimeType) as string
+    const relativePath =
+      ASSET_DIRECTORY_NAME +
+      '/' +
+      assetId.slice(0, 2) +
+      '/' +
+      assetId +
+      '.' +
+      extension
+    this.writeAtomically(this.resolveManagedPath(relativePath), assetId, buffer)
+    this.assetsRepository.upsertSynchronized({
+      assetId,
+      extension,
+      integrityState: 'available',
+      mimeType,
+      relativePath,
+      size: buffer.length,
+    })
+
+    return {
+      assetId,
+      altText: options.altText,
+      fileName: this.resolveFileName(options.fileName, assetId, extension),
+      height: options.height,
+      mimeType,
+      size: buffer.length,
+      width: options.width,
+    }
+  }
   manageImageValue(value: NoteImageValue): NoteImageValue {
     if (isAssetReference(value)) {
       const record = this.requireAvailableRecord(value.assetId)

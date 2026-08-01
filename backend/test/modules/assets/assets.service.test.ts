@@ -150,4 +150,33 @@ describe('AssetsService', () => {
         .get()
     ).toEqual({ count: 1 })
   })
+
+  it('stores synchronized bytes without creating an echo outbox mutation', () => {
+    const assetId = createHash('sha256').update(pngBytes).digest('hex')
+    const identity = databaseService
+      .getConnection()
+      .prepare('SELECT workspace_id FROM sync_identity WHERE id = 1')
+      .get() as { workspace_id: string }
+    databaseService
+      .getConnection()
+      .prepare(
+        `UPDATE sync_account_state SET is_enabled = 1,
+          active_provider = 'google-drive', connection_state = 'connected',
+          provider_workspace_id = ? WHERE id = 1`
+      )
+      .run(identity.workspace_id)
+
+    service.storeSynchronizedImage(pngBytes, assetId, {
+      fileName: 'remote.png',
+      mimeType: 'image/png',
+    })
+
+    expect(service.readAsset(assetId).buffer).toEqual(pngBytes)
+    expect(
+      databaseService
+        .getConnection()
+        .prepare('SELECT COUNT(*) AS count FROM sync_outbox')
+        .get()
+    ).toEqual({ count: 0 })
+  })
 })

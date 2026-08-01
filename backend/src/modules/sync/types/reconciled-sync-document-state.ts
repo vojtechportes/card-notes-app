@@ -10,5 +10,5 @@ export interface ReconciledSyncDocumentState {
   providerObjectId: string
   providerVersion: string
   contentHash: string
-  mergeBaseJson: string
+  mergeBaseJson: string | null
 }
