@@ -16,6 +16,7 @@ import { SyncConflictTypeEnum } from './types/sync-conflict-type-enum'
 import type { SyncOutboxEntry } from './types/sync-outbox-entry'
 import { SyncOutboxStatusEnum } from './types/sync-outbox-status-enum'
 import type { SyncProviderCursorState } from './types/sync-provider-cursor-state'
+import type { SyncProviderObjectMetadata } from './types/sync-provider-object-metadata'
 import type { SyncPullTransactionHooks } from './types/sync-pull-transaction-hooks'
 import type { SyncRemoteDocument } from './types/sync-remote-document'
 import { applyRemoteConfigurationDocument } from './utils/apply-remote-configuration-document.util'
@@ -110,6 +111,43 @@ export class SyncReconciliationRepository {
       .get(context.workspaceId, context.provider, logicalKey) as
       RemoteObjectRow | undefined
     return row ? this.mapRemoteRow(row) : null
+  }
+
+  findProviderObjectMetadata(
+    provider: ActiveSyncContext['provider'],
+    workspaceId: string,
+    providerObjectId: string
+  ): SyncProviderObjectMetadata | null {
+    const row = this.getDatabase()
+      .prepare(
+        `SELECT logical_key, provider_object_id, provider_version, entity_kind,
+          content_hash
+        FROM sync_remote_objects
+        WHERE provider = ? AND workspace_id = ? AND provider_object_id = ?`
+      )
+      .get(provider, workspaceId, providerObjectId) as
+      | {
+          logical_key: string
+          provider_object_id: string
+          provider_version: string
+          entity_kind: SyncEntityKindEnum
+          content_hash: string | null
+        }
+      | undefined
+
+    if (!row) {
+      return null
+    }
+
+    return {
+      logicalKey: row.logical_key,
+      providerObjectId: row.provider_object_id,
+      providerVersion: row.provider_version,
+      entityKind: row.entity_kind,
+      contentHash: row.content_hash,
+      size: 0,
+      isDeleted: true,
+    }
   }
 
   listRemoteStates(context: ActiveSyncContext): ReconciledSyncDocumentState[] {
