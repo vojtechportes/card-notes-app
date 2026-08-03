@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { Database } from 'better-sqlite3'
+import { v4 as uuidV4 } from 'uuid'
 import { DatabaseService } from '../database/database.service'
+import { SyncConflictRepository } from './sync-conflict.repository'
 import type { ActiveSyncContext } from './types/active-sync-context'
 import type { ClaimedSyncDocument } from './types/claimed-sync-document'
 import type { MappedSyncDocument } from './types/mapped-sync-document'
@@ -8,6 +10,9 @@ import type { PulledSyncAsset } from './types/pulled-sync-asset'
 import type { PulledSyncDocument } from './types/pulled-sync-document'
 import type { ReconciledSyncDocumentState } from './types/reconciled-sync-document-state'
 import { SyncEntityKindEnum } from './types/sync-entity-kind-enum'
+import { SyncMutationIntentEnum } from './types/sync-mutation-intent-enum'
+import type { SyncNoteDocument } from './types/sync-note-document'
+import { SyncConflictTypeEnum } from './types/sync-conflict-type-enum'
 import type { SyncOutboxEntry } from './types/sync-outbox-entry'
 import { SyncOutboxStatusEnum } from './types/sync-outbox-status-enum'
 import type { SyncProviderCursorState } from './types/sync-provider-cursor-state'
@@ -17,6 +22,11 @@ import { applyRemoteConfigurationDocument } from './utils/apply-remote-configura
 import { applyRemoteNoteDocument } from './utils/apply-remote-note-document.util'
 import { createLocalConfigurationSyncDocument } from './utils/create-local-configuration-sync-document.util'
 import { createLocalNoteSyncDocument } from './utils/create-local-note-sync-document.util'
+import { createSyncConflictCopyId } from './utils/create-sync-conflict-copy-id.util'
+import { createSyncConflictCopyMutationId } from './utils/create-sync-conflict-copy-mutation-id.util'
+import { createSyncNoteConflictCopy } from './utils/create-sync-note-conflict-copy.util'
+import { enqueueSyncOutboxMutation } from './utils/enqueue-sync-outbox-mutation.util'
+import { rebaseSyncDocumentForLocalMutation } from './utils/rebase-sync-document-for-local-mutation.util'
 import { saveSyncProviderCursor } from './utils/save-sync-provider-cursor.util'
 
 interface RemoteObjectRow {
@@ -34,7 +44,9 @@ interface RemoteObjectRow {
 @Injectable()
 export class SyncReconciliationRepository {
   constructor(
-    @Inject(DatabaseService) private readonly databaseService: DatabaseService
+    @Inject(DatabaseService) private readonly databaseService: DatabaseService,
+    @Inject(SyncConflictRepository)
+    private readonly conflictRepository: SyncConflictRepository
   ) {}
 
   getActiveContext(): ActiveSyncContext | null {
@@ -134,6 +146,131 @@ export class SyncReconciliationRepository {
     return null
   }
 
+  recordRemoteRepairCondition(
+    context: ActiveSyncContext,
+    logicalKey: string,
+    entityKind: SyncEntityKindEnum,
+    entityId: string,
+    fieldPath: string,
+    removeRemoteMapping: boolean,
+    providerObjectId?: string,
+    providerVersion?: string
+  ): boolean {
+    const transaction = this.getDatabase().transaction(() => {
+      const remoteState = this.findRemoteState(context, logicalKey)
+      if (providerObjectId && providerVersion) {
+        this.getDatabase()
+          .prepare(
+            `UPDATE sync_remote_objects
+            SET provider_object_id = ?, provider_version = ?,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE workspace_id = ? AND provider = ? AND logical_key = ?`
+          )
+          .run(
+            providerObjectId,
+            providerVersion,
+            context.workspaceId,
+            context.provider,
+            logicalKey
+          )
+      }
+
+      const existingRepair = this.getDatabase()
+        .prepare(
+          `SELECT 1 FROM sync_conflicts
+          WHERE workspace_id = ? AND entity_kind = ? AND entity_id IS ?
+            AND conflict_type = 'remote-corruption'
+            AND field_paths_json = ? AND resolution_state = 'unresolved'
+            AND EXISTS (
+              SELECT 1 FROM sync_outbox
+              WHERE workspace_id = ? AND logical_key = ?
+                AND status IN ('pending', 'claimed')
+            )
+          LIMIT 1`
+        )
+        .get(
+          context.workspaceId,
+          entityKind,
+          entityId,
+          JSON.stringify([fieldPath]),
+          context.workspaceId,
+          logicalKey
+        )
+      if (existingRepair) {
+        return true
+      }
+
+      const baseDocument = remoteState?.mergeBaseJson
+        ? (JSON.parse(remoteState.mergeBaseJson) as SyncRemoteDocument)
+        : null
+      const parentHash =
+        baseDocument && 'parentHash' in baseDocument
+          ? baseDocument.parentHash
+          : null
+      const localDocument = this.createLocalDocument(
+        context,
+        entityKind,
+        entityId,
+        parentHash
+      )
+
+      this.conflictRepository.save({
+        workspaceId: context.workspaceId,
+        conflict: {
+          conflictType: SyncConflictTypeEnum.RemoteCorruption,
+          entityKind,
+          entityId,
+          fieldPaths: [fieldPath],
+          baseDocument,
+          localDocument: localDocument?.document ?? null,
+          remoteDocument: null,
+        },
+      })
+
+      if (localDocument && 'entityType' in localDocument.document) {
+        const mutationId = uuidV4()
+        const modifiedAt = new Date().toISOString()
+        const repairDocument = rebaseSyncDocumentForLocalMutation(
+          localDocument.document,
+          removeRemoteMapping ? null : (remoteState?.contentHash ?? null),
+          mutationId,
+          context.deviceId,
+          modifiedAt
+        )
+        if (!('entityType' in repairDocument)) {
+          throw new Error(
+            'Workspace documents cannot be repaired as domain entities.'
+          )
+        }
+
+        let intent = SyncMutationIntentEnum.Upsert
+
+        this.applyDomainDocument(repairDocument)
+        if (repairDocument.entityType === 'note' && repairDocument.deletedAt) {
+          intent = SyncMutationIntentEnum.Tombstone
+        }
+        if (removeRemoteMapping) {
+          this.getDatabase()
+            .prepare(
+              `DELETE FROM sync_remote_objects
+              WHERE workspace_id = ? AND provider = ? AND logical_key = ?`
+            )
+            .run(context.workspaceId, context.provider, logicalKey)
+        }
+
+        enqueueSyncOutboxMutation(this.getDatabase(), {
+          entityKind,
+          entityId,
+          intent,
+          mutationId,
+          modifiedAt,
+        })
+      }
+      return Boolean(localDocument)
+    })
+
+    return transaction()
+  }
   applyPull(
     context: ActiveSyncContext,
     documents: PulledSyncDocument[],
@@ -144,18 +281,81 @@ export class SyncReconciliationRepository {
   ): void {
     const apply = this.getDatabase().transaction(() => {
       for (const pulled of documents) {
+        const domainDocument =
+          pulled.domainMappedDocument?.document ??
+          pulled.mappedDocument.document
+
         if (pulled.applyToDomain) {
-          const document = pulled.mappedDocument.document
-          if ('entityType' in document && document.entityType === 'note') {
-            applyRemoteNoteDocument(this.getDatabase(), document)
-          } else if (
-            'entityType' in document &&
-            document.entityType === 'configuration'
+          this.applyDomainDocument(domainDocument)
+        }
+
+        this.saveRemoteState(context, pulled)
+
+        for (const conflict of pulled.conflicts) {
+          const needsCopy =
+            conflict.conflictCopyDocument &&
+            'entityType' in conflict.conflictCopyDocument &&
+            conflict.conflictCopyDocument.entityType === 'note' &&
+            conflict.conflictCopyDocument.payload
+          const record = this.conflictRepository.save({
+            workspaceId: context.workspaceId,
+            conflict,
+            conflictCopyEntityId: needsCopy
+              ? createSyncConflictCopyId(context.workspaceId, conflict)
+              : undefined,
+          })
+
+          if (
+            needsCopy &&
+            record.conflictCopyEntityId &&
+            !this.noteExists(record.conflictCopyEntityId)
           ) {
-            applyRemoteConfigurationDocument(this.getDatabase(), document)
+            const sourceDocument =
+              conflict.conflictCopyDocument as SyncNoteDocument
+            const mutationId = createSyncConflictCopyMutationId(
+              record.conflictCopyEntityId
+            )
+            const modifiedAt = sourceDocument.modifiedAt
+            const copy = createSyncNoteConflictCopy(
+              sourceDocument,
+              record.conflictCopyEntityId,
+              mutationId,
+              sourceDocument.modifiedBy,
+              modifiedAt
+            )
+
+            applyRemoteNoteDocument(this.getDatabase(), copy)
+            enqueueSyncOutboxMutation(this.getDatabase(), {
+              entityKind: SyncEntityKindEnum.Note,
+              entityId: copy.entityId,
+              intent: SyncMutationIntentEnum.Upsert,
+              mutationId,
+              modifiedAt,
+            })
           }
         }
-        this.saveRemoteState(context, pulled)
+
+        if (pulled.enqueueMergedDocument && 'entityType' in domainDocument) {
+          let entityKind = SyncEntityKindEnum.Configuration
+
+          let intent = SyncMutationIntentEnum.Upsert
+
+          if (domainDocument.entityType === 'note') {
+            entityKind = SyncEntityKindEnum.Note
+            if (domainDocument.deletedAt) {
+              intent = SyncMutationIntentEnum.Tombstone
+            }
+          }
+
+          enqueueSyncOutboxMutation(this.getDatabase(), {
+            entityKind,
+            entityId: domainDocument.entityId,
+            intent,
+            mutationId: domainDocument.mutationId,
+            modifiedAt: domainDocument.modifiedAt,
+          })
+        }
+
         if (pulled.acknowledgeOutbox) {
           const document = pulled.mappedDocument.document
           const mutationId =
@@ -207,6 +407,24 @@ export class SyncReconciliationRepository {
     })
   }
 
+  private applyDomainDocument(document: SyncRemoteDocument): void {
+    if (!('entityType' in document)) {
+      return
+    }
+
+    if (document.entityType === 'note') {
+      applyRemoteNoteDocument(this.getDatabase(), document)
+      return
+    }
+
+    applyRemoteConfigurationDocument(this.getDatabase(), document)
+  }
+
+  private noteExists(noteId: string): boolean {
+    return Boolean(
+      this.getDatabase().prepare('SELECT 1 FROM notes WHERE id = ?').get(noteId)
+    )
+  }
   private saveRemoteState(
     context: ActiveSyncContext,
     pulled: PulledSyncDocument

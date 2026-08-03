@@ -545,7 +545,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Handle interrupted runs and repeated operations idempotently.
   - Add tests at every outbox, remote-write, local-apply, and cursor-commit crash boundary.
 
-- [ ] T106. Implement deterministic merge and recoverable conflict handling
+- [x] T106. Implement deterministic merge and recoverable conflict handling
   - Auto-merge independent notes and independent note/configuration fields by stable UUID using the stored merge base.
   - Preserve concurrent same-field changes and delete-versus-edit as explicit recoverable conflict records/copies; never silently discard user data.
   - Define deterministic configuration scalar and ordering behavior, UUID collision handling, and safe missing/corrupt remote-object repair behavior.

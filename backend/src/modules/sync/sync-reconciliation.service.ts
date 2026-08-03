@@ -7,7 +7,6 @@ import type { CollectedSyncChanges } from './types/collected-sync-changes'
 import type { PendingSyncPushCompletion } from './types/pending-sync-push-completion'
 import type { PulledSyncAsset } from './types/pulled-sync-asset'
 import type { PulledSyncDocument } from './types/pulled-sync-document'
-import { SyncConcurrentChangeError } from './types/sync-concurrent-change-error'
 import { SyncEntityKindEnum } from './types/sync-entity-kind-enum'
 import type { SyncProviderAdapter } from './types/sync-provider-adapter'
 import { SyncProviderError } from './types/sync-provider-error'
@@ -16,7 +15,14 @@ import type { SyncProviderObjectMetadata } from './types/sync-provider-object-me
 import type { SyncReconciliationFaultInjector } from './types/sync-reconciliation-fault-injector'
 import type { SyncReconciliationOptions } from './types/sync-reconciliation-options'
 import type { SyncReconciliationResult } from './types/sync-reconciliation-result'
+import type { SyncMergeConflict } from './types/sync-merge-conflict'
+import { SyncDocumentQuarantineReasonEnum } from './types/sync-document-quarantine-reason-enum'
+import type { SyncRemoteDocument } from './types/sync-remote-document'
 import { SyncRemoteDeletionError } from './types/sync-remote-deletion-error'
+import { getSyncDocumentParentHash } from './utils/get-sync-document-parent-hash.util'
+import { getSyncEntityIdFromLogicalKey } from './utils/get-sync-entity-id-from-logical-key.util'
+import { mapSyncDocument } from './utils/map-sync-document.util'
+import { mergeSyncDocument } from './utils/merge-sync-document.util'
 import { parseRemoteSyncDocument } from './utils/parse-remote-sync-document.util'
 
 const DEFAULT_OUTBOX_LIMIT = 100
@@ -206,12 +212,19 @@ export class SyncReconciliationService {
 
     for (const metadata of changes.metadata) {
       if (metadata.isDeleted) {
-        if (
-          this.reconciliationRepository.findRemoteState(
+        const remoteState = this.reconciliationRepository.findRemoteState(
+          context,
+          metadata.logicalKey
+        )
+        if (remoteState) {
+          this.reconciliationRepository.recordRemoteRepairCondition(
             context,
-            metadata.logicalKey
+            metadata.logicalKey,
+            metadata.entityKind,
+            remoteState.entityId,
+            '$remote.missing',
+            true
           )
-        ) {
           throw new SyncRemoteDeletionError(metadata.logicalKey)
         }
         continue
@@ -242,9 +255,44 @@ export class SyncReconciliationService {
         { expectedWorkspaceId: context.workspaceId }
       )
       if (parsed.status === 'quarantined') {
-        throw new Error(
-          `Remote document ${metadata.logicalKey} was quarantined: ${parsed.reason}`
+        if (
+          parsed.reason ===
+          SyncDocumentQuarantineReasonEnum.UnsupportedFormatVersion
+        ) {
+          throw new Error(
+            `Remote document ${metadata.logicalKey} requires a newer application version.`
+          )
+        }
+
+        const knownState = this.reconciliationRepository.findRemoteState(
+          context,
+          metadata.logicalKey
         )
+        const entityId =
+          knownState?.entityId ??
+          getSyncEntityIdFromLogicalKey(
+            metadata.logicalKey,
+            metadata.entityKind
+          )
+
+        const repairScheduled =
+          this.reconciliationRepository.recordRemoteRepairCondition(
+            context,
+            metadata.logicalKey,
+            metadata.entityKind,
+            entityId,
+            `$remote.${parsed.reason}`,
+            false,
+            read.providerObjectId,
+            read.providerVersion
+          )
+        if (!repairScheduled) {
+          throw new Error(
+            `Remote document ${metadata.logicalKey} was quarantined: ${parsed.reason}`
+          )
+        }
+
+        continue
       }
 
       const remoteState = this.reconciliationRepository.findRemoteState(
@@ -252,44 +300,60 @@ export class SyncReconciliationService {
         metadata.logicalKey
       )
       const baseDocument = remoteState?.mergeBaseJson
-        ? (JSON.parse(remoteState.mergeBaseJson) as {
-            parentHash?: string | null
-          })
+        ? (JSON.parse(remoteState.mergeBaseJson) as SyncRemoteDocument)
         : null
       const entityId =
         'entityId' in parsed.mappedDocument.document
           ? parsed.mappedDocument.document.entityId
           : parsed.mappedDocument.document.workspaceId
+      const baseParentHash = getSyncDocumentParentHash(baseDocument)
       const localDocument = this.reconciliationRepository.createLocalDocument(
         context,
         metadata.entityKind,
         entityId,
-        baseDocument?.parentHash ?? null
+        baseParentHash
       )
       const remoteParentHash =
         'parentHash' in parsed.mappedDocument.document
           ? parsed.mappedDocument.document.parentHash
           : null
       const localDocumentWithRemoteParent =
-        remoteParentHash === (baseDocument?.parentHash ?? null)
-          ? localDocument
-          : this.reconciliationRepository.createLocalDocument(
+        localDocument && remoteParentHash !== baseParentHash
+          ? this.reconciliationRepository.createLocalDocument(
               context,
               metadata.entityKind,
               entityId,
               remoteParentHash
             )
+          : localDocument
+
       let applyToDomain = false
       let acknowledgeOutbox = false
+      let enqueueMergedDocument = false
+      let domainMappedDocument = parsed.mappedDocument
+      let conflicts: SyncMergeConflict[] = []
+
       if (!remoteState) {
         if (
           localDocument &&
           localDocument.contentHash !== parsed.mappedDocument.contentHash
         ) {
-          throw new SyncConcurrentChangeError(metadata.logicalKey)
+          const mergeResult = mergeSyncDocument(
+            null,
+            localDocument.document,
+            parsed.mappedDocument.document
+          )
+          domainMappedDocument = mapSyncDocument(mergeResult.document)
+          conflicts = mergeResult.conflicts
+          applyToDomain = true
+          enqueueMergedDocument =
+            domainMappedDocument.contentHash !==
+            parsed.mappedDocument.contentHash
+        } else {
+          applyToDomain = !localDocument
+          acknowledgeOutbox =
+            acknowledgeMatchingOutbox && Boolean(localDocument)
         }
-        applyToDomain = !localDocument
-        acknowledgeOutbox = acknowledgeMatchingOutbox && Boolean(localDocument)
       } else if (
         parsed.mappedDocument.contentHash === remoteState.contentHash
       ) {
@@ -297,16 +361,29 @@ export class SyncReconciliationService {
       } else if (localDocument?.contentHash === remoteState.contentHash) {
         applyToDomain = true
       } else if (
-        localDocumentWithRemoteParent?.contentHash !==
-        parsed.mappedDocument.contentHash
+        localDocument?.contentHash === parsed.mappedDocument.contentHash
       ) {
-        throw new SyncConcurrentChangeError(metadata.logicalKey)
-      } else {
         acknowledgeOutbox = acknowledgeMatchingOutbox
+      } else if (localDocument) {
+        const mergeResult = mergeSyncDocument(
+          baseDocument,
+          localDocument.document,
+          parsed.mappedDocument.document
+        )
+        domainMappedDocument = mapSyncDocument(mergeResult.document)
+        conflicts = mergeResult.conflicts
+        applyToDomain = true
+        enqueueMergedDocument =
+          domainMappedDocument.contentHash !== parsed.mappedDocument.contentHash
+        acknowledgeOutbox = acknowledgeMatchingOutbox && !enqueueMergedDocument
+      } else {
+        applyToDomain = true
       }
 
       documents.push({
         mappedDocument: parsed.mappedDocument,
+        domainMappedDocument,
+        conflicts,
         metadata: {
           ...metadata,
           providerObjectId: read.providerObjectId,
@@ -314,6 +391,7 @@ export class SyncReconciliationService {
         },
         applyToDomain,
         acknowledgeOutbox,
+        enqueueMergedDocument,
       })
     }
 
@@ -388,6 +466,14 @@ export class SyncReconciliationService {
         .listRemoteStates(context)
         .find((remote) => !enumeratedKeys.has(remote.logicalKey))
       if (missingObject) {
+        this.reconciliationRepository.recordRemoteRepairCondition(
+          context,
+          missingObject.logicalKey,
+          missingObject.entityKind,
+          missingObject.entityId,
+          '$remote.missing',
+          true
+        )
         throw new SyncRemoteDeletionError(missingObject.logicalKey)
       }
     }
