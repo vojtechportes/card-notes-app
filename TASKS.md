@@ -560,7 +560,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Pass the shared provider contract tests and add focused authentication, pagination, throttling, quota, transfer, and corruption tests.
   - Keep correctness independent of webhook delivery in this slice.
 
-- [ ] T108. Add the OneDrive storage adapter and adaptive delta scheduler
+- [x] T108. Add the OneDrive storage adapter and adaptive delta scheduler
   - Use `special/approot` with delegated `Files.ReadWrite.AppFolder`, Graph delta links, drive item IDs, conditional ETag writes, and resumable asset transfers where needed.
   - Poll immediately on startup, focus, resume, manual request, and network recovery; while active use adaptive polling around 30-60 seconds and a background watchdog around 10-15 minutes.
   - Honor Retry-After, throttling, transient failures, invalid delta state, and safe full enumeration.
