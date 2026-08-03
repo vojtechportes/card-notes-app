@@ -122,6 +122,21 @@ describe('SyncReconciliationService', () => {
         reconciliationRepository.getActiveContext()!
       )
     ).toMatchObject({ cursor: '1', isInvalidated: false })
+    const providerObjectId = adapter.getObject(
+      remote.logicalKey
+    )!.providerObjectId
+    expect(
+      reconciliationRepository.findProviderObjectMetadata(
+        reconciliationRepository.getActiveContext()!.provider,
+        workspaceId,
+        providerObjectId
+      )
+    ).toMatchObject({
+      logicalKey: remote.logicalKey,
+      providerObjectId,
+      entityKind: SyncEntityKindEnum.Note,
+      isDeleted: true,
+    })
   })
 
   it('rolls back domain state, remote metadata, and cursor together at the cursor boundary', async () => {

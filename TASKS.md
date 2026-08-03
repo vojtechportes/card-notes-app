@@ -552,7 +552,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Validate template/field/label references before committing merged configuration.
   - Add tests for edit/edit, edit/delete, create/create UUID collision, reorder, repeated delivery, conflict resolution, and retry convergence.
 
-- [ ] T107. Add the Google Drive storage adapter
+- [x] T107. Add the Google Drive storage adapter
   - Use hidden `appDataFolder` with the narrow `drive.appdata` scope.
   - Implement workspace discovery, provider file-ID/version mapping, start/change page tokens, `changes.list`, conditional writes, and appropriate resumable asset transfer.
   - Classify logical objects without depending on user-visible paths.
