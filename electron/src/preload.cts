@@ -1,6 +1,10 @@
 import type { IpcRenderer } from 'electron'
 import type { NoteStackStartupBridge } from './startup/types/notestack-startup-bridge.js'
 import type { StartupState } from './startup/types/startup-state.js'
+import type { NoteStackOAuthBridge } from './auth/types/notestack-oauth-bridge.js'
+import type { OAuthConnectOptions } from './auth/types/oauth-connect-options.js'
+import type { OAuthProviderEnum } from './auth/types/oauth-provider-enum.js'
+import type { OAuthPublicState } from './auth/types/oauth-public-state.js'
 import type {
   NoteStackWindowControlsBridge,
   WindowControlsState,
@@ -17,6 +21,14 @@ const { contextBridge, ipcRenderer } = require('electron') as {
   ipcRenderer: Pick<IpcRenderer, 'invoke' | 'on' | 'removeListener'>
 }
 
+const oauthIpcChannels = {
+  cancel: 'oauth:cancel',
+  connect: 'oauth:connect',
+  disconnect: 'oauth:disconnect',
+  getState: 'oauth:get-state',
+  reconnect: 'oauth:reconnect',
+  stateChanged: 'oauth:state-changed',
+} as const
 const startupIpcChannels = {
   exit: 'startup:exit',
   getState: 'startup:get-state',
@@ -41,6 +53,30 @@ const windowControlsIpcChannels = {
   toggleMaximize: 'window-controls:toggle-maximize',
 } as const
 
+const oauthBridge: NoteStackOAuthBridge = {
+  cancel: () => ipcRenderer.invoke(oauthIpcChannels.cancel),
+  connect: (options: OAuthConnectOptions) =>
+    ipcRenderer.invoke(oauthIpcChannels.connect, options),
+  disconnect: (provider: OAuthProviderEnum) =>
+    ipcRenderer.invoke(oauthIpcChannels.disconnect, provider),
+  getState: () => ipcRenderer.invoke(oauthIpcChannels.getState),
+  reconnect: (options: OAuthConnectOptions) =>
+    ipcRenderer.invoke(oauthIpcChannels.reconnect, options),
+  subscribe: (listener: (state: OAuthPublicState) => void) => {
+    const handleStateChange = (_event: unknown, state: OAuthPublicState) => {
+      listener(state)
+    }
+
+    ipcRenderer.on(oauthIpcChannels.stateChanged, handleStateChange)
+
+    return () => {
+      ipcRenderer.removeListener(
+        oauthIpcChannels.stateChanged,
+        handleStateChange
+      )
+    }
+  },
+}
 const startupBridge: NoteStackStartupBridge = {
   exit: () => ipcRenderer.invoke(startupIpcChannels.exit),
   getState: () => ipcRenderer.invoke(startupIpcChannels.getState),
@@ -113,6 +149,7 @@ const windowControlsBridge: NoteStackWindowControlsBridge = {
     ipcRenderer.invoke(windowControlsIpcChannels.toggleMaximize),
 }
 
+contextBridge.exposeInMainWorld('noteStackOAuth', oauthBridge)
 contextBridge.exposeInMainWorld('noteStackStartup', startupBridge)
 contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)
 contextBridge.exposeInMainWorld('noteStackWindowControls', windowControlsBridge)

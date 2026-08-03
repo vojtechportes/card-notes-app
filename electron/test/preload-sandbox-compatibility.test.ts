@@ -6,6 +6,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
+import type { NoteStackOAuthBridge } from '../src/auth/types/notestack-oauth-bridge'
+import { OAuthProviderEnum } from '../src/auth/types/oauth-provider-enum'
 import type { NoteStackStartupBridge } from '../src/startup/types/notestack-startup-bridge'
 import type { NoteStackUpdaterBridge } from '../src/updater/updater-contract'
 import type { NoteStackWindowControlsBridge } from '../src/window-controls/types/notestack-window-controls-bridge'
@@ -15,6 +17,15 @@ class IpcRendererMock extends EventEmitter {
 
   invoke(channel: string): Promise<unknown> {
     this.invocations.push(channel)
+
+    if (channel === 'oauth:get-state') {
+      return Promise.resolve({
+        account: null,
+        errorCode: null,
+        provider: null,
+        status: 'disconnected',
+      })
+    }
 
     if (channel === 'startup:get-state') {
       return Promise.resolve({ status: 'starting', phase: 'initial' })
@@ -62,6 +73,7 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     },
   })
 
+  const oauthBridge = exposed.get('noteStackOAuth') as NoteStackOAuthBridge
   const startupBridge = exposed.get(
     'noteStackStartup'
   ) as NoteStackStartupBridge
@@ -72,9 +84,20 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     'noteStackWindowControls'
   ) as NoteStackWindowControlsBridge
 
+  assert.ok(oauthBridge)
   assert.ok(startupBridge)
   assert.ok(updaterBridge)
   assert.ok(windowControlsBridge)
+  assert.deepEqual(await oauthBridge.getState(), {
+    account: null,
+    errorCode: null,
+    provider: null,
+    status: 'disconnected',
+  })
+  await oauthBridge.connect({ provider: OAuthProviderEnum.GoogleDrive })
+  await oauthBridge.reconnect({ provider: OAuthProviderEnum.OneDrive })
+  await oauthBridge.disconnect(OAuthProviderEnum.GoogleDrive)
+  await oauthBridge.cancel()
   assert.deepEqual(await startupBridge.getState(), {
     status: 'starting',
     phase: 'initial',
@@ -117,6 +140,11 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
 
   assert.deepEqual(receivedWindowStates, [{ isMaximized: true }])
   assert.deepEqual(ipcRenderer.invocations, [
+    'oauth:get-state',
+    'oauth:connect',
+    'oauth:reconnect',
+    'oauth:disconnect',
+    'oauth:cancel',
     'startup:get-state',
     'startup:open-backend-log',
     'startup:retry',
