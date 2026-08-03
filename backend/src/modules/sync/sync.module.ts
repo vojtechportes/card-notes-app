@@ -7,10 +7,12 @@ import { SyncOutboxRepository } from './sync-outbox.repository'
 import { SyncReconciliationRepository } from './sync-reconciliation.repository'
 import { SyncReconciliationService } from './sync-reconciliation.service'
 import { SyncRemoteDocumentRepository } from './sync-remote-document.repository'
+import { CredentialBrokerClient } from './credential-broker/credential-broker.client'
 
 @Module({
   imports: [AssetsModule, DatabaseModule],
   providers: [
+    CredentialBrokerClient,
     SyncConflictRepository,
     SyncConflictService,
     SyncOutboxRepository,
@@ -19,6 +21,7 @@ import { SyncRemoteDocumentRepository } from './sync-remote-document.repository'
     SyncRemoteDocumentRepository,
   ],
   exports: [
+    CredentialBrokerClient,
     SyncConflictRepository,
     SyncConflictService,
     SyncOutboxRepository,

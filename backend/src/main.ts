@@ -24,6 +24,8 @@ import { ReorderColumnsDto } from './modules/settings/types/reorder-columns.dto'
 import { UpdateColumnDto } from './modules/settings/types/update-column.dto'
 import { UpdateGeneralSettingsDto } from './modules/settings/types/update-general-settings.dto'
 import { UpdateNoteTypeDto } from './modules/settings/types/update-note-type.dto'
+import { credentialBrokerBootstrapState } from './modules/sync/credential-broker/credential-broker-bootstrap-state'
+import { readCredentialBrokerBootstrap } from './modules/sync/credential-broker/read-credential-broker-bootstrap'
 
 const swaggerExtraModels = [
   CreateColumnDto,
@@ -50,6 +52,12 @@ const swaggerExtraModels = [
 ]
 
 async function bootstrap(): Promise<void> {
+  if (process.env.NOTESTACK_CREDENTIAL_BROKER_BOOTSTRAP === 'stdin') {
+    credentialBrokerBootstrapState.value = await readCredentialBrokerBootstrap(
+      process.stdin
+    )
+  }
+
   const app = await NestFactory.create(AppModule)
 
   app.enableCors()

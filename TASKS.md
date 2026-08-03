@@ -567,7 +567,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Do not request `Files.Read`, `Files.Read.All`, or other full-drive permissions for notifications.
   - Pass the shared provider contract tests and add cadence/backoff, pagination, ETag, transfer, and recovery coverage.
 
-- [ ] T109. Add Electron OAuth and secure credential brokering
+- [x] T109. Add Electron OAuth and secure credential brokering
   - Register/connect Google and Microsoft through system-browser Authorization Code with PKCE and validated callbacks suitable for development and packaged Electron.
   - Keep provider authentication lazy: create no OAuth session or stored credential until the user explicitly enables synchronization and selects a provider.
   - Store refresh credentials only through OS-backed secure storage owned by Electron; React, normal SQLite settings, logs, and the notification service receive no credentials.

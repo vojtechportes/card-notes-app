@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import type { AppUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
@@ -29,6 +29,14 @@ import { findAvailablePort } from './startup/utils/find-available-port.util.js'
 import { openBackendLog } from './startup/utils/open-backend-log.util.js'
 import { noteStackRuntimeQuery } from './runtime/constants/note-stack-runtime-query.js'
 import { addNoteStackRuntimeMarker } from './runtime/utils/add-note-stack-runtime-marker.util.js'
+import { createAuthRuntime } from './auth/create-auth-runtime.js'
+import { registerOAuthIpc } from './auth/register-oauth-ipc.js'
+import { oauthIpcChannels } from './auth/constants/oauth-ipc-channels.js'
+import type { AuthRuntime } from './auth/types/auth-runtime.js'
+import type { OAuthPublicState } from './auth/types/oauth-public-state.js'
+import { runPackagedOAuthVerification } from './auth/packaged/run-packaged-oauth-verification.util.js'
+import { getPackagedOAuthVerificationRoot } from './auth/packaged/get-packaged-oauth-verification-root.util.js'
+import { writePackagedOAuthVerificationResult } from './auth/packaged/write-packaged-oauth-verification-result.util.js'
 import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
 import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
 
@@ -74,6 +82,8 @@ const backendLogFileName = 'backend.log'
 const frontendDevServerUrl = process.env.FRONTEND_DEV_SERVER_URL
 const allowedExternalProtocols = new Set(['http:', 'https:', 'mailto:'])
 
+let authRuntime: AuthRuntime | null = null
+let unregisterOAuthIpc: (() => void) | null = null
 let backendStartupController: BackendStartupController | null = null
 let mainWindow: BrowserWindow | null = null
 let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
@@ -81,10 +91,36 @@ let updaterService: UpdaterService | null = null
 
 app.setName('NoteStack')
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
+const isPackagedOAuthVerification =
+  process.env.NOTESTACK_VERIFY_PACKAGED_OAUTH === '1'
+const packagedOAuthVerificationRoot = getPackagedOAuthVerificationRoot(
+  app.getPath('temp'),
+  process.env.NOTESTACK_PACKAGED_OAUTH_VERIFICATION_ROOT
+)
+
+if (isPackagedOAuthVerification && packagedOAuthVerificationRoot) {
+  app.setPath('userData', path.join(packagedOAuthVerificationRoot, 'user-data'))
+}
+
+const hasSingleInstanceLock =
+  isPackagedOAuthVerification || app.requestSingleInstanceLock()
 
 if (!hasSingleInstanceLock) {
   app.quit()
+} else if (isPackagedOAuthVerification) {
+  app.whenReady().then(async () => {
+    try {
+      if (!packagedOAuthVerificationRoot) {
+        throw new Error('Packaged OAuth verification root is invalid.')
+      }
+
+      await runPackagedOAuthVerification(app, safeStorage)
+      writePackagedOAuthVerificationResult(packagedOAuthVerificationRoot)
+      app.exit(0)
+    } catch {
+      app.exit(1)
+    }
+  })
 } else {
   app.on('second-instance', () => {
     if (!mainWindow) {
@@ -110,6 +146,11 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  unregisterOAuthIpc?.()
+  unregisterOAuthIpc = null
+  authRuntime?.dispose()
+  authRuntime = null
+
   updaterBackgroundSchedule?.dispose()
   updaterBackgroundSchedule = null
 
@@ -119,6 +160,13 @@ app.on('before-quit', () => {
 
 async function startApplication(): Promise<void> {
   try {
+    authRuntime = await createAuthRuntime({
+      dataRoot: applicationDataRoot,
+      onStateChange: emitOAuthState,
+      openExternal: (url) => shell.openExternal(url),
+      safeStorage,
+    })
+    unregisterOAuthIpc = registerOAuthIpc(authRuntime.oauthService)
     backendPort = await findAvailablePort(backendHost)
     const apiBaseUrl = `http://${backendHost}:${backendPort}/api`
     backendHealthUrl = `${apiBaseUrl}/health`
@@ -160,6 +208,10 @@ async function startApplication(): Promise<void> {
       }
     })
   } catch (error) {
+    unregisterOAuthIpc?.()
+    unregisterOAuthIpc = null
+    authRuntime?.dispose()
+    authRuntime = null
     backendStartupController?.dispose()
     dialog.showErrorBox(
       'Unable to start NoteStack',
@@ -245,6 +297,14 @@ async function createMainWindow(): Promise<void> {
   })
 }
 
+function emitOAuthState(state: OAuthPublicState): void {
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    if (!browserWindow.isDestroyed()) {
+      browserWindow.webContents.send(oauthIpcChannels.stateChanged, state)
+    }
+  }
+}
+
 function emitUpdaterState(state: UpdaterState): void {
   for (const browserWindow of BrowserWindow.getAllWindows()) {
     if (browserWindow.isDestroyed()) {
@@ -322,9 +382,17 @@ function startBackendProcess(): ChildProcess {
       PORT: String(port),
       BACKEND_PORT: String(port),
       CARD_NOTES_DATA_ROOT: applicationDataRoot,
+      NOTESTACK_CREDENTIAL_BROKER_BOOTSTRAP: 'stdin',
     },
     stdio: 'pipe',
   })
+
+  if (!authRuntime) {
+    childProcess.kill()
+    throw new Error('Credential broker is unavailable.')
+  }
+
+  childProcess.stdin?.end(JSON.stringify(authRuntime.bootstrap) + '\n')
 
   childProcess.stdout?.on('data', (chunk: Buffer) => {
     const output = chunk.toString()
