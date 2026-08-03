@@ -575,7 +575,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Support refresh, reconnect, revoke/sign-out, cancellation, callback timeout/state mismatch, wrong-account/workspace detection, and redaction.
   - Add Electron tests and packaged-flow verification for both providers.
 
-- [ ] T110. Add synchronization orchestration and backend API
+- [x] T110. Add synchronization orchestration and backend API
   - Serialize runs and expose stable status, account/workspace metadata, manual sync, pending-change, conflict, disconnect/switch, and repair APIs through Swagger.
   - Regenerate frontend API types and keep request functions returning full Axios promises without `await`.
   - Make every sync trigger a no-op while synchronization is disabled; once enabled, push local changes after a 3-5 second debounce capped at 30 seconds and reconcile on startup, focus, resume, connectivity recovery, provider signal, manual request, and watchdog intervals.
