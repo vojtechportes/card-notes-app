@@ -1,7 +1,15 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  net,
+  powerMonitor,
+  safeStorage,
+  shell,
+} from 'electron'
 import electronUpdater from 'electron-updater'
 import type { AppUpdater } from 'electron-updater'
 import { fileURLToPath } from 'node:url'
@@ -39,6 +47,10 @@ import { getPackagedOAuthVerificationRoot } from './auth/packaged/get-packaged-o
 import { writePackagedOAuthVerificationResult } from './auth/packaged/write-packaged-oauth-verification-result.util.js'
 import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
 import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
+import { createSyncTriggerSchedule } from './sync/create-sync-trigger-schedule.js'
+import type { SyncTriggerSchedule } from './sync/create-sync-trigger-schedule.js'
+import { createSyncQuitHandler } from './sync/utils/create-sync-quit-handler.util.js'
+import { sendSyncTrigger } from './sync/utils/send-sync-trigger.util.js'
 
 const { autoUpdater } = electronUpdater
 const windowsAutoUpdater = autoUpdater as AppUpdater & {
@@ -75,6 +87,7 @@ const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
 const applicationDataRoot = getApplicationDataRoot(app.getPath('appData'))
 let backendPort: number | null = null
 let backendHealthUrl: string | null = null
+let backendApiBaseUrl: string | null = null
 const backendStartupSoftThresholdMs = 30_000
 const backendPollIntervalMs = 250
 const backendHealthRequestTimeoutMs = 2_000
@@ -88,6 +101,7 @@ let backendStartupController: BackendStartupController | null = null
 let mainWindow: BrowserWindow | null = null
 let updaterBackgroundSchedule: UpdaterBackgroundSchedule | null = null
 let updaterService: UpdaterService | null = null
+let syncTriggerSchedule: SyncTriggerSchedule | null = null
 
 app.setName('NoteStack')
 
@@ -145,7 +159,19 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+app.on(
+  'before-quit',
+  createSyncQuitHandler({
+    dispose: disposeApplicationResources,
+    flush: () => syncTriggerSchedule?.flushBeforeQuit() ?? Promise.resolve(),
+    quit: () => app.quit(),
+  })
+)
+
+function disposeApplicationResources(): void {
+  syncTriggerSchedule?.dispose()
+  syncTriggerSchedule = null
+
   unregisterOAuthIpc?.()
   unregisterOAuthIpc = null
   authRuntime?.dispose()
@@ -156,8 +182,7 @@ app.on('before-quit', () => {
 
   backendStartupController?.dispose()
   backendStartupController = null
-})
-
+}
 async function startApplication(): Promise<void> {
   try {
     authRuntime = await createAuthRuntime({
@@ -169,6 +194,7 @@ async function startApplication(): Promise<void> {
     unregisterOAuthIpc = registerOAuthIpc(authRuntime.oauthService)
     backendPort = await findAvailablePort(backendHost)
     const apiBaseUrl = `http://${backendHost}:${backendPort}/api`
+    backendApiBaseUrl = apiBaseUrl
     backendHealthUrl = `${apiBaseUrl}/health`
     updaterService = createUpdaterService({
       client: autoUpdater,
@@ -200,6 +226,22 @@ async function startApplication(): Promise<void> {
     })
 
     backendStartupController.start()
+    syncTriggerSchedule = createSyncTriggerSchedule({
+      isOnline: () => net.isOnline(),
+      onFocus: (listener) => {
+        app.on('browser-window-focus', listener)
+        return () => app.off('browser-window-focus', listener)
+      },
+      onResume: (listener) => {
+        powerMonitor.on('resume', listener)
+        return () => powerMonitor.off('resume', listener)
+      },
+      send: (trigger) => {
+        if (backendApiBaseUrl) {
+          return sendSyncTrigger(backendApiBaseUrl, trigger)
+        }
+      },
+    })
     await createMainWindow()
 
     app.on('activate', () => {

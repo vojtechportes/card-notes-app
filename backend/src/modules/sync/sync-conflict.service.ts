@@ -30,9 +30,7 @@ export class SyncConflictService {
   ) {}
 
   listUnresolved(): SyncConflictRecord[] {
-    const context = this.getContext()
-
-    return this.conflictRepository.listUnresolved(context.workspaceId)
+    return this.conflictRepository.listUnresolved(this.getWorkspaceId())
   }
 
   findById(conflictId: string): SyncConflictRecord | null {
@@ -161,6 +159,16 @@ export class SyncConflictService {
 
   private parseStoredDocument(value: string | null): SyncRemoteDocument | null {
     return value ? (JSON.parse(value) as SyncRemoteDocument) : null
+  }
+
+  private getWorkspaceId(): string {
+    const identity = this.getDatabase()
+      .prepare(
+        'SELECT workspace_id AS workspaceId FROM sync_identity WHERE id = 1'
+      )
+      .get() as { workspaceId: string }
+
+    return identity.workspaceId
   }
 
   private getContext(): ConflictResolutionContext {

@@ -6,12 +6,14 @@ import { HashRouter } from 'react-router-dom'
 import { theme } from '../../theme'
 import { createQueryClient } from '../../utils/create-query-client.util'
 import { ConfirmationProvider } from '../confirmation'
+import { SyncCacheObserver } from '../sync-cache-observer/sync-cache-observer'
 
 export const AppProviders = ({ children }: PropsWithChildren) => {
   const [queryClient] = useState(createQueryClient)
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SyncCacheObserver />
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <ConfirmationProvider>
