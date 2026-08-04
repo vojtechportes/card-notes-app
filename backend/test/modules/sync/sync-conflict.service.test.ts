@@ -8,6 +8,7 @@ import { SyncConflictResolutionStateEnum } from '../../../src/modules/sync/types
 import { SyncConflictTypeEnum } from '../../../src/modules/sync/types/sync-conflict-type-enum'
 import { SyncEntityKindEnum } from '../../../src/modules/sync/types/sync-entity-kind-enum'
 import type { SyncNoteDocument } from '../../../src/modules/sync/types/sync-note-document'
+import { applyRemoteNoteDocument } from '../../../src/modules/sync/utils/apply-remote-note-document.util'
 import { mapSyncDocument } from '../../../src/modules/sync/utils/map-sync-document.util'
 
 const remoteDeviceId = '22222222-2222-4222-8222-222222222222'
@@ -129,6 +130,91 @@ describe('SyncConflictService', () => {
     expect(repeated.conflictCopyEntityId).toBe(first.conflictCopyEntityId)
     expect(conflictService.listUnresolved()).toHaveLength(1)
   })
+
+  it.each([
+    ['local', 'remote'],
+    ['remote', 'local'],
+  ] as const)(
+    'retains the active %s version and the preserved %s copy without reapplying either',
+    (activeValue, copyValue) => {
+      const { workspaceId, noteTypeId, columnId } = activateSynchronization()
+      const noteId = uuidV4()
+      const copyId = uuidV4()
+      const local = createNote(
+        workspaceId,
+        noteTypeId,
+        noteId,
+        uuidV4(),
+        columnId,
+        'local'
+      )
+      const remote = createNote(
+        workspaceId,
+        noteTypeId,
+        noteId,
+        uuidV4(),
+        columnId,
+        'remote'
+      )
+      const active = activeValue === 'local' ? local : remote
+      const copy = createNote(
+        workspaceId,
+        noteTypeId,
+        copyId,
+        uuidV4(),
+        columnId,
+        copyValue
+      )
+      applyRemoteNoteDocument(databaseService.getConnection(), active)
+      applyRemoteNoteDocument(databaseService.getConnection(), copy)
+      const conflict = conflictRepository.save({
+        workspaceId,
+        conflict: {
+          conflictType: SyncConflictTypeEnum.EditEdit,
+          entityKind: SyncEntityKindEnum.Note,
+          entityId: noteId,
+          fieldPaths: [`payload.values.${columnId}`],
+          baseDocument: null,
+          localDocument: local,
+          remoteDocument: remote,
+          conflictCopyDocument: copyValue === 'local' ? local : remote,
+        },
+        conflictCopyEntityId: copyId,
+      })
+
+      const resolved = conflictService.resolve({
+        conflictId: conflict.id,
+        resolutionState: SyncConflictResolutionStateEnum.ResolvedMerged,
+        retainBoth: true,
+      })
+      const values = databaseService
+        .getConnection()
+        .prepare(
+          `SELECT notes.id, note_values.value_json AS valueJson
+          FROM notes INNER JOIN note_values ON note_values.note_id = notes.id
+          WHERE notes.id IN (?, ?) AND note_values.column_id = ?
+          ORDER BY notes.id`
+        )
+        .all(noteId, copyId, columnId) as Array<{
+        id: string
+        valueJson: string
+      }>
+      const valueById = new Map(
+        values.map((value) => [value.id, JSON.parse(value.valueJson)])
+      )
+      const outboxCount = databaseService
+        .getConnection()
+        .prepare('SELECT COUNT(*) AS count FROM sync_outbox')
+        .get() as { count: number }
+
+      expect(resolved.resolutionState).toBe(
+        SyncConflictResolutionStateEnum.ResolvedMerged
+      )
+      expect(valueById.get(noteId)).toBe(activeValue)
+      expect(valueById.get(copyId)).toBe(copyValue)
+      expect(outboxCount.count).toBe(0)
+    }
+  )
 
   it('rejects unavailable resolution documents without clearing the conflict', () => {
     const { workspaceId, noteTypeId, columnId } = activateSynchronization()

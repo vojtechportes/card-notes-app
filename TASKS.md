@@ -605,7 +605,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Detect wrong accounts/workspaces, manually removed provider files, missing assets, schema incompatibility, and damaged remote state, then expose safe repair/reset operations.
   - Add backup/restore, all pairing modes, switch interruption, account mismatch, manual deletion, repair, and baseline/outbox tests.
 
-- [ ] T114. Add user-facing Synchronization settings, status, startup gate, and recovery UX
+- [x] T114. Add user-facing Synchronization settings, status, startup gate, and recovery UX
   - Add a localized Settings > Synchronization page with synchronization disabled and no provider selected by default on fresh installs and upgrades.
   - Perform no provider OAuth, cloud API, relay, polling, or synchronization network activity until the user explicitly enables synchronization and chooses Google Drive or OneDrive.
   - Once enabled, support exactly one active provider with connect, reconnect, disconnect, switch, account/workspace status, last success, pending changes, current error/conflict state, and Sync now.
@@ -773,3 +773,4 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
 ## Current First Slice
 
 Start with T00-T02 plus the minimum T10/T20 setup needed to run basic backend/frontend build commands. Keep the first slice intentionally small: project structure, package scripts, TypeScript configs, and minimal app entry points. Do not implement full notes/settings behavior in the scaffold slice.
+

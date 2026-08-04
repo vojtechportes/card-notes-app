@@ -16,4 +16,7 @@ export class ResolveSyncConflictDto {
 
   @ApiPropertyOptional({ type: Object })
   mergedDocument?: Record<string, unknown>
+
+  @ApiPropertyOptional({ type: Boolean })
+  retainBoth?: boolean
 }

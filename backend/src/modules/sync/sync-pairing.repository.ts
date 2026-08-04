@@ -181,6 +181,15 @@ export class SyncPairingRepository {
       )
   }
 
+  setEnabled(isEnabled: boolean): void {
+    this.getDatabase()
+      .prepare(
+        `UPDATE sync_account_state SET is_enabled = ?,
+        connection_state = ?, last_error_classification = NULL,
+        updated_at = CURRENT_TIMESTAMP WHERE id = 1`
+      )
+      .run(isEnabled ? 1 : 0, isEnabled ? 'connected' : 'disconnected')
+  }
   disconnect(): void {
     this.getDatabase()
       .prepare(

@@ -2,7 +2,8 @@
 // Do not edit by hand.
 
 export type SyncCommandDto = {
-  command: 'disconnect' | 'switch-provider' | 'reset' | 'repair'
+  command:
+    'enable' | 'disable' | 'disconnect' | 'switch-provider' | 'reset' | 'repair'
   confirmed?: boolean
   targetProvider?: 'google-drive' | 'one-drive'
 }

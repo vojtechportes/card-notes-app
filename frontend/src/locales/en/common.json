@@ -25,6 +25,7 @@
       "noteLabels": "Note labels",
       "exportImport": "Export / Import",
       "updates": "Updates",
+      "synchronization": "Synchronization",
       "dataManagement": "Data Management"
     }
   },
@@ -50,10 +51,33 @@
       },
       "help": "Try starting again. If the problem continues, open the backend log for more details."
     },
+    "sync": {
+      "title": "Synchronizing your notes",
+      "description": "NoteStack is checking the cloud workspace before showing local data.",
+      "takingLonger": "Synchronization is taking longer than usual. You can retry or continue with the last local copy.",
+      "error": "NoteStack could not check synchronization status.",
+      "actions": {
+        "retry": "Retry synchronization",
+        "workOffline": "Work offline"
+      }
+    },
     "actions": {
       "retry": "Retry",
       "openBackendLog": "Open backend log",
       "exit": "Exit"
+    }
+  },
+  "syncAppBar": {
+    "label": "Synchronization: {{state}}",
+    "pending": "{{count}} pending",
+    "syncNow": "Synchronize now",
+    "states": {
+      "connecting": "connecting",
+      "syncing": "syncing",
+      "synced": "synced",
+      "offline": "offline",
+      "attention-required": "attention required",
+      "error": "error"
     }
   },
   "detail": {

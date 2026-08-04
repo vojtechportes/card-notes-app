@@ -4,4 +4,5 @@
 export type ResolveSyncConflictDto = {
   resolutionState: 'resolved-local' | 'resolved-remote' | 'resolved-merged'
   mergedDocument?: Record<string, unknown>
+  retainBoth?: boolean
 }

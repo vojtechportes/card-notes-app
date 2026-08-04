@@ -38,6 +38,15 @@ export class SyncConflictService {
   }
 
   resolve(input: ResolveSyncConflictInput): SyncConflictRecord {
+    if (
+      input.retainBoth &&
+      input.resolutionState !== SyncConflictResolutionStateEnum.ResolvedMerged
+    ) {
+      throw new Error(
+        'Retaining both versions requires merged conflict resolution.'
+      )
+    }
+
     const database = this.getDatabase()
     const transaction = database.transaction(() => {
       const conflict = this.conflictRepository.findById(input.conflictId)
@@ -52,8 +61,10 @@ export class SyncConflictService {
         return conflict
       }
 
-      const selectedDocument = this.selectResolutionDocument(conflict, input)
-      if (selectedDocument) {
+      if (input.retainBoth) {
+        this.assertRetainedConflictCopyExists(database, conflict)
+      } else {
+        const selectedDocument = this.selectResolutionDocument(conflict, input)
         this.applyResolutionDocument(database, conflict, selectedDocument)
       }
 
@@ -64,6 +75,26 @@ export class SyncConflictService {
     })
 
     return transaction()
+  }
+
+  private assertRetainedConflictCopyExists(
+    database: Database,
+    conflict: SyncConflictRecord
+  ): void {
+    if (!conflict.conflictCopyEntityId) {
+      throw new Error(
+        `Synchronization conflict ${conflict.id} has no preserved copy to retain.`
+      )
+    }
+
+    const copy = database
+      .prepare('SELECT 1 FROM notes WHERE id = ?')
+      .get(conflict.conflictCopyEntityId)
+    if (!copy) {
+      throw new Error(
+        `The preserved copy for synchronization conflict ${conflict.id} is unavailable.`
+      )
+    }
   }
 
   private selectResolutionDocument(

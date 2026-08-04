@@ -7,6 +7,7 @@ import { LegacyNoteTypeSettingsRedirect } from './components/legacy-note-type-se
 import { NoteLabelsSettingsPage } from './components/note-labels-settings-page/note-labels-settings-page'
 import { NoteTemplatesSettingsPage } from './components/note-templates-settings-page/note-templates-settings-page'
 import { UpdatesSettingsPage } from './components/updates-settings-page/updates-settings-page'
+import { SynchronizationSettingsPage } from './components/synchronization-settings-page/synchronization-settings-page'
 import { settingsSubPageRoutes } from './constants/settings-sub-page-routes'
 
 const settingsGeneralPath = `/settings/${settingsSubPageRoutes.general}`
@@ -42,6 +43,10 @@ export const SettingsPage = () => {
         <Route
           path={settingsSubPageRoutes.updates}
           element={<UpdatesSettingsPage />}
+        />
+        <Route
+          path={settingsSubPageRoutes.synchronization}
+          element={<SynchronizationSettingsPage />}
         />
         <Route
           path={settingsSubPageRoutes.dataManagement}

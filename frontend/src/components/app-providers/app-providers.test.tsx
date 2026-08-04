@@ -12,13 +12,14 @@ vi.mock('../sync-cache-observer/sync-cache-observer', () => ({
 }))
 
 describe(AppProviders.name, () => {
-  it('always mounts synchronization cache observation', () => {
+  it('does not start synchronization observation before the startup gates', () => {
     render(
       <AppProviders>
         <div>content</div>
       </AppProviders>
     )
 
-    expect(screen.getByTestId('sync-cache-observer')).toBeTruthy()
+    expect(screen.getByText('content')).toBeTruthy()
+    expect(screen.queryByTestId('sync-cache-observer')).toBeNull()
   })
 })
