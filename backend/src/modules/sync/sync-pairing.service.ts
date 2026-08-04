@@ -244,6 +244,24 @@ export class SyncPairingService implements OnModuleInit {
     })
   }
 
+  async enable(): Promise<void> {
+    const account = this.orchestrationRepository.getAccountState()
+    if (!account.activeProvider || !account.providerWorkspaceId) {
+      throw new ConflictException(
+        'Synchronization can only be re-enabled for a paired workspace.'
+      )
+    }
+
+    await this.reconciliationService.executeExclusive(async () => {
+      this.repository.setEnabled(true)
+    })
+  }
+
+  async disable(): Promise<void> {
+    await this.reconciliationService.executeExclusive(async () => {
+      this.repository.setEnabled(false)
+    })
+  }
   async disconnect(): Promise<void> {
     await this.reconciliationService.executeExclusive(async () => {
       this.repository.disconnect()
@@ -251,6 +269,11 @@ export class SyncPairingService implements OnModuleInit {
   }
   async repair(): Promise<void> {
     const account = this.orchestrationRepository.getAccountState()
+    if (!account.isEnabled) {
+      throw new ConflictException(
+        'Synchronization must be enabled before it can be repaired.'
+      )
+    }
     if (!account.activeProvider || !account.providerWorkspaceId) {
       throw new ConflictException(
         'Synchronization repair requires an active provider binding.'

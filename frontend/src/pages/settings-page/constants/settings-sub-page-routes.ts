@@ -4,5 +4,6 @@ export const settingsSubPageRoutes = {
   general: 'general',
   noteLabels: 'note-labels',
   noteTemplates: 'note-templates',
+  synchronization: 'synchronization',
   updates: 'updates',
 } as const

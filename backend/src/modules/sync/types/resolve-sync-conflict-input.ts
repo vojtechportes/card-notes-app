@@ -8,4 +8,5 @@ export interface ResolveSyncConflictInput {
     SyncConflictResolutionStateEnum.Unresolved
   >
   mergedDocument?: SyncRemoteDocument
+  retainBoth?: boolean
 }

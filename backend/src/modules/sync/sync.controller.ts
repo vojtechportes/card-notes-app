@@ -87,10 +87,15 @@ export class SyncController {
     }
 
     switch (body.command) {
+      case SyncCommandEnum.Enable:
+        return this.runEnableCommand()
+      case SyncCommandEnum.Disable:
+        return this.runDisableCommand()
       case SyncCommandEnum.Disconnect:
         this.requireDestructiveConfirmation(body)
         return this.runDisconnectCommand()
       case SyncCommandEnum.Repair:
+        this.requireDestructiveConfirmation(body)
         return this.runRepairCommand()
       case SyncCommandEnum.SwitchProvider:
         throw new BadRequestException(
@@ -150,6 +155,15 @@ export class SyncController {
     return this.pairingService.cancel(id)
   }
 
+  private async runEnableCommand(): Promise<SyncStatusDto> {
+    await this.pairingService.enable()
+    return this.orchestrationService.trigger(SyncTriggerEnum.Manual)
+  }
+
+  private async runDisableCommand(): Promise<SyncStatusDto> {
+    await this.pairingService.disable()
+    return this.orchestrationService.getStatus()
+  }
   private async runDisconnectCommand(): Promise<SyncStatusDto> {
     await this.pairingService.disconnect()
     return this.orchestrationService.getStatus()
@@ -216,8 +230,17 @@ export class SyncController {
       )
     }
     if (
+      body.retainBoth &&
+      body.resolutionState !== SyncConflictResolutionStateEnum.ResolvedMerged
+    ) {
+      throw new BadRequestException(
+        'Retaining both versions requires merged conflict resolution.'
+      )
+    }
+    if (
       body.resolutionState === SyncConflictResolutionStateEnum.ResolvedMerged &&
-      !body.mergedDocument
+      !body.mergedDocument &&
+      !body.retainBoth
     ) {
       throw new BadRequestException(
         'A merged document is required for merged conflict resolution.'
@@ -234,6 +257,7 @@ export class SyncController {
       conflictId: id,
       resolutionState: body.resolutionState,
       mergedDocument: body.mergedDocument as SyncRemoteDocument | undefined,
+      retainBoth: body.retainBoth,
     })
 
     void this.orchestrationService.trigger(SyncTriggerEnum.ConflictResolution)

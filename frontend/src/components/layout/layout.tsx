@@ -33,6 +33,7 @@ import { windowTitleBarHeight } from '../../constants/window-title-bar'
 import { mediumUpMediaQuery } from '../../theme'
 import appLogoUrl from '../../assets/logo.png'
 import { SideDrawer } from '../side-drawer'
+import { SyncAppBarControl } from '../sync-app-bar-control/sync-app-bar-control'
 
 const drawerWidth = 248
 const settingsPath = '/settings'
@@ -58,6 +59,10 @@ const settingsNavItems = [
   {
     path: `${settingsPath}/${settingsSubPageRoutes.updates}`,
     labelKey: 'navigation.settingsPages.updates',
+  },
+  {
+    path: `${settingsPath}/${settingsSubPageRoutes.synchronization}`,
+    labelKey: 'navigation.settingsPages.synchronization',
   },
   {
     path: `${settingsPath}/${settingsSubPageRoutes.dataManagement}`,
@@ -237,6 +242,7 @@ export const Layout: FC = () => {
               {t('app.title')}
             </Typography>
           </Box>
+          <SyncAppBarControl />
         </Toolbar>
       </AppBar>
 

@@ -76,7 +76,14 @@ describe('synchronization API contract', () => {
     expect(document.components?.schemas?.SyncCommandDto).toMatchObject({
       properties: {
         command: {
-          enum: ['disconnect', 'switch-provider', 'reset', 'repair'],
+          enum: [
+            'enable',
+            'disable',
+            'disconnect',
+            'switch-provider',
+            'reset',
+            'repair',
+          ],
         },
       },
     })
@@ -88,7 +95,9 @@ describe('synchronization API contract', () => {
       trigger: vi.fn(),
     }
     const pairing = {
+      disable: vi.fn(),
       disconnect: vi.fn(),
+      enable: vi.fn(),
       repair: vi.fn(),
       reset: vi.fn(),
       getProviderAvailability: vi.fn(() => [
@@ -117,11 +126,23 @@ describe('synchronization API contract', () => {
     expect(() =>
       controller.submitTrigger({ trigger: 'invalid' as never })
     ).toThrow('Synchronization trigger is not supported.')
+    orchestration.trigger.mockResolvedValue({ state: 'syncing' })
+    await expect(controller.runCommand({ command: 'enable' })).resolves.toEqual(
+      { state: 'syncing' }
+    )
+    expect(pairing.enable).toHaveBeenCalledTimes(1)
+    await expect(
+      controller.runCommand({ command: 'disable' })
+    ).resolves.toEqual({ state: 'disabled' })
+    expect(pairing.disable).toHaveBeenCalledTimes(1)
     await expect(
       controller.runCommand({ command: 'disconnect', confirmed: true })
     ).resolves.toEqual({ state: 'disabled' })
     expect(pairing.disconnect).toHaveBeenCalledTimes(1)
     expect(() => controller.runCommand({ command: 'reset' })).toThrow(
+      'require explicit confirmation'
+    )
+    expect(() => controller.runCommand({ command: 'repair' })).toThrow(
       'require explicit confirmation'
     )
     expect(() => controller.runCommand({ command: 'switch-provider' })).toThrow(
@@ -162,6 +183,22 @@ describe('synchronization API contract', () => {
       resolutionState: 'resolved-local',
     })
     expect(orchestration.trigger).toHaveBeenCalledWith('conflict-resolution')
+    controller.resolveConflict(conflict.id, {
+      resolutionState: 'resolved-merged',
+      retainBoth: true,
+    })
+    expect(conflicts.resolve).toHaveBeenLastCalledWith({
+      conflictId: conflict.id,
+      resolutionState: 'resolved-merged',
+      mergedDocument: undefined,
+      retainBoth: true,
+    })
+    expect(() =>
+      controller.resolveConflict(conflict.id, {
+        resolutionState: 'resolved-local',
+        retainBoth: true,
+      })
+    ).toThrow('requires merged conflict resolution')
     expect(() =>
       controller.resolveConflict('missing', {
         resolutionState: 'resolved-local',

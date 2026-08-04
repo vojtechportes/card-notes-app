@@ -14,6 +14,7 @@ import { SyncPairingService } from '../../../src/modules/sync/sync-pairing.servi
 import { SyncReconciliationRepository } from '../../../src/modules/sync/sync-reconciliation.repository'
 import { SyncReconciliationService } from '../../../src/modules/sync/sync-reconciliation.service'
 import { SyncEntityKindEnum } from '../../../src/modules/sync/types/sync-entity-kind-enum'
+import { SyncMutationIntentEnum } from '../../../src/modules/sync/types/sync-mutation-intent-enum'
 import { SyncPairingDecisionEnum } from '../../../src/modules/sync/types/sync-pairing-decision-enum'
 import { SyncPairingModeEnum } from '../../../src/modules/sync/types/sync-pairing-mode-enum'
 import { SyncProviderEnum } from '../../../src/modules/sync/types/sync-provider-enum'
@@ -22,6 +23,7 @@ import { SyncProviderErrorKindEnum } from '../../../src/modules/sync/types/sync-
 import type { SyncProviderFactoryContract } from '../../../src/modules/sync/types/sync-provider-factory-contract'
 import { createLocalConfigurationSyncDocument } from '../../../src/modules/sync/utils/create-local-configuration-sync-document.util'
 import { createWorkspaceSyncDocument } from '../../../src/modules/sync/utils/create-workspace-sync-document.util'
+import { enqueueSyncOutboxMutation } from '../../../src/modules/sync/utils/enqueue-sync-outbox-mutation.util'
 
 const directories: string[] = []
 const remoteDeviceId = '22222222-2222-4222-8222-222222222222'
@@ -558,6 +560,71 @@ describe(SyncPairingService.name, () => {
     expect(orchestrationRepository.countPendingMutations()).toBe(0)
   })
 
+  it('journals local work without provider calls while disabled and uploads it after re-enabling', async () => {
+    bindOldProvider()
+    repository.createResolvedBaseline(
+      SyncProviderEnum.GoogleDrive,
+      getWorkspaceId(),
+      false
+    )
+    const initialPendingMutationCount =
+      orchestrationRepository.countPendingMutations()
+    const getIdentity = vi.spyOn(googleAdapter, 'getIdentity')
+    const discoverWorkspace = vi.spyOn(googleAdapter, 'discoverWorkspace')
+    const enumerateObjects = vi.spyOn(googleAdapter, 'enumerateObjects')
+    const listChanges = vi.spyOn(googleAdapter, 'listChanges')
+    const createDocument = vi.spyOn(googleAdapter, 'createDocument')
+
+    await service.disable()
+    const noteId = populateLocal()
+    const note = databaseService
+      .getConnection()
+      .prepare(
+        `SELECT mutation_id AS mutationId, modified_at AS modifiedAt
+        FROM notes WHERE id = ?`
+      )
+      .get(noteId) as { mutationId: string; modifiedAt: string }
+    enqueueSyncOutboxMutation(databaseService.getConnection(), {
+      entityKind: SyncEntityKindEnum.Note,
+      entityId: noteId,
+      intent: SyncMutationIntentEnum.Upsert,
+      mutationId: note.mutationId,
+      modifiedAt: note.modifiedAt,
+    })
+
+    expect(orchestrationRepository.getAccountState()).toMatchObject({
+      isEnabled: false,
+      activeProvider: SyncProviderEnum.GoogleDrive,
+      providerAccountId: 'fake-account',
+      providerWorkspaceId: getWorkspaceId(),
+    })
+    expect(orchestrationRepository.countPendingMutations()).toBe(
+      initialPendingMutationCount + 1
+    )
+    await expect(service.repair()).rejects.toThrow(
+      'must be enabled before it can be repaired'
+    )
+    expect(getIdentity).not.toHaveBeenCalled()
+    expect(discoverWorkspace).not.toHaveBeenCalled()
+    expect(enumerateObjects).not.toHaveBeenCalled()
+    expect(listChanges).not.toHaveBeenCalled()
+    expect(createDocument).not.toHaveBeenCalled()
+
+    await service.enable()
+    await reconciliationService.run(googleAdapter, {
+      claimedBy: 're-enabled-device',
+    })
+
+    expect(orchestrationRepository.getAccountState().isEnabled).toBe(true)
+    expect(orchestrationRepository.countPendingMutations()).toBe(0)
+    expect(googleAdapter.getObject(`notes/${noteId}.json`)).toBeDefined()
+  })
+
+  it('rejects re-enabling synchronization without a retained binding', async () => {
+    await expect(service.enable()).rejects.toThrow(
+      'can only be re-enabled for a paired workspace'
+    )
+  })
   it('serializes disconnect and reset behind active synchronization', async () => {
     bindOldProvider()
     populateLocal()

@@ -31,6 +31,12 @@ vi.mock(
 vi.mock('./components/updates-settings-page/updates-settings-page', () => ({
   UpdatesSettingsPage: () => <h3>Updates page</h3>,
 }))
+vi.mock(
+  './components/synchronization-settings-page/synchronization-settings-page',
+  () => ({
+    SynchronizationSettingsPage: () => <h3>Synchronization page</h3>,
+  })
+)
 
 vi.mock(
   './components/data-management-settings-page/data-management-settings-page',
@@ -104,6 +110,13 @@ describe('SettingsPage', () => {
     ).toBeTruthy()
   })
 
+  it('renders the synchronization sub-page', () => {
+    renderSettingsRoute('/settings/synchronization')
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Synchronization page' })
+    ).toBeTruthy()
+  })
   it('renders the data management sub-page', () => {
     renderSettingsRoute('/settings/data-management')
 

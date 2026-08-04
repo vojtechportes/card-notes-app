@@ -6,10 +6,21 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './app'
 import './i18n'
 
+vi.mock('./hooks/sync/use-sync-status-query', () => ({
+  useSyncStatusQuery: () => ({
+    data: {
+      dataRevision: 0,
+      isEnabled: false,
+      isStartupReady: true,
+      pendingMutationCount: 0,
+      state: 'disabled',
+    },
+  }),
+}))
 class IntersectionObserverMock {
   observe() {
     return undefined
@@ -129,7 +140,7 @@ describe('App routing', () => {
     expect(
       within(navigation)
         .getAllByRole('link')
-        .slice(-6)
+        .slice(-7)
         .map((link) => link.textContent)
     ).toEqual([
       'General',
@@ -137,6 +148,7 @@ describe('App routing', () => {
       'Note labels',
       'Export / Import',
       'Updates',
+      'Synchronization',
       'Data Management',
     ])
     fireEvent.click(screen.getByRole('link', { name: 'Note templates' }))

@@ -15,6 +15,17 @@ import { API_BASE_URL } from '../../constants/api-base-url'
 import { apiClient } from '../../utils/api-client'
 import '../../i18n'
 
+vi.mock('../../hooks/sync/use-sync-status-query', () => ({
+  useSyncStatusQuery: () => ({
+    data: {
+      dataRevision: 0,
+      isEnabled: false,
+      isStartupReady: true,
+      pendingMutationCount: 0,
+      state: 'disabled',
+    },
+  }),
+}))
 const originalUserAgent = navigator.userAgent
 
 interface BridgeHarness {

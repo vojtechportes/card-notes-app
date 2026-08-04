@@ -23,6 +23,10 @@
         "title": "Updates",
         "description": "Check for NoteStack updates, download new versions, and install them when they are ready."
       },
+      "synchronization": {
+        "title": "Synchronization",
+        "description": "Connect one private cloud workspace, review its status, and recover changes that need your attention."
+      },
       "dataManagement": {
         "title": "Data Management",
         "description": "Manage actions that affect your saved notes, including clearing your note collection."
@@ -52,6 +56,135 @@
       "noteTypes": {
         "title": "Templates",
         "description": "Create, rename, delete, and open templates to manage their fields."
+      }
+    },
+    "synchronization": {
+      "loading": "Loading synchronization settings",
+      "loadError": "Synchronization settings could not be loaded.",
+      "actionError": "The synchronization action could not be completed. Review your connection and try again.",
+      "disabled": {
+        "description": "Synchronization is off. NoteStack will not contact a cloud provider until you choose one and confirm pairing."
+      },
+      "providers": {
+        "prompt": "Choose a cloud provider to enable synchronization.",
+        "desktopOnly": "Cloud account connection is available in the NoteStack desktop app.",
+        "google-drive": "Google Drive",
+        "one-drive": "Microsoft OneDrive",
+        "unavailable": "Unavailable",
+        "unavailableLabel": "{{provider}} (Unavailable)"
+      },
+      "states": {
+        "disabled": "Disabled",
+        "connecting": "Connecting",
+        "syncing": "Synchronizing",
+        "synced": "Up to date",
+        "offline": "Working offline",
+        "attention-required": "Needs attention",
+        "error": "Error"
+      },
+      "status": {
+        "title": "Current status",
+        "provider": "Provider: {{value}}",
+        "account": "Account: {{value}}",
+        "workspace": "Workspace: {{value}}",
+        "lastSuccess": "Last successful synchronization: {{value}}",
+        "pending": "Pending local changes: {{count}}",
+        "conflicts": "Changes needing review: {{count}}",
+        "never": "Not yet synchronized",
+        "none": "Not connected"
+      },
+      "actions": {
+        "enable": "Enable synchronization",
+        "resume": "Resume synchronization",
+        "disable": "Turn off synchronization",
+        "syncNow": "Sync now",
+        "changeProvider": "Change provider",
+        "reconnect": "Sign in again",
+        "repair": "Repair synchronization",
+        "disconnect": "Disconnect account",
+        "reset": "Reset synchronization",
+        "cancel": "Cancel"
+      },
+      "pairing": {
+        "title": "Confirm cloud workspace setup",
+        "summary": "Local data: {{local}}. Cloud data: {{remote}}.",
+        "populated": "contains notes or settings",
+        "empty": "empty",
+        "pending": "{{count}} pending local changes will be retained during this change.",
+        "modes": {
+          "seed": "The cloud workspace is empty. Your local data will be copied to it after a verified backup.",
+          "restore": "Local data is empty. The cloud workspace will be restored locally after a verified backup.",
+          "reconcile": "This is the same workspace. Local and cloud changes will be reconciled.",
+          "mismatch": "Both sides contain data from different workspaces. Choose how NoteStack should preserve them."
+        },
+        "decisions": {
+          "seed": "Copy local data to cloud",
+          "restore": "Restore cloud data locally",
+          "reconcile": "Reconcile changes",
+          "merge": "Merge both workspaces",
+          "replace-local": "Replace local data with cloud data",
+          "replace-remote": "Copy local data to a new cloud workspace"
+        }
+      },
+      "conflicts": {
+        "title": "Changes needing review",
+        "description": "NoteStack preserved both versions. Choose which content should remain active; preserved copies stay searchable.",
+        "loading": "Loading changes that need review...",
+        "error": "Changes needing review could not be loaded.",
+        "fields": "Affected content: {{fields}}",
+        "wholeItem": "the whole item",
+        "copyPreserved": "A recoverable copy was preserved in your notes.",
+        "inspect": "Inspect versions",
+        "inspectTitle": "Compare preserved versions",
+        "inspectDescription": "Review the saved note or setting content from this device and the cloud before deciding.",
+        "closeInspect": "Close version comparison",
+        "localVersion": "This device's saved version",
+        "cloudVersion": "Cloud saved version",
+        "versionUnavailable": "This version is unavailable, so no choice will silently remove the preserved copy.",
+        "keepLocal": "Keep this device's version",
+        "useCloud": "Use the cloud version",
+        "retainBoth": "Retain both versions",
+        "entities": {
+          "workspace": "Workspace settings",
+          "configuration": "App settings",
+          "note": "Note",
+          "asset": "Image"
+        },
+        "types": {
+          "edit-edit": "This item was changed differently on two devices.",
+          "edit-delete": "This item was changed on one device and deleted on another.",
+          "uuid-collision": "Two different items received the same identity.",
+          "invalid-reference": "This item refers to content that is no longer available.",
+          "remote-corruption": "The cloud copy could not be read safely."
+        }
+      },
+      "errors": {
+        "authentication-required": "Sign in again to resume synchronization.",
+        "offline": "The cloud provider is unreachable. Local changes remain safe and pending.",
+        "throttled": "The cloud provider asked NoteStack to wait before trying again.",
+        "quota-exceeded": "The cloud account does not have enough available storage.",
+        "provider-unavailable": "This provider is not available in the current build.",
+        "remote-attention-required": "The cloud workspace needs repair before synchronization can continue.",
+        "unsupported-remote-version": "This workspace was written by a newer NoteStack version.",
+        "permanent": "The cloud provider rejected this synchronization request.",
+        "unknown": "Synchronization stopped because of an unexpected error."
+      },
+      "confirm": {
+        "disconnect": {
+          "title": "Disconnect cloud account?",
+          "description": "This removes the local account credentials and binding. Local notes stay on this device and cloud data is not deleted.",
+          "confirm": "Disconnect account"
+        },
+        "repair": {
+          "title": "Repair synchronization?",
+          "description": "NoteStack will verify the bound workspace and rebuild its change cursor. Local data is preserved.",
+          "confirm": "Start repair"
+        },
+        "reset": {
+          "title": "Reset synchronization?",
+          "description": "A verified backup is created, then local synchronization metadata and pending synchronization work are cleared. Notes stay local.",
+          "confirm": "Reset synchronization"
+        }
       }
     },
     "general": {
