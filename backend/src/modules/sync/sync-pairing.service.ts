@@ -65,11 +65,7 @@ export class SyncPairingService implements OnModuleInit {
   getProviderAvailability(): SyncProviderAvailabilityDto[] {
     return [
       { provider: SyncProviderEnum.GoogleDrive, available: true },
-      {
-        provider: SyncProviderEnum.OneDrive,
-        available: false,
-        unavailableReasonCode: 'adapter-not-installed',
-      },
+      { provider: SyncProviderEnum.OneDrive, available: true },
     ]
   }
 

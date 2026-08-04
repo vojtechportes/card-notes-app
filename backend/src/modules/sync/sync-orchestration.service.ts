@@ -7,15 +7,18 @@ import {
   Optional,
 } from '@nestjs/common'
 import { SyncOrchestrationRepository } from './sync-orchestration.repository'
+import { OneDriveDeltaScheduler } from './one-drive/one-drive-delta.scheduler'
 import { SyncProviderFactory } from './sync-provider.factory'
 import { SyncReconciliationService } from './sync-reconciliation.service'
 import type { SyncAccountState } from './types/sync-account-state'
 import type { SyncOrchestrationOptions } from './types/sync-orchestration-options'
 import type { SyncProviderFactoryContract } from './types/sync-provider-factory-contract'
 import type { SyncPublicStatus } from './types/sync-public-status'
+import type { SyncRunOutcome } from './types/sync-run-outcome'
 import { SyncErrorClassificationEnum } from './types/sync-error-classification-enum'
 import { SyncProviderError } from './types/sync-provider-error'
 import { SyncProviderErrorKindEnum } from './types/sync-provider-error-kind-enum'
+import { SyncProviderEnum } from './types/sync-provider-enum'
 import { SyncProviderUnavailableError } from './types/sync-provider-unavailable-error'
 import { SyncStatusStateEnum } from './types/sync-status-state-enum'
 import { SyncTriggerEnum } from './types/sync-trigger-enum'
@@ -40,6 +43,7 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
   private dataRevision = 0
   private retryAttempt = 0
   private activeRun: Promise<SyncPublicStatus> | null = null
+  private activeRunOutcome: Promise<SyncRunOutcome> | null = null
   private pendingRun = false
   private destroyed = false
   private observedOutboxSignature = ''
@@ -49,6 +53,8 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
   private delayedTriggerTimer: ReturnType<typeof setTimeout> | null = null
   private observerTimer: ReturnType<typeof setInterval> | null = null
   private watchdogTimer: ReturnType<typeof setInterval> | null = null
+  private readonly oneDriveScheduler: OneDriveDeltaScheduler
+  private oneDrivePollingEnabled = false
 
   constructor(
     @Inject(SyncOrchestrationRepository)
@@ -75,6 +81,28 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
         options.networkRecoveryJitterMs ?? DEFAULT_NETWORK_RECOVERY_JITTER_MS,
       random: options.random ?? Math.random,
     }
+    this.oneDriveScheduler = new OneDriveDeltaScheduler({
+      enabled: false,
+      poll: async () => {
+        const joinedOrdinaryRun = this.activeRunOutcome !== null
+        const outcome = await this.startOrJoinRun(
+          SyncTriggerEnum.Watchdog,
+          false,
+          false
+        )
+
+        if (outcome.error) {
+          if (joinedOrdinaryRun && outcome.retryScheduled) {
+            return { hasChanges: false, shouldSchedule: false }
+          }
+
+          throw outcome.error
+        }
+
+        return { hasChanges: outcome.hasChanges }
+      },
+      random: this.options.random,
+    })
   }
 
   onModuleInit(): void {
@@ -98,6 +126,7 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy(): void {
     this.destroyed = true
+    this.oneDriveScheduler.dispose()
     this.clearTimer(this.localDebounceTimer)
     this.clearTimer(this.retryTimer)
     this.clearTimer(this.delayedTriggerTimer)
@@ -144,6 +173,22 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
 
   trigger(trigger: SyncTriggerEnum): Promise<SyncPublicStatus> {
     const account = this.repository.getAccountState()
+    const shouldPollOneDrive =
+      account.isEnabled &&
+      account.activeProvider === SyncProviderEnum.OneDrive &&
+      Boolean(account.providerWorkspaceId)
+
+    if (shouldPollOneDrive && !this.oneDrivePollingEnabled) {
+      this.oneDrivePollingEnabled = true
+      void this.oneDriveScheduler.setEnabled(true, false)
+      this.oneDriveScheduler.setActive(true)
+    }
+
+    if (!shouldPollOneDrive && this.oneDrivePollingEnabled) {
+      this.oneDrivePollingEnabled = false
+      void this.oneDriveScheduler.setEnabled(false)
+    }
+
     if (!account.isEnabled) {
       this.state = SyncStatusStateEnum.Disabled
       this.startupReady = true
@@ -156,6 +201,19 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
       this.startupReady = false
 
       return Promise.resolve(this.getStatus())
+    }
+
+    if (trigger === SyncTriggerEnum.Background) {
+      this.oneDriveScheduler.setActive(false)
+
+      return Promise.resolve(this.getStatus())
+    }
+
+    if (
+      trigger === SyncTriggerEnum.Focus ||
+      trigger === SyncTriggerEnum.Resume
+    ) {
+      this.oneDriveScheduler.setActive(true)
     }
 
     if (
@@ -206,37 +264,65 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private run(trigger: SyncTriggerEnum): Promise<SyncPublicStatus> {
-    if (this.activeRun) {
-      this.pendingRun = true
-      return this.activeRun
+    void this.startOrJoinRun(trigger, true, true)
+
+    return this.activeRun!
+  }
+
+  private startOrJoinRun(
+    trigger: SyncTriggerEnum,
+    scheduleRetry: boolean,
+    queueFollowUpWhenJoined: boolean
+  ): Promise<SyncRunOutcome> {
+    if (this.activeRunOutcome) {
+      if (queueFollowUpWhenJoined) {
+        this.pendingRun = true
+      }
+
+      return this.activeRunOutcome
     }
 
     this.lastTrigger = trigger
-    this.activeRun = this.executeRun(trigger).finally(() => {
-      this.activeRun = null
+    this.activeRunOutcome = this.executeRun(trigger, scheduleRetry).finally(
+      () => {
+        this.activeRun = null
+        this.activeRunOutcome = null
 
-      if (this.pendingRun && !this.destroyed) {
-        this.pendingRun = false
-        queueMicrotask(() => {
-          void this.run(this.lastTrigger ?? SyncTriggerEnum.Watchdog)
-        })
+        if (this.pendingRun && !this.destroyed) {
+          this.pendingRun = false
+          queueMicrotask(() => {
+            void this.run(this.lastTrigger ?? SyncTriggerEnum.Watchdog)
+          })
+        }
       }
-    })
+    )
+    this.activeRun = this.activeRunOutcome.then(({ status }) => status)
 
-    return this.activeRun
+    return this.activeRunOutcome
   }
 
   private async executeRun(
-    trigger: SyncTriggerEnum
-  ): Promise<SyncPublicStatus> {
+    trigger: SyncTriggerEnum,
+    scheduleRetry: boolean
+  ): Promise<SyncRunOutcome> {
     const account = this.repository.getAccountState()
     if (!account.isEnabled || !this.hasActiveBinding(account)) {
-      return this.getStatus()
+      return {
+        status: this.getStatus(),
+        hasChanges: false,
+        error: null,
+        retryScheduled: false,
+      }
     }
 
     const activeProvider = account.activeProvider
     if (!activeProvider) {
-      return this.getStatus()
+      return {
+        status: this.getStatus(),
+        hasChanges: false,
+        error: null,
+        retryScheduled: false,
+      }
     }
 
     const attemptedAt = new Date().toISOString()
@@ -252,6 +338,11 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
         claimedBy: `orchestrator:${trigger}`,
       })
       const succeededAt = new Date().toISOString()
+      const hasChanges =
+        result.pulledCount > 0 ||
+        result.pushedCount > 0 ||
+        result.downloadedAssetCount > 0 ||
+        result.uploadedAssetCount > 0
 
       this.repository.recordSuccess(succeededAt)
       this.retryAttempt = 0
@@ -267,20 +358,36 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
       this.observedOutboxSignature =
         this.repository.getPendingMutationSignature()
 
+      if (activeProvider === SyncProviderEnum.OneDrive) {
+        this.oneDriveScheduler.completeExternalPoll(hasChanges)
+      }
+
       if (result.pushedCount > 0) {
         this.scheduleDelayedTrigger(
           SyncTriggerEnum.PostPushVerification,
           POST_PUSH_VERIFICATION_DELAY_MS
         )
       }
-    } catch (error) {
-      this.handleFailure(error)
-    }
 
-    return this.getStatus()
+      return {
+        status: this.getStatus(),
+        hasChanges,
+        error: null,
+        retryScheduled: false,
+      }
+    } catch (error) {
+      const retryScheduled = this.handleFailure(error, scheduleRetry)
+
+      return {
+        status: this.getStatus(),
+        hasChanges: false,
+        error,
+        retryScheduled,
+      }
+    }
   }
 
-  private handleFailure(error: unknown): void {
+  private handleFailure(error: unknown, scheduleRetry: boolean): boolean {
     const classification = this.classifyError(error)
     const requiresAttention = [
       SyncErrorClassificationEnum.AuthenticationRequired,
@@ -309,9 +416,12 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
       new Date().toISOString()
     )
 
-    if (isRetryable) {
+    const shouldScheduleRetry = isRetryable && scheduleRetry
+    if (shouldScheduleRetry) {
       this.scheduleRetry(error)
     }
+
+    return shouldScheduleRetry
   }
 
   private classifyError(error: unknown): SyncErrorClassificationEnum {

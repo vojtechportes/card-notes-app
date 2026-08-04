@@ -102,11 +102,7 @@ describe('synchronization API contract', () => {
       reset: vi.fn(),
       getProviderAvailability: vi.fn(() => [
         { provider: 'google-drive', available: true },
-        {
-          provider: 'one-drive',
-          available: false,
-          unavailableReasonCode: 'adapter-not-installed',
-        },
+        { provider: 'one-drive', available: true },
       ]),
     }
     const controller = new SyncController(
@@ -117,11 +113,7 @@ describe('synchronization API contract', () => {
 
     expect(controller.getProviderAvailability()).toEqual([
       { provider: 'google-drive', available: true },
-      {
-        provider: 'one-drive',
-        available: false,
-        unavailableReasonCode: 'adapter-not-installed',
-      },
+      { provider: 'one-drive', available: true },
     ])
     expect(() =>
       controller.submitTrigger({ trigger: 'invalid' as never })

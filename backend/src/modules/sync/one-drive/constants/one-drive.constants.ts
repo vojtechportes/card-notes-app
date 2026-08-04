@@ -1,0 +1,16 @@
+export const ONE_DRIVE_APP_FOLDER_SCOPE = 'Files.ReadWrite.AppFolder'
+export const ONE_DRIVE_GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0'
+export const ONE_DRIVE_APP_ROOT_PATH = '/me/drive/special/approot'
+export const ONE_DRIVE_ADAPTER_VERSION = '1'
+export const ONE_DRIVE_PAGE_SIZE = 200
+export const ONE_DRIVE_RESUMABLE_CHUNK_SIZE = 320 * 1024
+export const ONE_DRIVE_RESUMABLE_THRESHOLD = 4 * 1024 * 1024
+export const ONE_DRIVE_MAX_UPLOAD_ATTEMPTS = 3
+export const ONE_DRIVE_WORKSPACE_MARKER_NAME = '.notestack-workspace.json'
+export const ONE_DRIVE_OBJECT_FILE_PREFIX = 'object-'
+export const ONE_DRIVE_ACTIVE_MIN_POLL_MS = 30_000
+export const ONE_DRIVE_ACTIVE_MAX_POLL_MS = 60_000
+export const ONE_DRIVE_BACKGROUND_MIN_POLL_MS = 10 * 60_000
+export const ONE_DRIVE_BACKGROUND_MAX_POLL_MS = 15 * 60_000
+export const ONE_DRIVE_MAX_EMPTY_BACKOFF_MULTIPLIER = 8
+export const ONE_DRIVE_MAX_FAILURE_BACKOFF_MS = 15 * 60_000

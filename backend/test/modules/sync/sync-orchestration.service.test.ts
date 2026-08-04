@@ -215,6 +215,123 @@ describe(SyncOrchestrationService.name, () => {
     expect(service.getStatus().state).toBe(SyncStatusStateEnum.Synced)
   })
 
+  it('adaptively polls OneDrive while enabled and stops after disabling', async () => {
+    activateSynchronization('one-drive')
+
+    await service.trigger(SyncTriggerEnum.Startup)
+    expect(runReconciliation).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(44_999)
+    expect(runReconciliation).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+
+    databaseService
+      .getConnection()
+      .prepare('UPDATE sync_account_state SET is_enabled = 0 WHERE id = 1')
+      .run()
+    await service.trigger(SyncTriggerEnum.Manual)
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+  })
+  it('backs off adaptive OneDrive polling after consecutive empty deltas', async () => {
+    activateSynchronization('one-drive')
+
+    await service.trigger(SyncTriggerEnum.Startup)
+    await vi.advanceTimersByTimeAsync(45_000)
+    await vi.advanceTimersByTimeAsync(45_000)
+
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+
+    await vi.advanceTimersByTimeAsync(89_999)
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(4)
+  })
+
+  it('lets the OneDrive scheduler own throttled Retry-After timing', async () => {
+    activateSynchronization('one-drive')
+    runReconciliation
+      .mockResolvedValueOnce(successfulResult)
+      .mockRejectedValueOnce(
+        new SyncProviderError(
+          SyncProviderErrorKindEnum.Throttled,
+          'provider throttled the delta request',
+          10 * 60_000
+        )
+      )
+      .mockResolvedValueOnce(successfulResult)
+
+    await service.trigger(SyncTriggerEnum.Startup)
+    await vi.advanceTimersByTimeAsync(45_000)
+
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(10 * 60_000 - 1)
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps one Retry-After owner when a scheduled poll overlaps an ordinary run', async () => {
+    activateSynchronization('one-drive')
+    await service.trigger(SyncTriggerEnum.Startup)
+
+    let rejectManualRun: ((error: Error) => void) | undefined
+    runReconciliation.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectManualRun = reject
+        })
+    )
+    const manualRun = service.trigger(SyncTriggerEnum.Manual)
+
+    await vi.advanceTimersByTimeAsync(45_000)
+    rejectManualRun?.(
+      new SyncProviderError(
+        SyncProviderErrorKindEnum.Throttled,
+        'overlapping provider throttle',
+        10 * 60_000
+      )
+    )
+    await manualRun
+
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(10 * 60_000 - 1)
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+
+    await vi.advanceTimersByTimeAsync(44_999)
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(4)
+  })
+
+  it('switches OneDrive polling to background cadence until focus', async () => {
+    activateSynchronization('one-drive')
+
+    await service.trigger(SyncTriggerEnum.Startup)
+    await service.trigger(SyncTriggerEnum.Background)
+    await vi.advanceTimersByTimeAsync(749_999)
+
+    expect(runReconciliation).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+
+    await service.trigger(SyncTriggerEnum.Focus)
+    await vi.advanceTimersByTimeAsync(44_999)
+    expect(runReconciliation).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runReconciliation).toHaveBeenCalledTimes(3)
+  })
+
   it('reports unavailable providers without requesting credentials or retrying', async () => {
     activateSynchronization('one-drive')
     createAdapter.mockImplementation(() => {

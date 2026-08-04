@@ -21,6 +21,8 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "deploy:check:notification-service": "npm run deploy:check --workspace notification-service",
+    "verify:phase-10": "npm run test && npm run lint && npm run build && npm run deploy:check:notification-service",
+    "verify:phase-10:package": "npm run package:dir",
     "sync:api": "npm run sync:api --workspace frontend",
     "version:patch": "node scripts/update-package-version.mjs --patch",
     "version:minor": "node scripts/update-package-version.mjs --minor",

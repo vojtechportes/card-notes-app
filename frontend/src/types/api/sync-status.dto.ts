@@ -36,6 +36,7 @@ export type SyncStatusDto = {
     | 'local-mutation'
     | 'manual'
     | 'focus'
+    | 'background'
     | 'resume'
     | 'network-recovery'
     | 'provider-signal'
