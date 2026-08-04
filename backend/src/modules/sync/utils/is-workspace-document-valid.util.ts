@@ -1,3 +1,4 @@
+import { WORKSPACE_ROUTE_ID_PATTERN } from '../constants/workspace-route-id-pattern'
 import { SYNC_FORMAT_VERSION } from '../constants/sync-format-version'
 import type { WorkspaceDocument } from '../types/workspace-document'
 import { isIsoDate } from './is-iso-date.util'
@@ -20,7 +21,7 @@ export const isWorkspaceDocumentValid = (
     isIsoDate(value.createdAt) &&
     isUuidV4(value.createdByDeviceId) &&
     typeof routing.workspaceRouteId === 'string' &&
-    routing.workspaceRouteId.length >= 16 &&
+    WORKSPACE_ROUTE_ID_PATTERN.test(routing.workspaceRouteId) &&
     isNotificationAuthKeyValid(routing.notificationAuthKey) &&
     Number.isInteger(routing.secretVersion) &&
     Number(routing.secretVersion) > 0

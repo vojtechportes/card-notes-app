@@ -8,17 +8,18 @@ Local-first Electron structured notes application with a NestJS backend and Reac
 
 ## Local Development
 
-Run the app in three terminals:
+Run the desktop app in three terminals:
 
 1. `npm run dev:backend`
 2. `npm run dev:frontend`
 3. `npm run dev:electron`
 
-The backend health endpoint is available at `/api/health`, and Swagger is exposed at `/api/docs`.
+The backend health endpoint is available at `/api/health`, and Swagger is exposed at `/api/docs`. The separately deployable content-free relay can be run with `npm run dev:notification-service`; its protocol and deployment runbook live in `notification-service/README.md`.
 
 ## Build and Package
 
-- `npm run build` builds the backend, frontend, and Electron shell.
+- `npm run build` builds the backend, frontend, Electron shell, and notification service.
+- `npm run deploy:check:notification-service` validates the Cloudflare relay bundle without publishing it.
 - `npm run package:dir` creates an unpacked Windows Electron build in `electron/release/win-unpacked`.
 - `npm run package` builds the full app and creates a Windows installer executable in `electron/release` without publishing release assets.
 - `npm run package:release` builds the full app and creates unsigned Windows installer plus updater artifacts for the GitHub release workflow.

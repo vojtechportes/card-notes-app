@@ -582,7 +582,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add exponential backoff with jitter, Retry-After handling, post-push verification, trigger coalescing, and protection from overlapping runs.
   - Add orchestration, status-transition, API, retry, trigger-storm, and cache-invalidation contract tests.
 
-- [ ] T111. Build the content-free synchronization notification service
+- [x] T111. Build the content-free synchronization notification service
   - Add a separately deployable TypeScript control-plane service with a public Google webhook endpoint, authenticated device WebSockets, opaque channel/subscription registry, notification coalescing, expiry/renewal leases, rate limits, health checks, and redacted structured logs.
   - Persist only opaque workspace/channel/device routing metadata and verifier hashes; never persist notes, settings, assets, provider account identifiers, or provider credentials.
   - Define the workspace-secret challenge/token protocol and channel registration/finalization so webhook routing cannot be spoofed across workspaces.

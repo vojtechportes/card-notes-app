@@ -54,6 +54,33 @@ describe('workspace synchronization contract', () => {
     expect(
       isWorkspaceDocumentValid({ ...document, createdAt: 'yesterday' })
     ).toBe(false)
+    expect(
+      isWorkspaceDocumentValid({
+        ...document,
+        notificationRouting: {
+          ...document.notificationRouting,
+          workspaceRouteId: 'a'.repeat(21),
+        },
+      })
+    ).toBe(false)
+    expect(
+      isWorkspaceDocumentValid({
+        ...document,
+        notificationRouting: {
+          ...document.notificationRouting,
+          workspaceRouteId: 'invalid route id'.padEnd(22, 'x'),
+        },
+      })
+    ).toBe(false)
+    expect(
+      isWorkspaceDocumentValid({
+        ...document,
+        notificationRouting: {
+          ...document.notificationRouting,
+          workspaceRouteId: 'a'.repeat(129),
+        },
+      })
+    ).toBe(false)
   })
 
   it('generates canonical 32-byte keys and rejects invalid encodings', () => {

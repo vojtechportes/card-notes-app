@@ -1,0 +1,19 @@
+export const RELAY_PROTOCOL_VERSION = 1
+export const VERIFIER_BYTE_LENGTH = 32
+export const CONNECTION_TOKEN_TTL_MS = 5 * 60 * 1000
+export const CHALLENGE_TTL_MS = 60 * 1000
+export const VERIFIER_ROLLOVER_MAX_MS = 24 * 60 * 60 * 1000
+export const CHANNEL_MAX_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
+export const CHANNEL_PREPARATION_TTL_MS = 10 * 60 * 1000
+export const RENEWAL_LEASE_TTL_MS = 2 * 60 * 1000
+export const NOTIFICATION_COALESCE_MS = 500
+export const REPLAY_RETENTION_MS = 24 * 60 * 60 * 1000
+export const HEARTBEAT_INTERVAL_MS = 30 * 1000
+export const STALE_CONNECTION_MS = 90 * 1000
+export const MAX_REQUEST_BODY_BYTES = 8 * 1024
+export const MAX_WEBSOCKET_MESSAGE_BYTES = 4 * 1024
+export const MAX_CONNECTIONS_PER_WORKSPACE = 16
+export const MAX_ACTIVE_CHANNELS = 4
+export const WORKSPACE_ROUTE_ID_PATTERN = /^[A-Za-z0-9_-]{22,128}$/
+export const DEVICE_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
