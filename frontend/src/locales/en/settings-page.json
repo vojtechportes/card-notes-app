@@ -391,9 +391,13 @@
       "summary": "Stay on the latest desktop build without leaving the app.",
       "hint": "Use the button to manually check, download, or install the next available update.",
       "fields": {
+        "allowPrerelease": "Receive prerelease updates",
         "currentVersion": "Current version",
         "latestVersion": "Latest version",
         "releaseDate": "Release date"
+      },
+      "hints": {
+        "allowPrerelease": "Prerelease builds may be less stable. Changing this setting checks for updates again."
       },
       "actions": {
         "check": "Check for updates",
@@ -416,7 +420,9 @@
       },
       "errors": {
         "load": "Updater status could not be loaded right now.",
-        "action": "The updater action could not be completed."
+        "action": "The updater action could not be completed.",
+        "preferenceLoad": "The prerelease update preference could not be loaded.",
+        "preferenceSave": "The prerelease update preference could not be saved."
       }
     },
     "noteLabels": {

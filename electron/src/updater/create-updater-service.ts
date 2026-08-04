@@ -10,15 +10,20 @@ import type {
   UpdaterRelease,
   UpdaterState,
 } from './updater-contract.js'
+import type { UpdaterPreferences } from './types/updater-preferences.js'
 
 export interface UpdaterClient {
+  allowPrerelease: boolean
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
   autoRunAppAfterInstall: boolean
   checkForUpdates: () => Promise<unknown>
   downloadUpdate: () => Promise<unknown>
   on(event: 'checking-for-update', listener: () => void): UpdaterClient
-  on(event: 'update-available', listener: (updateInfo: UpdateInfo) => void): UpdaterClient
+  on(
+    event: 'update-available',
+    listener: (updateInfo: UpdateInfo) => void
+  ): UpdaterClient
   on(event: 'update-not-available', listener: () => void): UpdaterClient
   on(
     event: 'download-progress',
@@ -36,15 +41,19 @@ export interface UpdaterService {
   checkForUpdates: () => Promise<UpdaterActionResult>
   checkForUpdatesSilently: () => Promise<UpdaterActionResult>
   downloadUpdate: () => Promise<UpdaterActionResult>
+  getPreferences: () => UpdaterPreferences
   getState: () => UpdaterState
   installUpdate: () => Promise<UpdaterActionResult>
+  setAllowPrerelease: (allowPrerelease: boolean) => Promise<UpdaterPreferences>
 }
 
 interface CreateUpdaterServiceOptions {
   client: UpdaterClient
   currentVersion: string
+  initialAllowPrerelease: boolean
   isEnabled: boolean
   onStateChange?: (state: UpdaterState) => void
+  persistAllowPrerelease: (allowPrerelease: boolean) => Promise<void> | void
 }
 
 type CheckMode = 'manual' | 'silent' | null
@@ -52,14 +61,19 @@ type CheckMode = 'manual' | 'silent' | null
 export const createUpdaterService = ({
   client,
   currentVersion,
+  initialAllowPrerelease,
   isEnabled,
   onStateChange,
+  persistAllowPrerelease,
 }: CreateUpdaterServiceOptions): UpdaterService => {
+  client.allowPrerelease = initialAllowPrerelease
   client.autoDownload = false
   client.autoInstallOnAppQuit = false
   client.autoRunAppAfterInstall = false
 
   let activeCheckMode: CheckMode = null
+  let activeCheckPromise: Promise<UpdaterActionResult> | null = null
+  let allowPrerelease = initialAllowPrerelease
   let isCheckingForUpdates = false
   let isDownloadingUpdate = false
   let lastKnownUpdate: UpdaterRelease | null = null
@@ -118,17 +132,9 @@ export const createUpdaterService = ({
     }
   }
 
-  const runCheckForUpdates = async (
+  const executeCheckForUpdates = async (
     checkMode: Exclude<CheckMode, null>
   ): Promise<UpdaterActionResult> => {
-    if (!isEnabled) {
-      return rejectAction('updater-disabled')
-    }
-
-    if (isCheckingForUpdates) {
-      return rejectAction('check-in-progress')
-    }
-
     isCheckingForUpdates = true
     activeCheckMode = checkMode
 
@@ -155,6 +161,49 @@ export const createUpdaterService = ({
 
       return setErrorState(error)
     }
+  }
+
+  const runCheckForUpdates = async (
+    checkMode: Exclude<CheckMode, null>
+  ): Promise<UpdaterActionResult> => {
+    if (!isEnabled) {
+      return rejectAction('updater-disabled')
+    }
+
+    if (activeCheckPromise || isCheckingForUpdates) {
+      return rejectAction('check-in-progress')
+    }
+
+    const checkPromise = executeCheckForUpdates(checkMode)
+
+    activeCheckPromise = checkPromise
+
+    try {
+      return await checkPromise
+    } finally {
+      if (activeCheckPromise === checkPromise) {
+        activeCheckPromise = null
+      }
+    }
+  }
+
+  const refreshAfterPreferenceChange = async (): Promise<void> => {
+    const pendingCheck = activeCheckPromise
+
+    if (pendingCheck) {
+      await pendingCheck
+    }
+
+    if (
+      !isEnabled ||
+      isDownloadingUpdate ||
+      state.kind === 'downloaded' ||
+      state.kind === 'installing'
+    ) {
+      return
+    }
+
+    await runCheckForUpdates('manual')
   }
 
   if (isEnabled) {
@@ -222,6 +271,7 @@ export const createUpdaterService = ({
   }
 
   return {
+    getPreferences: () => ({ allowPrerelease }),
     getState: () => state,
     checkForUpdates: async () => {
       return runCheckForUpdates('manual')
@@ -255,6 +305,19 @@ export const createUpdaterService = ({
         return setErrorState(error)
       }
     },
+    setAllowPrerelease: async (nextAllowPrerelease) => {
+      if (nextAllowPrerelease === allowPrerelease) {
+        return { allowPrerelease }
+      }
+
+      await persistAllowPrerelease(nextAllowPrerelease)
+      allowPrerelease = nextAllowPrerelease
+      client.allowPrerelease = nextAllowPrerelease
+
+      await refreshAfterPreferenceChange()
+
+      return { allowPrerelease }
+    },
     installUpdate: async () => {
       if (!isEnabled) {
         return rejectAction('updater-disabled')
@@ -282,7 +345,10 @@ export const createUpdaterService = ({
 }
 
 const mapDownloadedUpdate = (
-  updateInfo: Pick<UpdateDownloadedEvent, 'releaseDate' | 'releaseName' | 'version'>
+  updateInfo: Pick<
+    UpdateDownloadedEvent,
+    'releaseDate' | 'releaseName' | 'version'
+  >
 ): UpdaterRelease => {
   return mapUpdateInfo(updateInfo)
 }
@@ -311,7 +377,9 @@ const mapUpdateInfo = (
   }
 }
 
-const normalizeReleaseDate = (releaseDate?: Date | string | null): string | null => {
+const normalizeReleaseDate = (
+  releaseDate?: Date | string | null
+): string | null => {
   if (!releaseDate) {
     return null
   }

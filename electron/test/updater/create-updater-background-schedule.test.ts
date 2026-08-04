@@ -5,7 +5,10 @@ import {
   updaterBackgroundCheckIntervalMs,
 } from '../../src/updater/create-updater-background-schedule/create-updater-background-schedule'
 import type { UpdaterService } from '../../src/updater/create-updater-service'
-import type { UpdaterActionResult, UpdaterState } from '../../src/updater/updater-contract'
+import type {
+  UpdaterActionResult,
+  UpdaterState,
+} from '../../src/updater/updater-contract'
 
 class FakeUpdaterService implements UpdaterService {
   checkForUpdatesCalls = 0
@@ -52,8 +55,16 @@ class FakeUpdaterService implements UpdaterService {
     })
   }
 
+  getPreferences() {
+    return { allowPrerelease: false }
+  }
+
   getState(): UpdaterState {
     return this.state
+  }
+
+  setAllowPrerelease() {
+    return Promise.resolve({ allowPrerelease: false })
   }
 
   installUpdate(): Promise<UpdaterActionResult> {
@@ -72,7 +83,8 @@ test('runs one startup background check and schedules hourly re-checks', async (
     currentVersion: '1.0.3',
     kind: 'idle',
   })
-  const scheduledIntervals: Array<{ callback: () => void; timeoutMs: number }> = []
+  const scheduledIntervals: Array<{ callback: () => void; timeoutMs: number }> =
+    []
 
   createUpdaterBackgroundSchedule({
     updaterService,
@@ -87,7 +99,10 @@ test('runs one startup background check and schedules hourly re-checks', async (
 
   assert.equal(updaterService.checkForUpdatesSilentlyCalls, 1)
   assert.equal(scheduledIntervals.length, 1)
-  assert.equal(scheduledIntervals[0]?.timeoutMs, updaterBackgroundCheckIntervalMs)
+  assert.equal(
+    scheduledIntervals[0]?.timeoutMs,
+    updaterBackgroundCheckIntervalMs
+  )
 
   scheduledIntervals[0]?.callback()
   await Promise.resolve()
@@ -105,10 +120,10 @@ test('skips startup and scheduling when the updater is unavailable', async () =>
 
   createUpdaterBackgroundSchedule({
     updaterService,
-    scheduleInterval: ((() => {
+    scheduleInterval: (() => {
       scheduleCalls += 1
       return 1
-    }) as unknown) as typeof setInterval,
+    }) as unknown as typeof setInterval,
     clearScheduledInterval: (() => undefined) as typeof clearInterval,
   })
 
@@ -224,7 +239,7 @@ test('keeps rejected background checks quiet', async () => {
         warnings.push(message)
       },
     },
-    scheduleInterval: ((() => 1) as unknown) as typeof setInterval,
+    scheduleInterval: (() => 1) as unknown as typeof setInterval,
     clearScheduledInterval: (() => undefined) as typeof clearInterval,
   })
 

@@ -1,9 +1,4 @@
-import {
-  act,
-  cleanup,
-  renderHook,
-  waitFor,
-} from '@testing-library/react'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import '../../../../i18n'
@@ -58,6 +53,7 @@ const createBridge = (initialState: UpdaterState): MockUpdaterBridge => {
     emit: (state) => {
       listener?.(state)
     },
+    getPreferences: vi.fn().mockResolvedValue({ allowPrerelease: false }),
     getState: vi.fn().mockResolvedValue(initialState),
     installUpdate: vi.fn().mockResolvedValue(
       createActionResult({
@@ -70,6 +66,7 @@ const createBridge = (initialState: UpdaterState): MockUpdaterBridge => {
         },
       })
     ),
+    setAllowPrerelease: vi.fn().mockResolvedValue({ allowPrerelease: true }),
     subscribe: vi.fn((nextListener) => {
       listener = nextListener
 

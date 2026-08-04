@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useUpdaterState } from '../../hooks/use-updater-state/use-updater-state'
 import { SettingsSection } from '../settings-section'
+import { PrereleaseUpdatesControl } from './components/prerelease-updates-control'
 import { UpdaterActionButton } from './components/updater-action-button'
 import { UpdaterMetadataItem } from './updater-metadata-item'
 import { formatUpdaterReleaseDate } from './utils/format-updater-release-date.util'
@@ -90,6 +91,8 @@ export const UpdaterSection = () => {
         <Typography color="text.secondary" variant="body2">
           {t('settings.updater.summary')}
         </Typography>
+
+        <PrereleaseUpdatesControl updaterState={state} />
 
         {showLoadingState ? (
           <Stack alignItems="center" direction="row" spacing={1.5}>

@@ -122,6 +122,13 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
   assert.deepEqual(receivedStates, [
     { status: 'starting', phase: 'taking-longer' },
   ])
+  await updaterBridge.getPreferences()
+  await updaterBridge.getState()
+  await updaterBridge.checkForUpdates()
+  await updaterBridge.downloadUpdate()
+  await updaterBridge.installUpdate()
+  await updaterBridge.setAllowPrerelease(true)
+
   assert.deepEqual(await windowControlsBridge.getState(), {
     isMaximized: false,
   })
@@ -149,6 +156,12 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     'startup:open-backend-log',
     'startup:retry',
     'startup:exit',
+    'updater:get-preferences',
+    'updater:get-state',
+    'updater:check-for-updates',
+    'updater:download-update',
+    'updater:install-update',
+    'updater:set-allow-prerelease',
     'window-controls:get-state',
     'window-controls:minimize',
     'window-controls:toggle-maximize',

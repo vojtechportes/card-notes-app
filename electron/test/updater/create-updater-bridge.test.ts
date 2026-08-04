@@ -10,11 +10,13 @@ interface RecordedListener {
 }
 
 class FakeIpcRenderer {
+  invocationArguments: unknown[][] = []
   invokes: string[] = []
   listeners: RecordedListener[] = []
   removedListeners: RecordedListener[] = []
 
-  invoke(channel: string): Promise<unknown> {
+  invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+    this.invocationArguments.push(args)
     this.invokes.push(channel)
 
     return Promise.resolve(channel)
@@ -26,7 +28,10 @@ class FakeIpcRenderer {
     return this
   }
 
-  removeListener(channel: string, listener: (...args: unknown[]) => void): this {
+  removeListener(
+    channel: string,
+    listener: (...args: unknown[]) => void
+  ): this {
     this.removedListeners.push({ channel, listener })
 
     return this
@@ -37,17 +42,22 @@ test('proxies updater commands through the narrow IPC contract', async () => {
   const ipcRenderer = new FakeIpcRenderer()
   const updaterBridge = createUpdaterBridge(ipcRenderer)
 
+  await updaterBridge.getPreferences()
   await updaterBridge.getState()
   await updaterBridge.checkForUpdates()
   await updaterBridge.downloadUpdate()
   await updaterBridge.installUpdate()
+  await updaterBridge.setAllowPrerelease(true)
 
   assert.deepEqual(ipcRenderer.invokes, [
+    updaterIpcChannels.getPreferences,
     updaterIpcChannels.getState,
     updaterIpcChannels.checkForUpdates,
     updaterIpcChannels.downloadUpdate,
     updaterIpcChannels.installUpdate,
+    updaterIpcChannels.setAllowPrerelease,
   ])
+  assert.deepEqual(ipcRenderer.invocationArguments.at(-1), [true])
 })
 
 test('subscribes and unsubscribes updater state listeners', () => {
@@ -60,7 +70,10 @@ test('subscribes and unsubscribes updater state listeners', () => {
   })
 
   assert.equal(ipcRenderer.listeners.length, 1)
-  assert.equal(ipcRenderer.listeners[0]?.channel, updaterIpcChannels.stateChanged)
+  assert.equal(
+    ipcRenderer.listeners[0]?.channel,
+    updaterIpcChannels.stateChanged
+  )
 
   const state: UpdaterState = {
     currentVersion: '1.0.3',

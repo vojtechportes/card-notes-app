@@ -8,6 +8,7 @@ import {
 import type { UpdaterState } from '../../src/updater/updater-contract'
 
 class FakeUpdaterClient extends EventEmitter implements UpdaterClient {
+  allowPrerelease = false
   autoDownload = true
   autoInstallOnAppQuit = true
   autoRunAppAfterInstall = true
@@ -37,7 +38,9 @@ test('returns an unavailable state when updater support is disabled', async () =
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: false,
+    persistAllowPrerelease: () => undefined,
   })
 
   assert.deepEqual(updaterService.getState(), {
@@ -61,7 +64,9 @@ test('tracks manual check, download, and install transitions', async () => {
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: true,
+    persistAllowPrerelease: () => undefined,
     onStateChange: (state) => {
       states.push(state)
     },
@@ -183,7 +188,9 @@ test('guards overlapping updater commands before electron-updater emits later ev
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: true,
+    persistAllowPrerelease: () => undefined,
   })
 
   let resolveCheck: (() => void) | null = null
@@ -243,7 +250,9 @@ test('keeps silent updater failures quiet while preserving the prior state', asy
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: true,
+    persistAllowPrerelease: () => undefined,
     onStateChange: (state) => {
       states.push(state)
     },
@@ -270,7 +279,9 @@ test('ignores silent updater error events without surfacing an error state', asy
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: true,
+    persistAllowPrerelease: () => undefined,
     onStateChange: (state) => {
       states.push(state)
     },
@@ -296,7 +307,9 @@ test('guards invalid commands and captures updater errors', async () => {
   const updaterService = createUpdaterService({
     client,
     currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
     isEnabled: true,
+    persistAllowPrerelease: () => undefined,
   })
 
   const downloadBeforeCheck = await updaterService.downloadUpdate()
@@ -322,4 +335,74 @@ test('guards invalid commands and captures updater errors', async () => {
     update: null,
   })
 })
+test('loads and persists the prerelease preference before checking for updates', async () => {
+  const client = new FakeUpdaterClient()
+  const persistedValues: boolean[] = []
+  const updaterService = createUpdaterService({
+    client,
+    currentVersion: '1.0.3',
+    initialAllowPrerelease: true,
+    isEnabled: true,
+    persistAllowPrerelease: (allowPrerelease) => {
+      persistedValues.push(allowPrerelease)
+    },
+  })
 
+  assert.equal(client.allowPrerelease, true)
+  assert.deepEqual(updaterService.getPreferences(), { allowPrerelease: true })
+
+  client.checkForUpdatesHandler = async () => {
+    client.emit('update-not-available')
+  }
+
+  const preferences = await updaterService.setAllowPrerelease(false)
+
+  assert.equal(client.allowPrerelease, false)
+  assert.deepEqual(preferences, { allowPrerelease: false })
+  assert.deepEqual(persistedValues, [false])
+})
+
+test('queues the preference refresh behind an active update check', async () => {
+  const client = new FakeUpdaterClient()
+  const updaterService = createUpdaterService({
+    client,
+    currentVersion: '1.0.3',
+    initialAllowPrerelease: false,
+    isEnabled: true,
+    persistAllowPrerelease: () => undefined,
+  })
+  const resolvers: Array<() => void> = []
+  let activeChecks = 0
+  let maximumActiveChecks = 0
+
+  client.checkForUpdatesHandler = () => {
+    activeChecks += 1
+    maximumActiveChecks = Math.max(maximumActiveChecks, activeChecks)
+
+    return new Promise((resolve) => {
+      resolvers.push(() => {
+        activeChecks -= 1
+        client.emit('update-not-available')
+        resolve(undefined)
+      })
+    })
+  }
+
+  const initialCheck = updaterService.checkForUpdates()
+  const preferenceChange = updaterService.setAllowPrerelease(true)
+
+  assert.equal(resolvers.length, 1)
+  resolvers.shift()?.()
+  await initialCheck
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0)
+  })
+
+  assert.equal(resolvers.length, 1)
+  resolvers.shift()?.()
+  await preferenceChange
+
+  assert.equal(maximumActiveChecks, 1)
+  assert.equal(client.allowPrerelease, true)
+})
