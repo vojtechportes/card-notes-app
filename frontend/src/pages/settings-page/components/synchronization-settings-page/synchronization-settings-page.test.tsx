@@ -24,11 +24,7 @@ vi.mock('../../../../hooks/sync/use-sync-provider-availability-query', () => ({
   useSyncProviderAvailabilityQuery: () => ({
     data: [
       { provider: 'google-drive', available: true },
-      {
-        provider: 'one-drive',
-        available: false,
-        unavailableReasonCode: 'adapter-not-installed',
-      },
+      { provider: 'one-drive', available: true },
     ],
     isLoading: false,
     isError: false,
@@ -97,16 +93,15 @@ describe('SynchronizationSettingsPage', () => {
     )
     rerender(<SynchronizationSettingsPage />)
 
-    expect(
-      screen.getByRole('button', {
-        name: 'Microsoft OneDrive (Unavailable)',
-      })
-    ).toHaveProperty('disabled', true)
+    const oneDriveButton = screen.getByRole('button', {
+      name: 'Microsoft OneDrive',
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }))
+    expect(oneDriveButton).toHaveProperty('disabled', false)
+    fireEvent.click(oneDriveButton)
 
     expect(beginEnable).toHaveBeenCalledOnce()
-    expect(selectProvider).toHaveBeenCalledWith('google-drive')
+    expect(selectProvider).toHaveBeenCalledWith('one-drive')
   })
 
   it('offers resume without losing a retained provider binding', () => {

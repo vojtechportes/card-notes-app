@@ -4,12 +4,21 @@ import { createSyncTriggerSchedule } from '../../src/sync/create-sync-trigger-sc
 import type { SyncTrigger } from '../../src/sync/types/sync-trigger.js'
 
 const listeners = () => {
+  let background: (() => void) | null = null
   let focus: (() => void) | null = null
   let resume: (() => void) | null = null
 
   return {
+    emitBackground: () => background?.(),
     emitFocus: () => focus?.(),
     emitResume: () => resume?.(),
+    onBackground: (listener: () => void) => {
+      background = listener
+
+      return () => {
+        background = null
+      }
+    },
     onFocus: (listener: () => void) => {
       focus = listener
 
@@ -27,7 +36,7 @@ const listeners = () => {
   }
 }
 
-test('forwards focus, resume, network recovery, and quit triggers', () => {
+test('forwards background, focus, resume, network recovery, and quit triggers', () => {
   const events = listeners()
   const sent: SyncTrigger[] = []
   let online = false
@@ -35,6 +44,7 @@ test('forwards focus, resume, network recovery, and quit triggers', () => {
   const schedule = createSyncTriggerSchedule({
     clearScheduledInterval: (() => undefined) as typeof clearInterval,
     isOnline: () => online,
+    onBackground: events.onBackground,
     onFocus: events.onFocus,
     onResume: events.onResume,
     scheduleInterval: ((callback: () => void) => {
@@ -45,13 +55,20 @@ test('forwards focus, resume, network recovery, and quit triggers', () => {
     send: (trigger) => sent.push(trigger),
   })
 
+  events.emitBackground()
   events.emitFocus()
   events.emitResume()
   online = true
   pollConnectivity?.()
   schedule.flushBeforeQuit()
 
-  assert.deepEqual(sent, ['focus', 'resume', 'network-recovery', 'quit'])
+  assert.deepEqual(sent, [
+    'background',
+    'focus',
+    'resume',
+    'network-recovery',
+    'quit',
+  ])
   schedule.dispose()
 })
 
@@ -65,6 +82,7 @@ test('removes listeners and polling when disposed', () => {
       intervalWasCleared = true
     }) as typeof clearInterval,
     isOnline: () => online,
+    onBackground: events.onBackground,
     onFocus: events.onFocus,
     onResume: events.onResume,
     scheduleInterval: (() => 1) as unknown as typeof setInterval,
@@ -72,6 +90,7 @@ test('removes listeners and polling when disposed', () => {
   })
 
   schedule.dispose()
+  events.emitBackground()
   events.emitFocus()
   events.emitResume()
   online = true

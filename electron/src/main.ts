@@ -228,6 +228,10 @@ async function startApplication(): Promise<void> {
     backendStartupController.start()
     syncTriggerSchedule = createSyncTriggerSchedule({
       isOnline: () => net.isOnline(),
+      onBackground: (listener) => {
+        app.on('browser-window-blur', listener)
+        return () => app.off('browser-window-blur', listener)
+      },
       onFocus: (listener) => {
         app.on('browser-window-focus', listener)
         return () => app.off('browser-window-focus', listener)

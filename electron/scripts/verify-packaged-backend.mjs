@@ -15,7 +15,12 @@ const unpackedRoot = process.env.NOTESTACK_UNPACKED_ROOT
 const executablePath = path.join(unpackedRoot, 'NoteStack.exe')
 const backendRoot = path.join(unpackedRoot, 'resources', 'backend')
 const backendEntryPath = path.join(backendRoot, 'dist', 'main.js')
-const uuidPackagePath = path.join(backendRoot, 'node_modules', 'uuid', 'package.json')
+const uuidPackagePath = path.join(
+  backendRoot,
+  'node_modules',
+  'uuid',
+  'package.json'
+)
 const excelUuidPackagePath = path.join(
   backendRoot,
   'node_modules',
@@ -47,14 +52,30 @@ for (const requiredPath of requiredRuntimePaths) {
 }
 
 const uuidVersion = JSON.parse(readFileSync(uuidPackagePath, 'utf8')).version
-const excelUuidVersion = JSON.parse(readFileSync(excelUuidPackagePath, 'utf8')).version
+const excelUuidVersion = JSON.parse(
+  readFileSync(excelUuidPackagePath, 'utf8')
+).version
+const workspaceLockPath = path.resolve(electronRoot, '..', 'package-lock.json')
+const workspacePackages = JSON.parse(
+  readFileSync(workspaceLockPath, 'utf8')
+).packages
+const expectedUuidVersion = workspacePackages['node_modules/uuid']?.version
+const expectedExcelUuidVersion =
+  workspacePackages['node_modules/exceljs/node_modules/uuid']?.version
 
-if (uuidVersion !== '11.1.0' || excelUuidVersion !== '8.3.2') {
+if (
+  !expectedUuidVersion ||
+  !expectedExcelUuidVersion ||
+  uuidVersion !== expectedUuidVersion ||
+  excelUuidVersion !== expectedExcelUuidVersion
+) {
   throw new Error(
     `Packaged UUID dependency tree is invalid: backend=${uuidVersion}, exceljs=${excelUuidVersion}.`
   )
 }
-const temporaryDirectory = await mkdtemp(path.join(tmpdir(), 'notestack-backend-smoke-'))
+const temporaryDirectory = await mkdtemp(
+  path.join(tmpdir(), 'notestack-backend-smoke-')
+)
 const databasePath = path.join(temporaryDirectory, 'card-notes.sqlite')
 const port = await getAvailablePort()
 const healthUrl = `http://127.0.0.1:${port}/api/health`
@@ -105,7 +126,9 @@ async function getAvailablePort() {
 
   if (!address || typeof address === 'string') {
     server.close()
-    throw new Error('Could not allocate a port for the packaged backend smoke check.')
+    throw new Error(
+      'Could not allocate a port for the packaged backend smoke check.'
+    )
   }
 
   await new Promise((resolve, reject) => {
@@ -120,7 +143,9 @@ async function waitForHealth(childProcess, healthUrl) {
 
   while (Date.now() < timeoutAt) {
     if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
-      throw new Error(`Packaged backend exited before becoming healthy.\n${backendOutput.trim()}`)
+      throw new Error(
+        `Packaged backend exited before becoming healthy.\n${backendOutput.trim()}`
+      )
     }
 
     try {
@@ -136,7 +161,9 @@ async function waitForHealth(childProcess, healthUrl) {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
-  throw new Error(`Timed out waiting for packaged backend health.\n${backendOutput.trim()}`)
+  throw new Error(
+    `Timed out waiting for packaged backend health.\n${backendOutput.trim()}`
+  )
 }
 
 function appendOutput(currentOutput, nextOutput) {

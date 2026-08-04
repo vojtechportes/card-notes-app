@@ -7,6 +7,7 @@ export type SyncTriggerDto = {
     | 'local-mutation'
     | 'manual'
     | 'focus'
+    | 'background'
     | 'resume'
     | 'network-recovery'
     | 'provider-signal'

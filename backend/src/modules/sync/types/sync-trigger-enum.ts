@@ -3,6 +3,7 @@ export enum SyncTriggerEnum {
   LocalMutation = 'local-mutation',
   Manual = 'manual',
   Focus = 'focus',
+  Background = 'background',
   Resume = 'resume',
   NetworkRecovery = 'network-recovery',
   ProviderSignal = 'provider-signal',

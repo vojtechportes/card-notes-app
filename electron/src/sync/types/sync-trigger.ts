@@ -1,1 +1,2 @@
-export type SyncTrigger = 'focus' | 'resume' | 'network-recovery' | 'quit'
+export type SyncTrigger =
+  'focus' | 'background' | 'resume' | 'network-recovery' | 'quit'

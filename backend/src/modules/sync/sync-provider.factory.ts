@@ -2,11 +2,11 @@ import { Inject, Injectable } from '@nestjs/common'
 import { CredentialBrokerClient } from './credential-broker/credential-broker.client'
 import { createBrokeredAccessTokenProvider } from './credential-broker/create-brokered-access-token-provider'
 import { GoogleDriveSyncProviderAdapter } from './google-drive/google-drive-sync-provider.adapter'
+import { OneDriveSyncProviderAdapter } from './one-drive/one-drive-sync-provider.adapter'
 import { SyncReconciliationRepository } from './sync-reconciliation.repository'
 import type { SyncProviderAdapter } from './types/sync-provider-adapter'
 import { SyncProviderEnum } from './types/sync-provider-enum'
 import type { SyncProviderFactoryContract } from './types/sync-provider-factory-contract'
-import { SyncProviderUnavailableError } from './types/sync-provider-unavailable-error'
 
 @Injectable()
 export class SyncProviderFactory implements SyncProviderFactoryContract {
@@ -18,15 +18,21 @@ export class SyncProviderFactory implements SyncProviderFactoryContract {
   ) {}
 
   create(provider: SyncProviderEnum, workspaceId: string): SyncProviderAdapter {
-    if (provider !== SyncProviderEnum.GoogleDrive) {
-      throw new SyncProviderUnavailableError(provider)
+    const accessTokenProvider = createBrokeredAccessTokenProvider(
+      this.credentialBrokerClient,
+      provider
+    )
+
+    if (provider === SyncProviderEnum.OneDrive) {
+      return new OneDriveSyncProviderAdapter({
+        accessTokenProvider,
+        objectMappingReader: this.reconciliationRepository,
+        workspaceId,
+      })
     }
 
     return new GoogleDriveSyncProviderAdapter({
-      accessTokenProvider: createBrokeredAccessTokenProvider(
-        this.credentialBrokerClient,
-        provider
-      ),
+      accessTokenProvider,
       objectMappingReader: this.reconciliationRepository,
       workspaceId,
     })
