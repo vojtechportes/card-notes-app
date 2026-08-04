@@ -22,7 +22,7 @@ const bumpFlags = new Map([
 ]);
 
 const exactVersionFlag = "--version";
-const usage = `Usage: node scripts/update-package-version.mjs --patch|--minor|--major|--version <x.y.z>`;
+const usage = `Usage: node scripts/update-package-version.mjs --patch|--minor|--major|--version <semantic-version>`;
 const argumentsList = process.argv.slice(2);
 const selectedFlags = argumentsList.filter((argument) =>
   bumpFlags.has(argument),
@@ -56,11 +56,14 @@ const bumpType = usesExactVersion ? undefined : bumpFlags.get(selectedFlags[0]);
 const requestedVersion = usesExactVersion ? argumentsList[1] : undefined;
 
 const parseVersion = (version, filePath) => {
-  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(version);
+  const match =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.exec(
+      version,
+    );
 
   if (!match) {
     throw new Error(
-      `${filePath} has unsupported version "${version}". Expected x.y.z.`,
+      `${filePath} has unsupported version "${version}". Expected a semantic version.`,
     );
   }
 
