@@ -6,6 +6,7 @@ export const VERIFIER_ROLLOVER_MAX_MS = 24 * 60 * 60 * 1000
 export const CHANNEL_MAX_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
 export const CHANNEL_PREPARATION_TTL_MS = 10 * 60 * 1000
 export const RENEWAL_LEASE_TTL_MS = 2 * 60 * 1000
+export const CHANNEL_RENEWAL_WINDOW_MS = 24 * 60 * 60 * 1000
 export const NOTIFICATION_COALESCE_MS = 500
 export const REPLAY_RETENTION_MS = 24 * 60 * 60 * 1000
 export const HEARTBEAT_INTERVAL_MS = 30 * 1000
