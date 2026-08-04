@@ -1,3 +1,5 @@
+import type { UpdaterPreferences } from './updater-preferences'
+
 export interface UpdaterRelease {
   releaseDate: string | null
   releaseName: string | null
@@ -72,7 +74,9 @@ export type UpdaterStateListener = (state: UpdaterState) => void
 export interface NoteStackUpdaterBridge {
   checkForUpdates: () => Promise<UpdaterActionResult>
   downloadUpdate: () => Promise<UpdaterActionResult>
+  getPreferences: () => Promise<UpdaterPreferences>
   getState: () => Promise<UpdaterState>
   installUpdate: () => Promise<UpdaterActionResult>
+  setAllowPrerelease: (allowPrerelease: boolean) => Promise<UpdaterPreferences>
   subscribe: (listener: UpdaterStateListener) => () => void
 }

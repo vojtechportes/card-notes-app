@@ -40,8 +40,10 @@ const startupIpcChannels = {
 const updaterIpcChannels = {
   checkForUpdates: 'updater:check-for-updates',
   downloadUpdate: 'updater:download-update',
+  getPreferences: 'updater:get-preferences',
   getState: 'updater:get-state',
   installUpdate: 'updater:install-update',
+  setAllowPrerelease: 'updater:set-allow-prerelease',
   stateChanged: 'updater:state-changed',
 } as const
 
@@ -105,11 +107,20 @@ const updaterBridge: NoteStackUpdaterBridge = {
   downloadUpdate: () => {
     return ipcRenderer.invoke(updaterIpcChannels.downloadUpdate)
   },
+  getPreferences: () => {
+    return ipcRenderer.invoke(updaterIpcChannels.getPreferences)
+  },
   getState: () => {
     return ipcRenderer.invoke(updaterIpcChannels.getState)
   },
   installUpdate: () => {
     return ipcRenderer.invoke(updaterIpcChannels.installUpdate)
+  },
+  setAllowPrerelease: (allowPrerelease: boolean) => {
+    return ipcRenderer.invoke(
+      updaterIpcChannels.setAllowPrerelease,
+      allowPrerelease
+    )
   },
   subscribe: (listener: (state: UpdaterState) => void) => {
     const handleStateChange = (_event: unknown, state: UpdaterState) => {

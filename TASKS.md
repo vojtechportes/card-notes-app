@@ -762,6 +762,15 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add accessible nested background pickers to note card and detail action menus.
   - Apply mapped background colors to note cards and details and verify the feature end to end.
 
+- [x] TMSC-29. Allow prerelease updates
+  - Add a localized checkbox to the dedicated Updates settings page that lets the user opt into or out of prerelease Electron updates.
+  - Persist the preference locally so it is applied before automatic and manual update checks after application restart.
+  - Keep stable releases as the default update channel and apply the preference through the narrow sandboxed updater bridge.
+  - Re-check for updates after the preference changes without introducing overlapping updater operations.
+  - Keep the Updates page components slim and place updater-owned types, utilities, and constants within the updater/settings slice according to `AGENTS.md`.
+  - Add focused Electron and frontend coverage for preference retrieval, persistence, IPC propagation, updater configuration, localized rendering, and checkbox interaction.
+  - Run Prettier on all modified code, then verify focused tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

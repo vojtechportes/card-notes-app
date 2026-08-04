@@ -25,6 +25,7 @@ import { createWindowsUpdateSignatureVerifier } from './updater/create-windows-u
 import { updaterIpcChannels } from './updater/updater-ipc-channels.js'
 import { registerUpdaterIpc } from './updater/register-updater-ipc.js'
 import type { UpdaterState } from './updater/updater-contract.js'
+import { UpdaterPreferencesStore } from './updater/updater-preferences-store.js'
 import { getApplicationDataRoot } from './backend/utils/get-application-data-root.util.js'
 import { BackendEntrypointMissingError } from './startup/backend-entrypoint-missing-error.js'
 import { createBackendStartupController } from './startup/create-backend-startup-controller.js'
@@ -85,6 +86,9 @@ const applicationIconPath = path.join(
 )
 const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
 const applicationDataRoot = getApplicationDataRoot(app.getPath('appData'))
+const updaterPreferencesStore = new UpdaterPreferencesStore(
+  path.join(applicationDataRoot, 'updater-preferences.json')
+)
 let backendPort: number | null = null
 let backendHealthUrl: string | null = null
 let backendApiBaseUrl: string | null = null
@@ -196,11 +200,17 @@ async function startApplication(): Promise<void> {
     const apiBaseUrl = `http://${backendHost}:${backendPort}/api`
     backendApiBaseUrl = apiBaseUrl
     backendHealthUrl = `${apiBaseUrl}/health`
+    const updaterPreferences = updaterPreferencesStore.getPreferences()
+
     updaterService = createUpdaterService({
       client: autoUpdater,
       currentVersion: app.getVersion(),
+      initialAllowPrerelease: updaterPreferences.allowPrerelease,
       isEnabled: isUpdaterEnabled(),
       onStateChange: emitUpdaterState,
+      persistAllowPrerelease: (allowPrerelease) => {
+        updaterPreferencesStore.setAllowPrerelease(allowPrerelease)
+      },
     })
     updaterBackgroundSchedule = createUpdaterBackgroundSchedule({
       updaterService,
