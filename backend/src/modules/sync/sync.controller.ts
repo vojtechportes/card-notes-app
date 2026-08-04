@@ -19,12 +19,17 @@ import {
 } from '@nestjs/swagger'
 import { SyncConflictService } from './sync-conflict.service'
 import { SyncOrchestrationService } from './sync-orchestration.service'
+import { SyncPairingService } from './sync-pairing.service'
+import { ConfirmSyncPairingDto } from './types/confirm-sync-pairing.dto'
+import { PrepareSyncPairingDto } from './types/prepare-sync-pairing.dto'
 import { ResolveSyncConflictDto } from './types/resolve-sync-conflict.dto'
 import { SyncCommandDto } from './types/sync-command.dto'
 import { SyncCommandEnum } from './types/sync-command-enum'
 import { SyncConflictDto } from './types/sync-conflict.dto'
 import { SyncConflictResolutionStateEnum } from './types/sync-conflict-resolution-state-enum'
 import type { SyncRemoteDocument } from './types/sync-remote-document'
+import { SyncPairingOperationDto } from './types/sync-pairing-operation.dto'
+import { SyncProviderAvailabilityDto } from './types/sync-provider-availability.dto'
 import { SyncStatusDto } from './types/sync-status.dto'
 import { SyncTriggerDto } from './types/sync-trigger.dto'
 import { SyncTriggerEnum } from './types/sync-trigger-enum'
@@ -35,6 +40,8 @@ export class SyncController {
   constructor(
     @Inject(SyncOrchestrationService)
     private readonly orchestrationService: SyncOrchestrationService,
+    @Inject(SyncPairingService)
+    private readonly pairingService: SyncPairingService,
     @Inject(SyncConflictService)
     private readonly conflictService: SyncConflictService
   ) {}
@@ -81,14 +88,89 @@ export class SyncController {
 
     switch (body.command) {
       case SyncCommandEnum.Disconnect:
-        return this.orchestrationService.requestDisconnect()
+        this.requireDestructiveConfirmation(body)
+        return this.runDisconnectCommand()
       case SyncCommandEnum.Repair:
-        return this.orchestrationService.repair()
+        return this.runRepairCommand()
       case SyncCommandEnum.SwitchProvider:
-        return this.orchestrationService.requestProviderSwitch()
+        throw new BadRequestException(
+          'Provider switching must start with the pairing prepare endpoint.'
+        )
       case SyncCommandEnum.Reset:
-        return this.orchestrationService.requestReset()
+        this.requireDestructiveConfirmation(body)
+        return this.runResetCommand()
     }
+  }
+
+  @Get('providers')
+  @ApiOperation({ summary: 'List synchronization provider availability' })
+  @ApiOkResponse({ type: SyncProviderAvailabilityDto, isArray: true })
+  getProviderAvailability(): SyncProviderAvailabilityDto[] {
+    return this.pairingService.getProviderAvailability()
+  }
+
+  @Post('pairing/prepare')
+  @ApiOperation({
+    summary: 'Prepare synchronization pairing or provider switch',
+  })
+  @ApiOkResponse({ type: SyncPairingOperationDto })
+  @ApiBody({ type: PrepareSyncPairingDto })
+  preparePairing(
+    @Body() body: PrepareSyncPairingDto
+  ): Promise<SyncPairingOperationDto> {
+    return this.pairingService.prepare(body)
+  }
+
+  @Get('pairing/:id')
+  @ApiOperation({ summary: 'Get synchronization pairing preview and state' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: SyncPairingOperationDto })
+  @ApiNotFoundResponse({ description: 'Pairing operation was not found.' })
+  getPairing(@Param('id') id: string): SyncPairingOperationDto {
+    return this.pairingService.get(id)
+  }
+
+  @Post('pairing/:id/confirm')
+  @ApiOperation({ summary: 'Confirm synchronization pairing decision' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: SyncPairingOperationDto })
+  @ApiBody({ type: ConfirmSyncPairingDto })
+  confirmPairing(
+    @Param('id') id: string,
+    @Body() body: ConfirmSyncPairingDto
+  ): Promise<SyncPairingOperationDto> {
+    return this.pairingService.confirm(id, body)
+  }
+
+  @Post('pairing/:id/cancel')
+  @ApiOperation({ summary: 'Cancel synchronization pairing' })
+  @ApiParam({ name: 'id' })
+  @ApiOkResponse({ type: SyncPairingOperationDto })
+  cancelPairing(@Param('id') id: string): Promise<SyncPairingOperationDto> {
+    return this.pairingService.cancel(id)
+  }
+
+  private async runDisconnectCommand(): Promise<SyncStatusDto> {
+    await this.pairingService.disconnect()
+    return this.orchestrationService.getStatus()
+  }
+
+  private async runResetCommand(): Promise<SyncStatusDto> {
+    await this.pairingService.reset()
+    return this.orchestrationService.getStatus()
+  }
+
+  private requireDestructiveConfirmation(body: SyncCommandDto): void {
+    if (!body.confirmed) {
+      throw new BadRequestException(
+        'Destructive synchronization commands require explicit confirmation.'
+      )
+    }
+  }
+
+  private async runRepairCommand(): Promise<SyncStatusDto> {
+    await this.pairingService.repair()
+    return this.orchestrationService.getStatus()
   }
 
   @Get('conflicts')

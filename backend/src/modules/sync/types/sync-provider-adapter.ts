@@ -8,6 +8,7 @@ import type { SyncProviderWriteResult } from './sync-provider-write-result'
 
 export interface SyncProviderAdapter {
   getIdentity(): Promise<SyncProviderIdentity>
+  listWorkspaces(): Promise<SyncProviderWorkspace[]>
   discoverWorkspace(workspaceId: string): Promise<SyncProviderWorkspace | null>
   createWorkspace(workspaceId: string): Promise<SyncProviderWorkspace>
   enumerateObjects(pageToken?: string): Promise<SyncProviderEnumerationPage>
@@ -31,5 +32,11 @@ export interface SyncProviderAdapter {
     logicalKey: string,
     bytes: Buffer,
     contentHash: string
+  ): Promise<SyncProviderWriteResult>
+  updateAsset(
+    logicalKey: string,
+    bytes: Buffer,
+    contentHash: string,
+    expectedVersion: string
   ): Promise<SyncProviderWriteResult>
 }

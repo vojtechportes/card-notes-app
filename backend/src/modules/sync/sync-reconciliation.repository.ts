@@ -265,6 +265,34 @@ export class SyncReconciliationRepository {
         },
       })
 
+      if (entityKind === SyncEntityKindEnum.Asset) {
+        const localAsset = this.getDatabase()
+          .prepare(
+            "SELECT 1 FROM assets WHERE asset_id = ? AND integrity_state = 'available'"
+          )
+          .get(entityId)
+        if (!localAsset) {
+          return false
+        }
+        if (removeRemoteMapping) {
+          this.getDatabase()
+            .prepare(
+              `DELETE FROM sync_remote_objects
+              WHERE workspace_id = ? AND provider = ? AND logical_key = ?`
+            )
+            .run(context.workspaceId, context.provider, logicalKey)
+        }
+
+        enqueueSyncOutboxMutation(this.getDatabase(), {
+          entityKind,
+          entityId,
+          intent: SyncMutationIntentEnum.Upsert,
+          mutationId: uuidV4(),
+          modifiedAt: new Date().toISOString(),
+        })
+        return true
+      }
+
       if (localDocument && 'entityType' in localDocument.document) {
         const mutationId = uuidV4()
         const modifiedAt = new Date().toISOString()
@@ -428,8 +456,11 @@ export class SyncReconciliationRepository {
     apply()
   }
 
-  listClaimedDocuments(entries: SyncOutboxEntry[]): ClaimedSyncDocument[] {
-    const context = this.getActiveContext()
+  listClaimedDocuments(
+    entries: SyncOutboxEntry[],
+    suppliedContext?: ActiveSyncContext
+  ): ClaimedSyncDocument[] {
+    const context = suppliedContext ?? this.getActiveContext()
     if (!context) {
       return []
     }

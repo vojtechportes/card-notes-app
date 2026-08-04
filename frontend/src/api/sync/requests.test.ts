@@ -1,6 +1,8 @@
 import type { AxiosResponse } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  ConfirmSyncPairingDto,
+  PrepareSyncPairingDto,
   ResolveSyncConflictDto,
   SyncCommandDto,
   SyncConflictDto,
@@ -8,9 +10,14 @@ import type {
   SyncTriggerDto,
 } from '../../types/api'
 import {
+  cancelSyncPairing,
+  confirmSyncPairing,
   getSyncConflict,
+  getSyncPairing,
+  getSyncProviderAvailability,
   getSyncStatus,
   listSyncConflicts,
+  prepareSyncPairing,
   resolveSyncConflict,
   runSyncCommand,
   runSyncNow,
@@ -66,7 +73,7 @@ describe('synchronization requests', () => {
 
   it('returns direct Axios promises for run, trigger, and command operations', () => {
     const trigger: SyncTriggerDto = { trigger: 'focus' }
-    const command: SyncCommandDto = { command: 'disconnect' }
+    const command: SyncCommandDto = { command: 'disconnect', confirmed: true }
     const runResponse = Promise.resolve(createResponse(status))
     const triggerResponse = Promise.resolve(createResponse(status))
     const commandResponse = Promise.resolve(createResponse(status))
@@ -102,6 +109,51 @@ describe('synchronization requests', () => {
     expect(apiClientMock.post).toHaveBeenCalledWith(
       '/sync/conflicts/conflict-1/resolve',
       resolution
+    )
+  })
+  it('returns the direct Axios promise for provider availability', () => {
+    const signal = new AbortController().signal
+    const response = Promise.resolve(
+      createResponse([{ provider: 'google-drive', available: true }])
+    )
+    apiClientMock.get.mockReturnValue(response)
+
+    expect(getSyncProviderAvailability(signal)).toBe(response)
+    expect(apiClientMock.get).toHaveBeenCalledWith('/sync/providers', {
+      signal,
+    })
+  })
+  it('returns direct Axios promises for pairing preparation and decisions', () => {
+    const signal = new AbortController().signal
+    const preparation: PrepareSyncPairingDto = {
+      provider: 'google-drive',
+    }
+    const confirmation: ConfirmSyncPairingDto = { decision: 'merge' }
+    const operation = {} as import('../../types/api').SyncPairingOperationDto
+    const response = Promise.resolve(createResponse(operation))
+    apiClientMock.post.mockReturnValue(response)
+    apiClientMock.get.mockReturnValue(response)
+
+    expect(prepareSyncPairing(preparation)).toBe(response)
+    expect(getSyncPairing('pairing-1', signal)).toBe(response)
+    expect(confirmSyncPairing('pairing-1', confirmation)).toBe(response)
+    expect(cancelSyncPairing('pairing-1')).toBe(response)
+    expect(apiClientMock.post).toHaveBeenNthCalledWith(
+      1,
+      '/sync/pairing/prepare',
+      preparation
+    )
+    expect(apiClientMock.get).toHaveBeenCalledWith('/sync/pairing/pairing-1', {
+      signal,
+    })
+    expect(apiClientMock.post).toHaveBeenNthCalledWith(
+      2,
+      '/sync/pairing/pairing-1/confirm',
+      confirmation
+    )
+    expect(apiClientMock.post).toHaveBeenNthCalledWith(
+      3,
+      '/sync/pairing/pairing-1/cancel'
     )
   })
 })

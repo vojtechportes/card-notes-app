@@ -32,6 +32,7 @@ const DEFAULT_RETRY_DELAY_MS = 5_000
 @Injectable()
 export class SyncReconciliationService {
   private activeRun: Promise<SyncReconciliationResult> | null = null
+  private exclusiveOperation: Promise<void> | null = null
   private followUpRequested = false
 
   constructor(
@@ -49,20 +50,70 @@ export class SyncReconciliationService {
     adapter: SyncProviderAdapter,
     options: SyncReconciliationOptions
   ): Promise<SyncReconciliationResult> {
+    return this.runWithContext(adapter, options)
+  }
+
+  runWithContext(
+    adapter: SyncProviderAdapter,
+    options: SyncReconciliationOptions,
+    context?: ActiveSyncContext
+  ): Promise<SyncReconciliationResult> {
+    if (this.exclusiveOperation) {
+      return this.exclusiveOperation.then(() =>
+        this.runWithContext(adapter, options, context)
+      )
+    }
     if (this.activeRun) {
       this.followUpRequested = true
       return this.activeRun
     }
 
-    this.activeRun = this.runSerialized(adapter, options).finally(() => {
-      this.activeRun = null
-    })
+    this.activeRun = this.runSerialized(adapter, options, context).finally(
+      () => {
+        this.activeRun = null
+      }
+    )
     return this.activeRun
+  }
+
+  runWithinExclusive(
+    adapter: SyncProviderAdapter,
+    options: SyncReconciliationOptions,
+    context?: ActiveSyncContext
+  ): Promise<SyncReconciliationResult> {
+    if (!this.exclusiveOperation) {
+      throw new Error('An exclusive synchronization reservation is required.')
+    }
+
+    return this.runSerialized(adapter, options, context)
+  }
+
+  async executeExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const previousExclusiveOperation = this.exclusiveOperation
+    const previousActiveRun = this.activeRun
+    let release: (() => void) | undefined
+    const reservation = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    this.exclusiveOperation = reservation
+
+    await previousExclusiveOperation
+    await previousActiveRun?.catch(() => undefined)
+
+    try {
+      return await operation()
+    } finally {
+      release?.()
+      if (this.exclusiveOperation === reservation) {
+        this.exclusiveOperation = null
+      }
+    }
   }
 
   private async runSerialized(
     adapter: SyncProviderAdapter,
-    options: SyncReconciliationOptions
+    options: SyncReconciliationOptions,
+    context?: ActiveSyncContext
   ): Promise<SyncReconciliationResult> {
     const aggregate: SyncReconciliationResult = {
       pulledCount: 0,
@@ -76,7 +127,7 @@ export class SyncReconciliationService {
     do {
       const wasFollowUp = this.followUpRequested
       this.followUpRequested = false
-      const result = await this.runOnce(adapter, options)
+      const result = await this.runOnce(adapter, options, 0, context)
       aggregate.pulledCount += result.pulledCount
       aggregate.pushedCount += result.pushedCount
       aggregate.downloadedAssetCount += result.downloadedAssetCount
@@ -91,9 +142,11 @@ export class SyncReconciliationService {
   private async runOnce(
     adapter: SyncProviderAdapter,
     options: SyncReconciliationOptions,
-    preconditionRetryCount = 0
+    preconditionRetryCount = 0,
+    suppliedContext?: ActiveSyncContext
   ): Promise<SyncReconciliationResult> {
-    const context = this.reconciliationRepository.getActiveContext()
+    const context =
+      suppliedContext ?? this.reconciliationRepository.getActiveContext()
     if (!context) {
       throw new Error('Synchronization requires an enabled, bound workspace.')
     }
@@ -115,19 +168,29 @@ export class SyncReconciliationService {
       )
       for (const entry of claimedAssets) {
         const { buffer } = this.assetsService.readAsset(entry.entityId)
-        this.faultInjector?.reach('before-remote-write')
-        const writeResult = await adapter.createAsset(
-          entry.logicalKey,
-          buffer,
-          entry.entityId
+        const remote = this.reconciliationRepository.findRemoteState(
+          context,
+          entry.logicalKey
         )
+        this.faultInjector?.reach('before-remote-write')
+        const writeResult = remote
+          ? await adapter.updateAsset(
+              entry.logicalKey,
+              buffer,
+              entry.entityId,
+              remote.providerVersion
+            )
+          : await adapter.createAsset(entry.logicalKey, buffer, entry.entityId)
         this.faultInjector?.reach('after-remote-write')
         pushes.push({ entry, writeResult })
         uploadedAssetCount += 1
       }
 
       const documents = this.reconciliationRepository.listClaimedDocuments(
-        claimed.filter((entry) => entry.entityKind !== SyncEntityKindEnum.Asset)
+        claimed.filter(
+          (entry) => entry.entityKind !== SyncEntityKindEnum.Asset
+        ),
+        context
       )
       for (const claimedDocument of documents) {
         const remote = this.reconciliationRepository.findRemoteState(
@@ -164,7 +227,8 @@ export class SyncReconciliationService {
         return this.runOnce(
           adapter,
           { ...options, now: undefined },
-          preconditionRetryCount + 1
+          preconditionRetryCount + 1,
+          context
         )
       }
       await this.failClaims(claimed, error)
@@ -217,31 +281,51 @@ export class SyncReconciliationService {
           metadata.logicalKey
         )
         if (remoteState) {
-          this.reconciliationRepository.recordRemoteRepairCondition(
-            context,
-            metadata.logicalKey,
-            metadata.entityKind,
-            remoteState.entityId,
-            '$remote.missing',
-            true
-          )
-          throw new SyncRemoteDeletionError(metadata.logicalKey)
+          const repairScheduled =
+            this.reconciliationRepository.recordRemoteRepairCondition(
+              context,
+              metadata.logicalKey,
+              metadata.entityKind,
+              remoteState.entityId,
+              '$remote.missing',
+              true
+            )
+          if (!repairScheduled) {
+            throw new SyncRemoteDeletionError(metadata.logicalKey)
+          }
         }
         continue
       }
       if (metadata.entityKind === SyncEntityKindEnum.Asset) {
         const read = await adapter.readObject(metadata.logicalKey)
         const assetId = this.getAssetId(metadata.logicalKey)
-        this.assetsService.storeSynchronizedImage(read.bytes, assetId)
-        assets.push({
-          assetId,
-          metadata: {
-            ...metadata,
-            providerObjectId: read.providerObjectId,
-            providerVersion: read.providerVersion,
-          },
-        })
-        downloadedAssetCount += 1
+        try {
+          this.assetsService.storeSynchronizedImage(read.bytes, assetId)
+          assets.push({
+            assetId,
+            metadata: {
+              ...metadata,
+              providerObjectId: read.providerObjectId,
+              providerVersion: read.providerVersion,
+            },
+          })
+          downloadedAssetCount += 1
+        } catch (error) {
+          const repairScheduled =
+            this.reconciliationRepository.recordRemoteRepairCondition(
+              context,
+              metadata.logicalKey,
+              metadata.entityKind,
+              assetId,
+              '$remote.asset-corruption',
+              false,
+              read.providerObjectId,
+              read.providerVersion
+            )
+          if (!repairScheduled) {
+            throw error
+          }
+        }
         continue
       }
 
@@ -459,19 +543,22 @@ export class SyncReconciliationService {
           .filter((object) => !object.isDeleted)
           .map((object) => object.logicalKey)
       )
-      const missingObject = this.reconciliationRepository
+      const missingObjects = this.reconciliationRepository
         .listRemoteStates(context)
-        .find((remote) => !enumeratedKeys.has(remote.logicalKey))
-      if (missingObject) {
-        this.reconciliationRepository.recordRemoteRepairCondition(
-          context,
-          missingObject.logicalKey,
-          missingObject.entityKind,
-          missingObject.entityId,
-          '$remote.missing',
-          true
-        )
-        throw new SyncRemoteDeletionError(missingObject.logicalKey)
+        .filter((remote) => !enumeratedKeys.has(remote.logicalKey))
+      for (const missingObject of missingObjects) {
+        const repairScheduled =
+          this.reconciliationRepository.recordRemoteRepairCondition(
+            context,
+            missingObject.logicalKey,
+            missingObject.entityKind,
+            missingObject.entityId,
+            '$remote.missing',
+            true
+          )
+        if (!repairScheduled) {
+          throw new SyncRemoteDeletionError(missingObject.logicalKey)
+        }
       }
     }
 
@@ -491,8 +578,8 @@ export class SyncReconciliationService {
         return true
       }
 
-      let isAcknowledged = entry.entityKind === SyncEntityKindEnum.Asset
-      if (!isAcknowledged && remote.mergeBaseJson) {
+      let isAcknowledged = false
+      if (remote.mergeBaseJson) {
         const document = JSON.parse(remote.mergeBaseJson) as {
           mutationId?: unknown
         }

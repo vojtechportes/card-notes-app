@@ -10,6 +10,8 @@ import { SyncController } from './sync.controller'
 import { SyncOrchestrationRepository } from './sync-orchestration.repository'
 import { SyncOrchestrationService } from './sync-orchestration.service'
 import { SyncOutboxRepository } from './sync-outbox.repository'
+import { SyncPairingRepository } from './sync-pairing.repository'
+import { SyncPairingService } from './sync-pairing.service'
 import { SyncProviderFactory } from './sync-provider.factory'
 import { SyncReconciliationRepository } from './sync-reconciliation.repository'
 import { SyncReconciliationService } from './sync-reconciliation.service'
@@ -27,6 +29,8 @@ import { SyncRemoteDocumentRepository } from './sync-remote-document.repository'
     SyncOrchestrationRepository,
     SyncOrchestrationService,
     SyncOutboxRepository,
+    SyncPairingRepository,
+    SyncPairingService,
     SyncProviderFactory,
     SyncReconciliationRepository,
     SyncReconciliationService,
@@ -39,6 +43,8 @@ import { SyncRemoteDocumentRepository } from './sync-remote-document.repository'
     SyncOrchestrationRepository,
     SyncOrchestrationService,
     SyncOutboxRepository,
+    SyncPairingRepository,
+    SyncPairingService,
     SyncProviderFactory,
     SyncReconciliationRepository,
     SyncReconciliationService,

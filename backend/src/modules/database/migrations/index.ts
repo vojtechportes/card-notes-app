@@ -8,6 +8,7 @@ import { addSyncMetadataMigration } from './006-add-sync-metadata'
 import { addManagedAssetsMigration } from './007-add-managed-assets'
 import { addSoftDeletionMetadataMigration } from './008-add-soft-deletion-metadata'
 import { addSyncOutboxMigration } from './009-add-sync-outbox'
+import { addSyncPairingOperationsMigration } from './010-add-sync-pairing-operations'
 
 export const databaseMigrations: DatabaseMigration[] = [
   createAppSchemaMigration,
@@ -19,4 +20,5 @@ export const databaseMigrations: DatabaseMigration[] = [
   addManagedAssetsMigration,
   addSoftDeletionMetadataMigration,
   addSyncOutboxMigration,
+  addSyncPairingOperationsMigration,
 ]

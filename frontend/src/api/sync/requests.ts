@@ -1,8 +1,12 @@
 import type { AxiosResponse } from 'axios'
 import type {
+  ConfirmSyncPairingDto,
+  PrepareSyncPairingDto,
   ResolveSyncConflictDto,
   SyncCommandDto,
   SyncConflictDto,
+  SyncPairingOperationDto,
+  SyncProviderAvailabilityDto,
   SyncStatusDto,
   SyncTriggerDto,
 } from '../../types/api'
@@ -51,4 +55,43 @@ export const resolveSyncConflict = (
     `/sync/conflicts/${id}/resolve`,
     resolution
   )
+}
+
+export const getSyncProviderAvailability = (
+  signal?: AbortSignal
+): Promise<AxiosResponse<SyncProviderAvailabilityDto[]>> => {
+  return apiClient.get<SyncProviderAvailabilityDto[]>('/sync/providers', {
+    signal,
+  })
+}
+
+export const prepareSyncPairing = (
+  input: PrepareSyncPairingDto
+): Promise<AxiosResponse<SyncPairingOperationDto>> => {
+  return apiClient.post<SyncPairingOperationDto>('/sync/pairing/prepare', input)
+}
+
+export const getSyncPairing = (
+  id: string,
+  signal?: AbortSignal
+): Promise<AxiosResponse<SyncPairingOperationDto>> => {
+  return apiClient.get<SyncPairingOperationDto>(`/sync/pairing/${id}`, {
+    signal,
+  })
+}
+
+export const confirmSyncPairing = (
+  id: string,
+  input: ConfirmSyncPairingDto
+): Promise<AxiosResponse<SyncPairingOperationDto>> => {
+  return apiClient.post<SyncPairingOperationDto>(
+    `/sync/pairing/${id}/confirm`,
+    input
+  )
+}
+
+export const cancelSyncPairing = (
+  id: string
+): Promise<AxiosResponse<SyncPairingOperationDto>> => {
+  return apiClient.post<SyncPairingOperationDto>(`/sync/pairing/${id}/cancel`)
 }

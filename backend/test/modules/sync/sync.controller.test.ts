@@ -5,12 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SyncConflictService } from '../../../src/modules/sync/sync-conflict.service'
 import { SyncController } from '../../../src/modules/sync/sync.controller'
 import { SyncOrchestrationService } from '../../../src/modules/sync/sync-orchestration.service'
+import { SyncPairingService } from '../../../src/modules/sync/sync-pairing.service'
 
 @Module({
   controllers: [SyncController],
   providers: [
     { provide: SyncConflictService, useValue: {} },
     { provide: SyncOrchestrationService, useValue: {} },
+    { provide: SyncPairingService, useValue: {} },
   ],
 })
 class SyncSwaggerTestModule {}
@@ -38,6 +40,11 @@ describe('synchronization API contract', () => {
         '/sync/run',
         '/sync/trigger',
         '/sync/commands',
+        '/sync/providers',
+        '/sync/pairing/prepare',
+        '/sync/pairing/{id}',
+        '/sync/pairing/{id}/confirm',
+        '/sync/pairing/{id}/cancel',
         '/sync/conflicts',
         '/sync/conflicts/{id}',
         '/sync/conflicts/{id}/resolve',
@@ -77,32 +84,48 @@ describe('synchronization API contract', () => {
 
   it('validates trigger input and exposes safe command boundaries', async () => {
     const orchestration = {
-      requestDisconnect: vi.fn(() => {
-        throw new Error('disconnect boundary')
-      }),
-      repair: vi.fn(),
-      requestProviderSwitch: vi.fn(() => {
-        throw new Error('switch boundary')
-      }),
-      requestReset: vi.fn(() => {
-        throw new Error('reset boundary')
-      }),
+      getStatus: vi.fn(() => ({ state: 'disabled' })),
       trigger: vi.fn(),
+    }
+    const pairing = {
+      disconnect: vi.fn(),
+      repair: vi.fn(),
+      reset: vi.fn(),
+      getProviderAvailability: vi.fn(() => [
+        { provider: 'google-drive', available: true },
+        {
+          provider: 'one-drive',
+          available: false,
+          unavailableReasonCode: 'adapter-not-installed',
+        },
+      ]),
     }
     const controller = new SyncController(
       orchestration as never,
+      pairing as never,
       {} as SyncConflictService
     )
 
+    expect(controller.getProviderAvailability()).toEqual([
+      { provider: 'google-drive', available: true },
+      {
+        provider: 'one-drive',
+        available: false,
+        unavailableReasonCode: 'adapter-not-installed',
+      },
+    ])
     expect(() =>
       controller.submitTrigger({ trigger: 'invalid' as never })
     ).toThrow('Synchronization trigger is not supported.')
-    expect(() => controller.runCommand({ command: 'disconnect' })).toThrow(
-      'disconnect boundary'
+    await expect(
+      controller.runCommand({ command: 'disconnect', confirmed: true })
+    ).resolves.toEqual({ state: 'disabled' })
+    expect(pairing.disconnect).toHaveBeenCalledTimes(1)
+    expect(() => controller.runCommand({ command: 'reset' })).toThrow(
+      'require explicit confirmation'
     )
-    expect(orchestration.requestDisconnect).toHaveBeenCalledTimes(1)
     expect(() => controller.runCommand({ command: 'switch-provider' })).toThrow(
-      'switch boundary'
+      'pairing prepare endpoint'
     )
   })
 
@@ -121,6 +144,7 @@ describe('synchronization API contract', () => {
     }
     const controller = new SyncController(
       orchestration as never,
+      {} as SyncPairingService,
       conflicts as never
     )
 

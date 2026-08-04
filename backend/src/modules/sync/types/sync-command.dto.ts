@@ -6,6 +6,9 @@ export class SyncCommandDto {
   @ApiProperty({ enum: SyncCommandEnum })
   command!: SyncCommandEnum
 
+  @ApiPropertyOptional({ type: Boolean })
+  confirmed?: boolean
+
   @ApiPropertyOptional({ enum: SyncProviderEnum })
   targetProvider?: SyncProviderEnum
 }
