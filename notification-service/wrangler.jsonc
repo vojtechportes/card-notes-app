@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "notestack-notification-service",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-03",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "notifications.notestack.app",
+      "custom_domain": true,
+    },
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false,
+    },
+  },
+  "vars": {
+    "PUBLIC_BASE_URL": "https://notifications.notestack.app",
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "WORKSPACES",
+        "class_name": "RelayWorkspaceDurableObject",
+      },
+      {
+        "name": "METRICS",
+        "class_name": "RelayMetricsDurableObject",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "RelayWorkspaceDurableObject",
+        "RelayMetricsDurableObject",
+      ],
+    },
+  ],
+}

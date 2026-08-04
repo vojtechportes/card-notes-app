@@ -1,0 +1,25 @@
+{
+  "name": "@notestack/notification-service",
+  "version": "1.13.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "deploy": "wrangler deploy",
+    "deploy:check": "wrangler deploy --dry-run --outdir dist/wrangler",
+    "dev": "wrangler dev",
+    "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run --config vitest.config.ts --passWithNoTests && vitest run --config vitest.cloudflare.config.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "@cloudflare/workers-types": "5.20260801.1",
+    "prettier": "3.9.4",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.10",
+    "wrangler": "4.118.0"
+  },
+  "dependencies": {
+    "uuid": "^11.1.1"
+  }
+}

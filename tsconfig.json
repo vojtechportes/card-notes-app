@@ -3,6 +3,7 @@
   "references": [
     { "path": "./backend" },
     { "path": "./frontend" },
-    { "path": "./electron" }
+    { "path": "./electron" },
+    { "path": "./notification-service" }
   ]
 }

@@ -5,18 +5,22 @@
   "workspaces": [
     "backend",
     "frontend",
-    "electron"
+    "electron",
+    "notification-service"
   ],
   "scripts": {
-    "build": "npm run build --workspace backend && npm run build --workspace frontend && npm run build --workspace electron",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend && npm run build --workspace electron && npm run build --workspace notification-service",
     "build:backend": "npm run build --workspace backend",
     "build:frontend": "npm run build --workspace frontend",
     "build:electron": "npm run build --workspace electron",
+    "build:notification-service": "npm run build --workspace notification-service",
     "dev:backend": "npm run start:dev --workspace backend",
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:electron": "npm run dev --workspace electron",
+    "dev:notification-service": "npm run dev --workspace notification-service",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "deploy:check:notification-service": "npm run deploy:check --workspace notification-service",
     "sync:api": "npm run sync:api --workspace frontend",
     "version:patch": "node scripts/update-package-version.mjs --patch",
     "version:minor": "node scripts/update-package-version.mjs --minor",
