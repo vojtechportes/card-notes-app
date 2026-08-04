@@ -589,7 +589,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Lock and document the managed runtime, durable-state, horizontal broadcast, deployment, monitoring, retention, backup, and rollback choices.
   - Add abuse, replay, duplicate, reconnect, renewal-owner, unavailable-service, and horizontal-worker tests.
 
-- [ ] T112. Integrate Google webhook channels and relay wake-ups
+- [x] T112. Integrate Google webhook channels and relay wake-ups
   - Create and replace expiring Google `changes.watch` channels pointing to the relay with unguessable channel IDs and verification tokens.
   - Coordinate a single renewal ownership lease among connected credential-bearing devices without giving Google credentials to the relay.
   - Validate and coalesce webhook notifications and broadcast only `workspace-changed`; desktops always fetch authoritative changes using their stored change token.

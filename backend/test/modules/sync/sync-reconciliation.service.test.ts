@@ -10,6 +10,7 @@ import { DatabaseService } from '../../../src/modules/database/database.service'
 import { NotesRepository } from '../../../src/modules/notes/notes.repository'
 import { syncLogicalKeys } from '../../../src/modules/sync/constants/sync-logical-keys'
 import { FakeSyncProviderAdapter } from '../../../src/modules/sync/fake-provider/fake-sync-provider.adapter'
+import { GoogleNotificationRepository } from '../../../src/modules/sync/google-drive/notification/google-notification.repository'
 import { SyncConflictRepository } from '../../../src/modules/sync/sync-conflict.repository'
 import { SyncOutboxRepository } from '../../../src/modules/sync/sync-outbox.repository'
 import { SyncReconciliationRepository } from '../../../src/modules/sync/sync-reconciliation.repository'
@@ -87,6 +88,38 @@ afterEach(() => {
 })
 
 describe('SyncReconciliationService', () => {
+  it('persists a validated workspace document for notification routing', async () => {
+    const { workspaceId } = activateSynchronization()
+    const workspace = mapSyncDocument({
+      formatVersion: 1,
+      workspaceId,
+      createdAt: timestamp,
+      createdByDeviceId: remoteDeviceId,
+      notificationRouting: {
+        workspaceRouteId: 'AAAAAAAAAAAAAAAAAAAAAA',
+        notificationAuthKey: Buffer.alloc(32, 1).toString('base64url'),
+        secretVersion: 1,
+      },
+    })
+    adapter.seedDocument(
+      syncLogicalKeys.workspace,
+      SyncEntityKindEnum.Workspace,
+      workspace.canonicalJson
+    )
+
+    const result = await createService().run(adapter, { claimedBy: 'test' })
+    const notificationRepository = new GoogleNotificationRepository(
+      databaseService
+    )
+
+    expect(result.pulledCount).toBe(1)
+    expect(notificationRepository.getContext()).toMatchObject({
+      workspaceId,
+      cursor: '1',
+      routing: workspace.document.notificationRouting,
+      metadata: null,
+    })
+  })
   it('enumerates and transactionally applies a remote note before committing the cursor', async () => {
     const { workspaceId, noteTypeId } = activateSynchronization()
     const noteId = uuidV4()

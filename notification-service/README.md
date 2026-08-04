@@ -38,7 +38,11 @@ All byte strings use unpadded base64url. `notificationAuthKey` is the exact 32-b
 - Replacement channels may overlap. `DELETE .../channels/{channelId}` removes an obsolete channel.
 - Google sends `POST /v1/google/webhooks/{workspaceRouteId}/{channelId}` with `X-Goog-Channel-ID`, `X-Goog-Resource-ID`, `X-Goog-Resource-State`, `X-Goog-Channel-Token`, and `X-Goog-Message-Number`. The relay validates every field, rejects spoofing, monotonically deduplicates message numbers, acknowledges accepted work with no body, and coalesces a burst into one `{"type":"workspace-changed","protocolVersion":1}` signal.
 - Clients answer application heartbeat `ping` messages with `pong`. Frames are capped at 4 KiB, connections at 16 per workspace, outbound messages are fixed and small, and failed/backpressured sends are closed instead of queued.
-- `POST .../renewal-lease` grants one connected device a two-minute lease. `DELETE .../renewal-lease?leaseId=...`, disconnect, or expiration releases ownership. A lease owner performs the provider call; the relay never receives its Google credential.
+- `POST .../renewal-lease` grants one connected device a two-minute lease only when no active channel remains healthy beyond the renewal window. The response reports content-free active-channel health so a second device does not create a sequential duplicate replacement after the first owner releases its lease. `DELETE .../renewal-lease?leaseId=...`, disconnect, or expiration releases ownership. A lease owner performs the provider call; the relay never receives its Google credential.
+
+## Desktop integration
+
+Set `NOTESTACK_NOTIFICATION_RELAY_URL` in the Electron/backend process environment to this service's public HTTPS base URL. When it is absent or the relay is unhealthy, Google synchronization remains changes-token-driven and uses the T112 adaptive polling fallback; no relay or Google watch request is attempted while synchronization is disabled.
 
 ## Commands
 

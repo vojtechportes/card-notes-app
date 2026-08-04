@@ -40,6 +40,53 @@ describe('channel renewal leases', () => {
     })
   })
 
+  it('does not grant sequential renewal ownership while an active channel is healthy', async () => {
+    const harness = new RelayWorkspaceHarness()
+    const secondDeviceId = '14138a0f-1a97-4cd4-b10d-bfb07628379a'
+
+    await harness.register()
+    const firstToken = await harness.authenticate()
+    const secondToken = await harness.authenticate(
+      1,
+      harness.verifier,
+      secondDeviceId
+    )
+    await harness.service.authorizeConnectionToken(firstToken.token, true)
+    await harness.service.authorizeConnectionToken(secondToken.token, true)
+    const connectedDevices = new Set([harness.deviceId, secondDeviceId])
+    const firstLease = await harness.service.acquireRenewalLease(
+      firstToken.token,
+      connectedDevices
+    )
+    const channel = await harness.service.prepareChannel(
+      firstToken.token,
+      'https://relay.example'
+    )
+    const activeChannelExpiresAt = harness.now + 6 * 24 * 60 * 60 * 1000
+
+    await harness.service.finalizeChannel(firstToken.token, channel.channelId, {
+      resourceId: 'resource-id',
+      expiresAt: activeChannelExpiresAt,
+    })
+    await harness.service.releaseRenewalLease(
+      firstToken.token,
+      firstLease.leaseId!
+    )
+
+    const secondLease = await harness.service.acquireRenewalLease(
+      secondToken.token,
+      connectedDevices
+    )
+
+    expect(secondLease).toEqual({
+      leaseId: null,
+      deviceId: null,
+      expiresAt: null,
+      owned: false,
+      renewalRequired: false,
+      activeChannelExpiresAt,
+    })
+  })
   it('recovers lease ownership after owner disconnect and expiration', async () => {
     const harness = new RelayWorkspaceHarness()
     const secondDeviceId = '14138a0f-1a97-4cd4-b10d-bfb07628379a'

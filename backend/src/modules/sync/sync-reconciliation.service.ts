@@ -244,9 +244,6 @@ export class SyncReconciliationService {
         downloadedAssetCount += 1
         continue
       }
-      if (metadata.entityKind === SyncEntityKindEnum.Workspace) {
-        continue
-      }
 
       const read = await adapter.readObject(metadata.logicalKey)
       const parsed = parseRemoteSyncDocument(

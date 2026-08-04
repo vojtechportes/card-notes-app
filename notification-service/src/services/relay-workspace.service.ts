@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import {
   CHALLENGE_TTL_MS,
   CHANNEL_MAX_LIFETIME_MS,
+  CHANNEL_RENEWAL_WINDOW_MS,
   CHANNEL_PREPARATION_TTL_MS,
   CONNECTION_TOKEN_TTL_MS,
   DEVICE_ID_PATTERN,
@@ -546,14 +547,30 @@ export class RelayWorkspaceService {
     this.cleanupExpiredState(connectedDeviceIds)
 
     const existingLease = this.snapshot.renewalLease
+    const activeChannelExpiresAt = this.getActiveChannelExpiresAt()
 
     if (existingLease !== null) {
       return {
         ...existingLease,
         owned: existingLease.deviceId === device.deviceId,
+        renewalRequired: true,
+        activeChannelExpiresAt,
       }
     }
 
+    if (
+      activeChannelExpiresAt !== null &&
+      activeChannelExpiresAt > this.now() + CHANNEL_RENEWAL_WINDOW_MS
+    ) {
+      return {
+        leaseId: null,
+        deviceId: null,
+        expiresAt: null,
+        owned: false,
+        renewalRequired: false,
+        activeChannelExpiresAt,
+      }
+    }
     if (!connectedDeviceIds.has(device.deviceId)) {
       throw new RelayError(
         409,
@@ -570,7 +587,12 @@ export class RelayWorkspaceService {
 
     this.snapshot.renewalLease = lease
 
-    return { ...lease, owned: true }
+    return {
+      ...lease,
+      owned: true,
+      renewalRequired: true,
+      activeChannelExpiresAt,
+    }
   }
 
   public async releaseRenewalLease(
@@ -645,6 +667,13 @@ export class RelayWorkspaceService {
     }
   }
 
+  private getActiveChannelExpiresAt(): number | null {
+    const expirations = Object.values(this.snapshot.channels)
+      .filter((channel) => channel.status === 'active')
+      .map((channel) => channel.expiresAt)
+
+    return expirations.length > 0 ? Math.max(...expirations) : null
+  }
   private assertRegistered(): void {
     if (this.snapshot.currentVerifier === null) {
       throw new RelayError(
