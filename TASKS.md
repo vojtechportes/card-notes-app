@@ -596,7 +596,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Reconcile on WebSocket reconnect, retain an active watchdog around 15 minutes, and fall back to adaptive polling around 60 seconds when relay/channel health is unavailable.
   - Add expiration overlap, missed/duplicate signal, reconnect, relay outage, spoofing, renewal, and convergence tests.
 
-- [ ] T113. Implement initial pairing, provider switching, backup reuse, and repair flows
+- [x] T113. Implement initial pairing, provider switching, backup reuse, and repair flows
   - Handle cloud-empty/local-populated seeding, cloud-populated/local-empty restore, same-workspace reconciliation, and both-populated mismatched-workspace preview/confirmation.
   - Reuse and verify the T100 local SQLite backup facility before pairing or other destructive local replacement.
   - Convert the resolved current state into the first workspace baseline after binding; do not replay pre-pairing local history as remote outbox operations.

@@ -6,11 +6,23 @@ import {
 import { GoogleDriveFileService } from './google-drive-file.service'
 import type { GoogleDriveFile } from './types/google-drive-file'
 import type { SyncProviderWorkspace } from '../types/sync-provider-workspace'
-import { SyncProviderError } from '../types/sync-provider-error'
-import { SyncProviderErrorKindEnum } from '../types/sync-provider-error-kind-enum'
 
 export class GoogleDriveWorkspaceService {
   constructor(private readonly fileService: GoogleDriveFileService) {}
+
+  async list(): Promise<SyncProviderWorkspace[]> {
+    const workspaceIds = new Set(
+      (await this.listMarkers())
+        .map(
+          (file) => file.appProperties?.[googleDriveAppPropertyKeys.workspaceId]
+        )
+        .filter((value): value is string => Boolean(value))
+    )
+
+    return [...workspaceIds]
+      .sort()
+      .map((workspaceId) => this.createResult(workspaceId))
+  }
 
   async discover(workspaceId: string): Promise<SyncProviderWorkspace | null> {
     const markers = await this.listMarkers()
@@ -24,25 +36,15 @@ export class GoogleDriveWorkspaceService {
   }
 
   async create(workspaceId: string): Promise<SyncProviderWorkspace> {
-    const markers = await this.listMarkers()
-    const existingWorkspaceIds = new Set(
-      markers
-        .map(
-          (file) => file.appProperties?.[googleDriveAppPropertyKeys.workspaceId]
-        )
-        .filter((value): value is string => Boolean(value))
-    )
+    const existingWorkspaces = await this.list()
 
-    if (existingWorkspaceIds.has(workspaceId)) {
+    if (
+      existingWorkspaces.some(
+        (workspace) => workspace.providerWorkspaceId === workspaceId
+      )
+    ) {
       return this.createResult(workspaceId)
     }
-    if (existingWorkspaceIds.size > 0) {
-      throw new SyncProviderError(
-        SyncProviderErrorKindEnum.PreconditionFailed,
-        'Google Drive contains a different NoteStack workspace.'
-      )
-    }
-
     await this.fileService.createMetadata({
       name: `notestack-workspace-${workspaceId}`,
       mimeType: 'application/vnd.notestack.workspace',

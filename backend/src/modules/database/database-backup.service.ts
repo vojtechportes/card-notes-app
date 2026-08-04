@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
+  copyFileSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -60,6 +61,18 @@ export class DatabaseBackupService {
 
       throw error
     }
+  }
+
+  restoreVerifiedBackup(backupPath: string, databasePath: string): void {
+    if (databasePath === ':memory:') {
+      return
+    }
+
+    this.verifyBackup(backupPath)
+    rmSync(`${databasePath}-wal`, { force: true })
+    rmSync(`${databasePath}-shm`, { force: true })
+    copyFileSync(backupPath, databasePath)
+    this.verifyBackup(databasePath)
   }
 
   verifyBackup(backupPath: string): void {

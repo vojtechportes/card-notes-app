@@ -3,5 +3,6 @@
 
 export type SyncCommandDto = {
   command: 'disconnect' | 'switch-provider' | 'reset' | 'repair'
+  confirmed?: boolean
   targetProvider?: 'google-drive' | 'one-drive'
 }

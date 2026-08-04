@@ -276,6 +276,57 @@ export class GoogleDriveObjectService {
     return this.requireCanonicalWrite(workspaceId, logicalKey, result)
   }
 
+  async updateAsset(
+    workspaceId: string,
+    logicalKey: string,
+    bytes: Buffer,
+    contentHash: string,
+    expectedVersion: string
+  ): Promise<SyncProviderWriteResult> {
+    if (createSha256Hash(bytes) !== contentHash) {
+      throw new SyncProviderError(
+        SyncProviderErrorKindEnum.Permanent,
+        'Asset content hash does not match its bytes.'
+      )
+    }
+
+    const current = await this.requireObject(workspaceId, logicalKey)
+    if (current.providerVersion !== expectedVersion) {
+      throw new SyncProviderError(
+        SyncProviderErrorKindEnum.PreconditionFailed,
+        `Google Drive asset version changed: ${logicalKey}`
+      )
+    }
+
+    const versioned = await this.fileService.updateMultipartFile(
+      current.providerObjectId,
+      expectedVersion,
+      createGoogleDriveObjectMetadata(
+        workspaceId,
+        logicalKey,
+        SyncEntityKindEnum.Asset,
+        contentHash
+      ),
+      bytes,
+      'application/octet-stream'
+    )
+    const result = this.acceptWrite(versioned)
+    const completed = await this.fileService.downloadFile(
+      result.providerObjectId,
+      result.providerVersion
+    )
+    if (
+      completed.bytes.length !== bytes.length ||
+      createSha256Hash(completed.bytes) !== contentHash
+    ) {
+      throw new SyncProviderError(
+        SyncProviderErrorKindEnum.Permanent,
+        'Google Drive asset verification failed after repair.'
+      )
+    }
+
+    return result
+  }
   private async findObject(
     workspaceId: string,
     logicalKey: string,

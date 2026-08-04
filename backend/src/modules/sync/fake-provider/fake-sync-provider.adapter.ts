@@ -16,12 +16,16 @@ import type { SyncProviderWorkspace } from '../types/sync-provider-workspace'
 import type { SyncProviderWriteResult } from '../types/sync-provider-write-result'
 
 export class FakeSyncProviderAdapter implements SyncProviderAdapter {
-  private readonly objects = new Map<string, FakeSyncProviderObject>()
+  private readonly objectsByWorkspace = new Map<
+    string,
+    Map<string, FakeSyncProviderObject>
+  >()
+  private readonly workspaces = new Map<string, SyncProviderWorkspace>()
   private readonly failures: Partial<
     Record<FakeSyncProviderOperation, SyncProviderError[]>
   >
   private readonly pageSize: number
-  private workspace: SyncProviderWorkspace | null = null
+  private activeWorkspaceId: string | null = null
   private sequence = 0
   private minimumValidCursor = 0
 
@@ -39,36 +43,38 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
     }
   }
 
+  async listWorkspaces(): Promise<SyncProviderWorkspace[]> {
+    return [...this.workspaces.values()].map((workspace) => ({ ...workspace }))
+  }
+
   async discoverWorkspace(
     workspaceId: string
   ): Promise<SyncProviderWorkspace | null> {
-    if (this.workspace?.providerWorkspaceId !== workspaceId) {
+    const workspace = this.workspaces.get(workspaceId)
+    if (!workspace) {
       return null
     }
 
-    return { ...this.workspace }
+    this.activeWorkspaceId = workspaceId
+    return { ...workspace }
   }
 
   async createWorkspace(workspaceId: string): Promise<SyncProviderWorkspace> {
-    if (this.workspace && this.workspace.providerWorkspaceId !== workspaceId) {
-      throw new SyncProviderError(
-        SyncProviderErrorKindEnum.PreconditionFailed,
-        'A different fake workspace already exists.'
-      )
-    }
-
-    this.workspace ??= {
+    const workspace = this.workspaces.get(workspaceId) ?? {
       providerWorkspaceId: workspaceId,
       displayName: 'Fake workspace',
     }
-    return { ...this.workspace }
+    this.workspaces.set(workspaceId, workspace)
+    this.activeWorkspaceId = workspaceId
+
+    return { ...workspace }
   }
 
   async enumerateObjects(
     pageToken?: string
   ): Promise<SyncProviderEnumerationPage> {
     this.throwQueuedFailure('enumerate')
-    const objects = [...this.objects.values()]
+    const objects = [...this.getObjects().values()]
       .filter((object) => !object.isDeleted)
       .sort((left, right) => left.logicalKey.localeCompare(right.logicalKey))
     const page = this.createPage(objects, pageToken)
@@ -98,7 +104,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
       )
     }
 
-    const changes = [...this.objects.values()]
+    const changes = [...this.getObjects().values()]
       .filter((object) => object.sequence > parsedCursor)
       .sort((left, right) => left.sequence - right.sequence)
     const page = this.createPage(changes, pageToken)
@@ -112,7 +118,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
 
   async readObject(logicalKey: string): Promise<SyncProviderReadResult> {
     this.throwQueuedFailure('read')
-    const object = this.objects.get(logicalKey)
+    const object = this.getObjects().get(logicalKey)
 
     if (!object || object.isDeleted) {
       throw new SyncProviderError(
@@ -135,7 +141,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
     canonicalJson: string
   ): Promise<SyncProviderWriteResult> {
     this.throwQueuedFailure('create-document')
-    const existing = this.objects.get(logicalKey)
+    const existing = this.getObjects().get(logicalKey)
 
     if (existing && !existing.isDeleted) {
       throw new SyncProviderError(
@@ -161,7 +167,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
     expectedVersion: string
   ): Promise<SyncProviderWriteResult> {
     this.throwQueuedFailure('update-document')
-    const existing = this.objects.get(logicalKey)
+    const existing = this.getObjects().get(logicalKey)
 
     if (
       !existing ||
@@ -199,7 +205,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
       )
     }
 
-    const existing = this.objects.get(logicalKey)
+    const existing = this.getObjects().get(logicalKey)
     if (existing && !existing.isDeleted) {
       if (existing.contentHash !== contentHash) {
         throw new SyncProviderError(
@@ -224,6 +230,52 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
     )
   }
 
+  async updateAsset(
+    logicalKey: string,
+    bytes: Buffer,
+    contentHash: string,
+    expectedVersion: string
+  ): Promise<SyncProviderWriteResult> {
+    const actualHash = createHash('sha256').update(bytes).digest('hex')
+    const existing = this.getObjects().get(logicalKey)
+    if (
+      actualHash !== contentHash ||
+      !existing ||
+      existing.isDeleted ||
+      existing.providerVersion !== expectedVersion
+    ) {
+      throw new SyncProviderError(
+        SyncProviderErrorKindEnum.PreconditionFailed,
+        `Fake provider asset precondition failed: ${logicalKey}`
+      )
+    }
+
+    return this.writeObject(
+      logicalKey,
+      SyncEntityKindEnum.Asset,
+      bytes,
+      'application/octet-stream',
+      contentHash,
+      existing.providerObjectId
+    )
+  }
+  corruptObject(logicalKey: string, bytes: Buffer): void {
+    const existing = this.getObjects().get(logicalKey)
+    if (!existing || existing.isDeleted) {
+      throw new Error(
+        `Cannot corrupt missing fake provider object: ${logicalKey}`
+      )
+    }
+
+    this.writeObject(
+      logicalKey,
+      existing.entityKind,
+      bytes,
+      existing.contentType,
+      existing.contentHash,
+      existing.providerObjectId
+    )
+  }
   seedDocument(
     logicalKey: string,
     entityKind: SyncEntityKindEnum,
@@ -239,13 +291,13 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
   }
 
   deleteObject(logicalKey: string): void {
-    const existing = this.objects.get(logicalKey)
+    const existing = this.getObjects().get(logicalKey)
     if (!existing) {
       return
     }
 
     this.sequence += 1
-    this.objects.set(logicalKey, {
+    this.getObjects().set(logicalKey, {
       ...existing,
       isDeleted: true,
       providerVersion: String(Number(existing.providerVersion) + 1),
@@ -267,10 +319,31 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
   }
 
   getObject(logicalKey: string): FakeSyncProviderObject | undefined {
-    const object = this.objects.get(logicalKey)
+    const object = this.getObjects().get(logicalKey)
     return object ? { ...object, bytes: Buffer.from(object.bytes) } : undefined
   }
 
+  seedWorkspace(workspaceId: string): SyncProviderWorkspace {
+    const workspace = {
+      providerWorkspaceId: workspaceId,
+      displayName: 'Fake workspace',
+    }
+    this.workspaces.set(workspaceId, workspace)
+    this.activeWorkspaceId = workspaceId
+
+    return { ...workspace }
+  }
+
+  private getObjects(): Map<string, FakeSyncProviderObject> {
+    const workspaceId = this.activeWorkspaceId ?? '__unbound__'
+    let objects = this.objectsByWorkspace.get(workspaceId)
+    if (!objects) {
+      objects = new Map<string, FakeSyncProviderObject>()
+      this.objectsByWorkspace.set(workspaceId, objects)
+    }
+
+    return objects
+  }
   private writeObject(
     logicalKey: string,
     entityKind: SyncEntityKindEnum,
@@ -280,7 +353,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
     providerObjectId = uuidV4()
   ): SyncProviderWriteResult {
     const currentVersion = Number(
-      this.objects.get(logicalKey)?.providerVersion ?? '0'
+      this.getObjects().get(logicalKey)?.providerVersion ?? '0'
     )
     this.sequence += 1
     const object: FakeSyncProviderObject = {
@@ -294,7 +367,7 @@ export class FakeSyncProviderAdapter implements SyncProviderAdapter {
       isDeleted: false,
       sequence: this.sequence,
     }
-    this.objects.set(logicalKey, object)
+    this.getObjects().set(logicalKey, object)
 
     return {
       providerObjectId: object.providerObjectId,

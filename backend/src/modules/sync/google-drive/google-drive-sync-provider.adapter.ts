@@ -62,6 +62,10 @@ export class GoogleDriveSyncProviderAdapter implements SyncProviderAdapter {
     }
   }
 
+  listWorkspaces(): Promise<SyncProviderWorkspace[]> {
+    return this.workspaceService.list()
+  }
+
   async discoverWorkspace(
     workspaceId: string
   ): Promise<SyncProviderWorkspace | null> {
@@ -257,6 +261,20 @@ export class GoogleDriveSyncProviderAdapter implements SyncProviderAdapter {
     )
   }
 
+  updateAsset(
+    logicalKey: string,
+    bytes: Buffer,
+    contentHash: string,
+    expectedVersion: string
+  ): Promise<SyncProviderWriteResult> {
+    return this.objectService.updateAsset(
+      this.requireWorkspaceId(),
+      logicalKey,
+      bytes,
+      contentHash,
+      expectedVersion
+    )
+  }
   private activateWorkspace(workspaceId: string): void {
     if (this.activeWorkspaceId !== workspaceId) {
       this.objectService.clearCache()

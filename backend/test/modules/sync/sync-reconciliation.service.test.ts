@@ -485,6 +485,48 @@ describe('SyncReconciliationService', () => {
     releaseEnumeration?.()
     await expect(first).resolves.toMatchObject({ followUpRun: true })
   })
+  it('holds pairing exclusivity until an active run finishes and queues later triggers', async () => {
+    activateSynchronization()
+    const originalEnumerate = adapter.enumerateObjects.bind(adapter)
+    let releaseEnumeration: (() => void) | undefined
+    let enumerationStarted: (() => void) | undefined
+    const started = new Promise<void>((resolve) => {
+      enumerationStarted = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      releaseEnumeration = resolve
+    })
+    let shouldWait = true
+    adapter.enumerateObjects = async (pageToken?: string) => {
+      if (shouldWait) {
+        shouldWait = false
+        enumerationStarted?.()
+        await gate
+      }
+      return originalEnumerate(pageToken)
+    }
+    const order: string[] = []
+    const service = createService()
+    const active = service.run(adapter, { claimedBy: 'active-provider' })
+    await started
+    const exclusive = service.executeExclusive(async () => {
+      order.push('exclusive-start')
+      await service.runWithinExclusive(adapter, {
+        claimedBy: 'pairing-provider',
+      })
+      order.push('exclusive-end')
+    })
+    const queued = service
+      .run(adapter, { claimedBy: 'queued-provider' })
+      .then(() => order.push('queued-end'))
+
+    expect(order).toEqual([])
+    releaseEnumeration?.()
+    await active
+    await exclusive
+    await queued
+    expect(order).toEqual(['exclusive-start', 'exclusive-end', 'queued-end'])
+  })
   it('downloads and verifies immutable assets before committing their remote state', async () => {
     activateSynchronization()
     const dataRoot = mkdtempSync(join(tmpdir(), 'notestack-sync-assets-'))
@@ -514,6 +556,50 @@ describe('SyncReconciliationService', () => {
           logicalKey
         )
       ).toMatchObject({ contentHash: assetId, entityKind: 'asset' })
+    } finally {
+      delete process.env.CARD_NOTES_DATA_ROOT
+      rmSync(dataRoot, { force: true, recursive: true })
+    }
+  })
+  it('repairs a corrupt remote asset from valid local bytes in one run', async () => {
+    const { workspaceId } = activateSynchronization()
+    const dataRoot = mkdtempSync(
+      join(tmpdir(), 'notestack-sync-repair-assets-')
+    )
+    process.env.CARD_NOTES_DATA_ROOT = dataRoot
+    try {
+      const realAssetsService = new AssetsService(
+        new AssetsRepository(databaseService)
+      )
+      const bytes = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lP2S8QAAAABJRU5ErkJggg==',
+        'base64'
+      )
+      const asset = realAssetsService.storeImage(bytes)
+      const logicalKey = `assets/${asset.assetId}.png`
+      const service = new SyncReconciliationService(
+        reconciliationRepository,
+        outboxRepository,
+        realAssetsService
+      )
+      await service.run(adapter, { claimedBy: 'seed-asset' })
+      adapter.corruptObject(logicalKey, Buffer.from('damaged'))
+      reconciliationRepository.invalidateCursor(
+        reconciliationRepository.getActiveContext()!,
+        'repair-asset'
+      )
+
+      await expect(
+        service.run(adapter, { claimedBy: 'repair-asset' })
+      ).resolves.toMatchObject({ uploadedAssetCount: 1 })
+      expect(adapter.getObject(logicalKey)?.bytes).toEqual(bytes)
+      expect(conflictRepository.listUnresolved(workspaceId)).toEqual([
+        expect.objectContaining({
+          conflictType: 'remote-corruption',
+          entityId: asset.assetId,
+          fieldPaths: ['$remote.asset-corruption'],
+        }),
+      ])
     } finally {
       delete process.env.CARD_NOTES_DATA_ROOT
       rmSync(dataRoot, { force: true, recursive: true })
@@ -780,20 +866,16 @@ describe('SyncReconciliationService', () => {
 
     await expect(
       createService().run(adapter, { claimedBy: 'rescan' })
-    ).rejects.toBeInstanceOf(
-      (
-        await import('../../../src/modules/sync/types/sync-remote-deletion-error')
-      ).SyncRemoteDeletionError
-    )
+    ).resolves.toMatchObject({ pushedCount: 1 })
     expect(reconciliationRepository.getCursor(context)).toMatchObject({
-      isInvalidated: true,
+      isInvalidated: false,
     })
     expect(
       reconciliationRepository.findRemoteState(
         context,
         syncLogicalKeys.note(note.id)
       )
-    ).toBeNull()
+    ).not.toBeNull()
     expect(conflictRepository.listUnresolved(context.workspaceId)).toEqual([
       expect.objectContaining({
         conflictType: 'remote-corruption',
@@ -803,10 +885,8 @@ describe('SyncReconciliationService', () => {
     ])
     expect(outboxRepository.findAll().at(-1)).toMatchObject({
       entityId: note.id,
-      status: 'pending',
+      status: 'completed',
     })
-
-    await createService().run(adapter, { claimedBy: 'repair' })
 
     expect(adapter.getObject(syncLogicalKeys.note(note.id))).toBeDefined()
     expect(

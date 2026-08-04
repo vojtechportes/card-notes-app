@@ -71,6 +71,20 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     this.database = undefined
   }
 
+  createVerifiedBackup(backupName: string): string | null {
+    return this.backupService.createVerifiedBackup(
+      this.getConnection(),
+      this.options.filePath,
+      backupName
+    )
+  }
+
+  restoreVerifiedBackup(backupPath: string): void {
+    this.close()
+    this.backupService.restoreVerifiedBackup(backupPath, this.options.filePath)
+    this.initialize()
+  }
+
   private ensureDatabaseDirectory(): void {
     if (this.options.filePath === ':memory:') {
       return
