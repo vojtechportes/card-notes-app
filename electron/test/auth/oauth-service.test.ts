@@ -61,6 +61,7 @@ const configurations = new Map<OAuthProviderEnum, OAuthProviderConfiguration>([
     {
       authorizationEndpoint: 'https://accounts.example/authorize',
       clientId: 'google-client',
+      clientSecret: 'google-client-secret',
       issuerPrefixes: ['https://accounts.example'],
       jwksEndpoint: 'https://accounts.example/jwks',
       provider: OAuthProviderEnum.GoogleDrive,
@@ -74,6 +75,7 @@ const configurations = new Map<OAuthProviderEnum, OAuthProviderConfiguration>([
     {
       authorizationEndpoint: 'https://microsoft.example/authorize',
       clientId: 'microsoft-client',
+      clientSecret: null,
       issuerPrefixes: ['https://microsoft.example/tenant'],
       jwksEndpoint: 'https://microsoft.example/jwks',
       provider: OAuthProviderEnum.OneDrive,
@@ -181,14 +183,25 @@ for (const provider of Object.values(OAuthProviderEnum)) {
       true
     )
     assert.match(tokenBody, /code_verifier=/)
-    assert.doesNotMatch(tokenBody, /client_secret/)
+    const tokenParameters = new URLSearchParams(tokenBody)
+
+    assert.equal(
+      tokenParameters.get('client_secret'),
+      configuration.clientSecret
+    )
+    if (configuration.clientSecret) {
+      assert.equal(tokenParameters.getAll('client_secret').length, 1)
+    } else {
+      assert.equal(tokenParameters.getAll('client_secret').length, 0)
+    }
+    assert.doesNotMatch(authorizationUrl, /google-client-secret/)
     assert.equal(
       credentialStore.load(provider)?.refreshToken,
       'long-lived-refresh-token'
     )
     assert.doesNotMatch(
       JSON.stringify(state),
-      /access-token|refresh-token|callback-secret/
+      /access-token|refresh-token|callback-secret|google-client-secret/
     )
   })
 }
@@ -259,14 +272,17 @@ test('refresh rotates secure credentials and returns only a short-lived access t
     },
     refreshToken: 'old-refresh-token',
   })
+  let refreshBody = ''
   const service = new OAuthService({
     configurations,
     createLoopbackListener: async () => {
       throw new Error('should-not-start-listener')
     },
     credentialStore,
-    fetchImplementation: async () =>
-      new Response(
+    fetchImplementation: async (_url, init) => {
+      refreshBody = init?.body?.toString() ?? ''
+
+      return new Response(
         JSON.stringify({
           access_token: 'new-access-token',
           expires_in: 3600,
@@ -274,7 +290,8 @@ test('refresh rotates secure credentials and returns only a short-lived access t
           token_type: 'Bearer',
         }),
         { status: 200 }
-      ),
+      )
+    },
     now: () => now,
     openExternal: async () => undefined,
   })
@@ -285,11 +302,52 @@ test('refresh rotates secure credentials and returns only a short-lived access t
 
   assert.equal(credential.accessToken, 'new-access-token')
   assert.equal(
+    new URLSearchParams(refreshBody).get('client_secret'),
+    'google-client-secret'
+  )
+  assert.equal(
     credentialStore.load(OAuthProviderEnum.GoogleDrive)?.refreshToken,
     'rotated-refresh-token'
   )
 })
+test('OneDrive refresh requests remain public-client requests', async () => {
+  const credentialStore = new MemoryCredentialStore()
+  credentialStore.save(OAuthProviderEnum.OneDrive, {
+    account: {
+      accountId: 'account-1',
+      displayName: null,
+      provider: OAuthProviderEnum.OneDrive,
+      tenantId: 'tenant-1',
+    },
+    refreshToken: 'microsoft-refresh-token',
+  })
+  let refreshBody = ''
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => {
+      throw new Error('should-not-start-listener')
+    },
+    credentialStore,
+    fetchImplementation: async (_url, init) => {
+      refreshBody = init?.body?.toString() ?? ''
 
+      return new Response(
+        JSON.stringify({
+          access_token: 'microsoft-access-token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+        }),
+        { status: 200 }
+      )
+    },
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  await service.getAccessCredential(OAuthProviderEnum.OneDrive)
+
+  assert.equal(new URLSearchParams(refreshBody).has('client_secret'), false)
+})
 test('reconnect blocks an unexpected account and preserves existing credentials', async () => {
   const credentialStore = new MemoryCredentialStore()
   const existingCredential: StoredOAuthCredential = {

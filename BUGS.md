@@ -30,3 +30,7 @@
   - Refine generic invalid-request diagnostics with exact, allowlisted missing or malformed request-field classifications.
   - Keep raw provider descriptions, request values, credentials, and client configuration out of public state, logs, persistence, and UI.
   - Preserve NoteStack's public-client behavior while following the type, utility, naming, test, and formatting rules in AGENTS.md.
+- [x] B117. Send the Google OAuth client secret during token exchange
+  - Embed the configured Google Desktop OAuth client secret for development and packaged builds without exposing its value in diagnostics or logs.
+  - Include the secret only in Google authorization-code and refresh-token POST bodies while preserving PKCE and Microsoft public-client behavior.
+  - Follow the utility placement, naming, test, security, and formatting rules in AGENTS.md.

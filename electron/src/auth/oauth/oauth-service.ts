@@ -387,6 +387,10 @@ export class OAuthService implements OAuthServiceContract {
   ): Promise<OAuthTokenResponse> {
     let response: Response
 
+    if (configuration.clientSecret) {
+      body.set('client_secret', configuration.clientSecret)
+    }
+
     try {
       response = await this.fetchImplementation(configuration.tokenEndpoint, {
         body,

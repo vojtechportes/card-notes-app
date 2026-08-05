@@ -22,11 +22,11 @@ Follow `electron/OAUTH.md`. Record the registration IDs and reviewer without rec
 
 - Google: native/public client, bare ephemeral loopback callback `http://127.0.0.1:{ephemeral-port}`, `openid`, profile/email claims, and `https://www.googleapis.com/auth/drive.appdata`. Complete consent-screen verification where required.
 - Microsoft: native/public client, loopback callback ending `/oauth/callback/one-drive`, `openid`, `profile`, `email`, `offline_access`, and delegated `Files.ReadWrite.AppFolder`. Reject `Files.Read`, `Files.Read.All`, and other full-drive scopes.
-- Both: no client secret; development and packaged redirect behavior; cancellation, timeout, state mismatch, refresh, revocation, and wrong-account checks.
+- Google: send the issued Desktop client secret only to the token endpoint; keep PKCE mandatory because the packaged secret is extractable. Both: development and packaged redirect behavior; cancellation, timeout, state mismatch, refresh, revocation, and wrong-account checks.
 
-Release builds require `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID` and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`. Store them as GitHub Actions repository variables with those exact names. The release workflow exposes them only to the Windows app-directory build, validates that both are present, embeds them, and then verifies the packaged executable without inheriting either build-time environment value.
+Release builds require `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`, `NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET`, and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`. Store the IDs as GitHub Actions repository variables and the Google credential as a repository secret with those exact names. The release workflow exposes them only to the Windows app-directory build, validates that all are present without printing values, embeds them, and then verifies the packaged executable without inheriting the build-time environment values.
 
-For local release verification, export both public IDs in the active PowerShell session before running `npm run verify:phase-10:package` or `npm run package:release`. Run release packaging only in the controlled release environment, then sign and verify artifacts using the root release workflow documentation. Never configure provider client secrets.
+For local release verification, inject both public IDs and the Google Desktop client secret into the active PowerShell process before running `npm run verify:phase-10:package` or `npm run package:release`. Run release packaging only in the controlled release environment, then sign and verify artifacts using the root release workflow documentation. Never configure a Microsoft client secret or treat the extractable Google value as proof of app identity.
 
 ## Relay deployment and monitoring gate
 

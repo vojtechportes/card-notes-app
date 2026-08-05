@@ -125,17 +125,20 @@ jobs:
         with:
           ref: ${{ needs.update-package-version.outputs.commit-sha }}
 
-      - name: Validate OAuth client identities
+      - name: Validate OAuth build configuration
+        env:
+          NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET }}
         shell: pwsh
         run: |
-          $requiredVariables = @(
+          $requiredConfiguration = @(
             "NOTESTACK_GOOGLE_OAUTH_CLIENT_ID",
+            "NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET",
             "NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID"
           )
 
-          foreach ($variableName in $requiredVariables) {
+          foreach ($variableName in $requiredConfiguration) {
             if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
-              throw "$variableName repository variable is missing."
+              throw "$variableName build credential is missing."
             }
           }
       - name: Set up Node.js
@@ -148,6 +151,8 @@ jobs:
         run: npm ci
 
       - name: Build unsigned Electron app directory
+        env:
+          NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET }}
         run: npm run package:dir
 
       - name: Upload unsigned app directory

@@ -2,9 +2,11 @@ import {
   BUNDLED_GOOGLE_OAUTH_CLIENT_ID,
   BUNDLED_MICROSOFT_OAUTH_CLIENT_ID,
 } from '../constants/oauth-client-identities.js'
+import { BUNDLED_GOOGLE_OAUTH_CLIENT_SECRET } from '../constants/oauth-client-secrets.js'
 import type { OAuthProviderConfiguration } from '../types/oauth-provider-configuration.js'
 import { OAuthProviderEnum } from '../types/oauth-provider-enum.js'
 import { getBundledOAuthClientId } from './get-bundled-oauth-client-id.util.js'
+import { getBundledOAuthClientSecret } from './get-bundled-oauth-client-secret.util.js'
 
 export const createOAuthProviderConfigurations = (): ReadonlyMap<
   OAuthProviderEnum,
@@ -18,6 +20,9 @@ export const createOAuthProviderConfigurations = (): ReadonlyMap<
         clientId:
           process.env.NOTESTACK_GOOGLE_OAUTH_CLIENT_ID ??
           getBundledOAuthClientId(BUNDLED_GOOGLE_OAUTH_CLIENT_ID),
+        clientSecret:
+          process.env.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET?.trim() ??
+          getBundledOAuthClientSecret(BUNDLED_GOOGLE_OAUTH_CLIENT_SECRET),
         issuerPrefixes: ['https://accounts.google.com', 'accounts.google.com'],
         jwksEndpoint: 'https://www.googleapis.com/oauth2/v3/certs',
         provider: OAuthProviderEnum.GoogleDrive,
@@ -39,6 +44,7 @@ export const createOAuthProviderConfigurations = (): ReadonlyMap<
         clientId:
           process.env.NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID ??
           getBundledOAuthClientId(BUNDLED_MICROSOFT_OAUTH_CLIENT_ID),
+        clientSecret: null,
         issuerPrefixes: ['https://login.microsoftonline.com/'],
         jwksEndpoint:
           'https://login.microsoftonline.com/common/discovery/v2.0/keys',

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node ./scripts/embed-oauth-client-identities.mjs",
+    "build": "tsc -p tsconfig.json && node ./scripts/embed-oauth-client-identities.mjs && node ./scripts/embed-oauth-client-secret.mjs",
     "dev": "npm run build && npm run verify:oauth-registration && electron dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepare:backend-runtime": "node ./scripts/prepare-backend-runtime.mjs",
@@ -14,7 +14,7 @@
     "package:prepackaged": "npm run verify:packaged-oauth && npm run verify:packaged-backend && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win nsis --publish never --prepackaged release/win-unpacked",
     "package:dir": "npm run verify:oauth-registration && npm run prepare:backend-runtime && node ./scripts/run-electron-builder.mjs --config electron-builder.json --win dir --publish never && npm run verify:packaged-oauth && npm run verify:packaged-backend",
     "test": "tsx --test test/**/*.test.ts",
-    "verify:oauth-registration": "node ./scripts/verify-oauth-client-identities.mjs",
+    "verify:oauth-registration": "node ./scripts/verify-oauth-client-identities.mjs && node ./scripts/verify-oauth-client-secret.mjs",
     "verify:release-artifacts": "node ./scripts/verify-release-artifacts.mjs",
     "verify:packaged-backend": "node ./scripts/verify-packaged-backend.mjs",
     "verify:packaged-oauth": "node ./scripts/verify-packaged-oauth-flow.mjs",
