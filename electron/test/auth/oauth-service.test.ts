@@ -106,11 +106,17 @@ for (const provider of Object.values(OAuthProviderEnum)) {
     let authorizationUrl = ''
     let tokenBody = ''
     const configuration = configurations.get(provider)!
+    let redirectUri = `http://127.0.0.1:32123/oauth/callback/${provider}`
+
+    if (provider === OAuthProviderEnum.GoogleDrive) {
+      redirectUri = 'http://127.0.0.1:32123'
+    }
+
     const service = new OAuthService({
       configurations,
       createLoopbackListener: async () => ({
         cancel: () => undefined,
-        redirectUri: `http://127.0.0.1:32123/oauth/callback/${provider}`,
+        redirectUri,
         result: Promise.resolve({ code: 'callback-secret-code' }),
       }),
       credentialStore,
@@ -158,10 +164,12 @@ for (const provider of Object.values(OAuthProviderEnum)) {
       parsedAuthorizationUrl.searchParams.get('code_challenge_method'),
       'S256'
     )
-    assert.match(
-      parsedAuthorizationUrl.searchParams.get('redirect_uri')!,
-      /^http:\/\/127\.0\.0\.1:/
-    )
+    const authorizationRedirectUri =
+      parsedAuthorizationUrl.searchParams.get('redirect_uri')
+    const tokenRedirectUri = new URLSearchParams(tokenBody).get('redirect_uri')
+
+    assert.equal(authorizationRedirectUri, redirectUri)
+    assert.equal(tokenRedirectUri, redirectUri)
     assert.equal(
       parsedAuthorizationUrl.searchParams
         .get('scope')

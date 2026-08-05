@@ -22,3 +22,7 @@
 - [x] B112. Start the local backend on an available port and connect the frontend to it
 - [x] B113. Import Excel in-cell images from duplicate XLSX image columns
 - [x] B114. Fix uneven masonry columns leaving a large vertical gap
+- [x] B115. Fix Google Desktop OAuth loopback redirect URI
+  - Use Google's documented bare ephemeral loopback URI while preserving OneDrive's provider-specific callback path.
+  - Keep authorization and token-exchange redirect URIs identical without weakening callback state, host, method, timeout, or single-use validation.
+  - Follow the utility placement, naming, test, and formatting rules in AGENTS.md.

@@ -7,7 +7,7 @@ Electron launch and packaging commands require these public client IDs. The Elec
 - `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`
 - `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`
 
-Register loopback redirects (`http://127.0.0.1:{ephemeral-port}/oauth/callback/google-drive` and `http://127.0.0.1:{ephemeral-port}/oauth/callback/one-drive`) for development and packaged Windows builds. Google must allow the `drive.appdata` scope. Microsoft must allow delegated `Files.ReadWrite.AppFolder`, `offline_access`, `openid`, `profile`, and `email`; do not grant broad drive-read scopes.
+Google Desktop OAuth uses the provider-supported bare loopback redirect `http://127.0.0.1:{ephemeral-port}`; the ephemeral port is selected at runtime and is not registered individually in Google Cloud Console. Microsoft retains the provider-specific loopback redirect `http://127.0.0.1:{ephemeral-port}/oauth/callback/one-drive` for development and packaged Windows builds. Google must allow the `drive.appdata` scope. Microsoft must allow delegated `Files.ReadWrite.AppFolder`, `offline_access`, `openid`, `profile`, and `email`; do not grant broad drive-read scopes.
 
 The application reports `oauth-configuration-missing` when the selected provider has no registered client ID. Users are never asked to enter client IDs, secrets, tokens, or redirect URLs.
 

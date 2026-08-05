@@ -1,8 +1,8 @@
 import { createServer, type Server } from 'node:http'
-import { OAUTH_CALLBACK_PATH_PREFIX } from '../constants/oauth-security.constants.js'
 import type { OAuthCallbackResult } from '../types/oauth-callback-result.js'
 import type { OAuthLoopbackListener } from '../types/oauth-loopback-listener.js'
 import type { OAuthProviderEnum } from '../types/oauth-provider-enum.js'
+import { getOAuthCallbackPath } from '../utils/get-oauth-callback-path.util.js'
 import { isStateValid } from '../utils/is-state-valid.util.js'
 
 export const createOAuthLoopbackListener = async (
@@ -14,7 +14,7 @@ export const createOAuthLoopbackListener = async (
   let timeout: NodeJS.Timeout | undefined
   let rejectResult: (error: Error) => void = () => undefined
   let settled = false
-  const callbackPath = `${OAUTH_CALLBACK_PATH_PREFIX}${provider}`
+  const callbackPath = getOAuthCallbackPath(provider)
 
   const result = new Promise<OAuthCallbackResult>((resolve, reject) => {
     rejectResult = reject
@@ -117,6 +117,13 @@ export const createOAuthLoopbackListener = async (
   }, timeoutMs)
   timeout.unref()
 
+  const loopbackOrigin = `http://127.0.0.1:${address.port}`
+  let redirectUri = loopbackOrigin
+
+  if (callbackPath !== '/') {
+    redirectUri += callbackPath
+  }
+
   return {
     cancel: () => {
       if (settled) {
@@ -130,7 +137,7 @@ export const createOAuthLoopbackListener = async (
       server!.close()
       rejectResult(new Error('oauth-cancelled'))
     },
-    redirectUri: `http://127.0.0.1:${address.port}${callbackPath}`,
+    redirectUri,
     result,
   }
 }
