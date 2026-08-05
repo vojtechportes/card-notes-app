@@ -45,6 +45,9 @@ vi.mock(
   })
 )
 
+vi.mock('./components/developer-settings-page/developer-settings-page', () => ({
+  DeveloperSettingsPage: () => <h3>Developer page</h3>,
+}))
 const renderSettingsRoute = (route: string) => {
   return render(
     <MemoryRouter initialEntries={[route]}>
@@ -125,6 +128,13 @@ describe('SettingsPage', () => {
     ).toBeTruthy()
   })
 
+  it('renders the developer sub-page', () => {
+    renderSettingsRoute('/settings/developer')
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Developer page' })
+    ).toBeTruthy()
+  })
   it('redirects legacy note type detail routes to note templates', async () => {
     renderSettingsRoute('/settings/note-type-1')
 

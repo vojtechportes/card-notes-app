@@ -1,6 +1,7 @@
 import { Stack } from '@mui/material'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DataManagementSettingsPage } from './components/data-management-settings-page/data-management-settings-page'
+import { DeveloperSettingsPage } from './components/developer-settings-page/developer-settings-page'
 import { ExportImportSettingsPage } from './components/export-import-settings-page/export-import-settings-page'
 import { GeneralSettingsPage } from './components/general-settings-page/general-settings-page'
 import { LegacyNoteTypeSettingsRedirect } from './components/legacy-note-type-settings-redirect/legacy-note-type-settings-redirect'
@@ -51,6 +52,10 @@ export const SettingsPage = () => {
         <Route
           path={settingsSubPageRoutes.dataManagement}
           element={<DataManagementSettingsPage />}
+        />
+        <Route
+          path={settingsSubPageRoutes.developer}
+          element={<DeveloperSettingsPage />}
         />
         <Route
           path=":noteTypeId"

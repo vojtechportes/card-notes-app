@@ -2,6 +2,7 @@ import type { IpcRenderer } from 'electron'
 import type { NoteStackStartupBridge } from './startup/types/notestack-startup-bridge.js'
 import type { StartupState } from './startup/types/startup-state.js'
 import type { NoteStackOAuthBridge } from './auth/types/notestack-oauth-bridge.js'
+import type { NoteStackDeveloperToolsBridge } from './developer-tools/types/notestack-developer-tools-bridge.js'
 import type { OAuthConnectOptions } from './auth/types/oauth-connect-options.js'
 import type { OAuthProviderEnum } from './auth/types/oauth-provider-enum.js'
 import type { OAuthPublicState } from './auth/types/oauth-public-state.js'
@@ -20,6 +21,12 @@ const { contextBridge, ipcRenderer } = require('electron') as {
   }
   ipcRenderer: Pick<IpcRenderer, 'invoke' | 'on' | 'removeListener'>
 }
+
+const developerToolsIpcChannels = {
+  getPreferences: 'developer-tools:get-preferences',
+  open: 'developer-tools:open',
+  setEnabled: 'developer-tools:set-enabled',
+} as const
 
 const oauthIpcChannels = {
   cancel: 'oauth:cancel',
@@ -54,6 +61,14 @@ const windowControlsIpcChannels = {
   stateChanged: 'window-controls:state-changed',
   toggleMaximize: 'window-controls:toggle-maximize',
 } as const
+
+const developerToolsBridge: NoteStackDeveloperToolsBridge = {
+  getPreferences: () =>
+    ipcRenderer.invoke(developerToolsIpcChannels.getPreferences),
+  openDeveloperTools: () => ipcRenderer.invoke(developerToolsIpcChannels.open),
+  setEnabled: (enabled: boolean) =>
+    ipcRenderer.invoke(developerToolsIpcChannels.setEnabled, enabled),
+}
 
 const oauthBridge: NoteStackOAuthBridge = {
   cancel: () => ipcRenderer.invoke(oauthIpcChannels.cancel),
@@ -160,6 +175,7 @@ const windowControlsBridge: NoteStackWindowControlsBridge = {
     ipcRenderer.invoke(windowControlsIpcChannels.toggleMaximize),
 }
 
+contextBridge.exposeInMainWorld('noteStackDeveloperTools', developerToolsBridge)
 contextBridge.exposeInMainWorld('noteStackOAuth', oauthBridge)
 contextBridge.exposeInMainWorld('noteStackStartup', startupBridge)
 contextBridge.exposeInMainWorld('noteStackUpdater', updaterBridge)

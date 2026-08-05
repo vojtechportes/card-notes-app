@@ -140,7 +140,7 @@ describe('App routing', () => {
     expect(
       within(navigation)
         .getAllByRole('link')
-        .slice(-7)
+        .slice(-8)
         .map((link) => link.textContent)
     ).toEqual([
       'General',
@@ -150,6 +150,7 @@ describe('App routing', () => {
       'Updates',
       'Synchronization',
       'Data Management',
+      'Developer',
     ])
     fireEvent.click(screen.getByRole('link', { name: 'Note templates' }))
 

@@ -68,6 +68,10 @@ const settingsNavItems = [
     path: `${settingsPath}/${settingsSubPageRoutes.dataManagement}`,
     labelKey: 'navigation.settingsPages.dataManagement',
   },
+  {
+    path: `${settingsPath}/${settingsSubPageRoutes.developer}`,
+    labelKey: 'navigation.settingsPages.developer',
+  },
 ]
 
 const navItems = [
