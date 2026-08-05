@@ -1,4 +1,25 @@
+type OAuthInvalidRequestDetail =
+  | 'malformed-client-id'
+  | 'malformed-client-secret'
+  | 'malformed-code'
+  | 'malformed-code-verifier'
+  | 'malformed-grant-type'
+  | 'malformed-redirect-uri'
+  | 'malformed-refresh-token'
+  | 'malformed-scope'
+  | 'missing-client-id'
+  | 'missing-client-secret'
+  | 'missing-code'
+  | 'missing-code-verifier'
+  | 'missing-grant-type'
+  | 'missing-redirect-uri'
+  | 'missing-refresh-token'
+  | 'missing-scope'
+
+type OAuthInvalidRequestDiagnosticCode =
+  `oauth-${'authorization-code' | 'refresh-token'}-exchange-invalid-request-${OAuthInvalidRequestDetail}`
 export type OAuthDiagnosticCode =
+  | OAuthInvalidRequestDiagnosticCode
   | 'oauth-authorization-code-exchange-access-denied'
   | 'oauth-authorization-code-exchange-invalid-client'
   | 'oauth-authorization-code-exchange-invalid-grant'

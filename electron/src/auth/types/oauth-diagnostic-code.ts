@@ -1,4 +1,11 @@
+import type { OAuthInvalidRequestDetail } from './oauth-invalid-request-detail.js'
+import type { OAuthTokenOperation } from './oauth-token-operation.js'
+
+type OAuthInvalidRequestDiagnosticCode =
+  `oauth-${OAuthTokenOperation}-exchange-invalid-request-${OAuthInvalidRequestDetail}`
+
 export type OAuthDiagnosticCode =
+  | OAuthInvalidRequestDiagnosticCode
   | 'oauth-authorization-code-exchange-access-denied'
   | 'oauth-authorization-code-exchange-invalid-client'
   | 'oauth-authorization-code-exchange-invalid-grant'

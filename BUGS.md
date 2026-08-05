@@ -26,3 +26,7 @@
   - Use Google's documented bare ephemeral loopback URI while preserving OneDrive's provider-specific callback path.
   - Keep authorization and token-exchange redirect URIs identical without weakening callback state, host, method, timeout, or single-use validation.
   - Follow the utility placement, naming, test, and formatting rules in AGENTS.md.
+- [x] B116. Classify sanitized OAuth invalid-request details
+  - Refine generic invalid-request diagnostics with exact, allowlisted missing or malformed request-field classifications.
+  - Keep raw provider descriptions, request values, credentials, and client configuration out of public state, logs, persistence, and UI.
+  - Preserve NoteStack's public-client behavior while following the type, utility, naming, test, and formatting rules in AGENTS.md.
