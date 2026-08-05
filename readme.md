@@ -16,6 +16,8 @@ Run the desktop app in three terminals:
 
 The backend health endpoint is available at `/api/health`, and Swagger is exposed at `/api/docs`. The separately deployable content-free relay can be run with `npm run dev:notification-service`; its protocol and deployment runbook live in `notification-service/README.md`.
 
+Before running `npm run dev:electron`, export the public Google and Microsoft OAuth client IDs as `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID` and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID` in that PowerShell session. See `electron/OAUTH.md` for provider registration, local GitHub CLI retrieval, and packaging details. Do not configure client secrets.
+
 ## Build and Package
 
 - `npm run build` builds the backend, frontend, Electron shell, and notification service.
@@ -30,6 +32,13 @@ The backend health endpoint is available at `/api/health`, and Swagger is expose
 ## GitHub Release Automation
 
 Publishing a GitHub release triggers `.github/workflows/release-electron.yml`. The workflow builds an unsigned Windows `win-unpacked` app directory on Windows, signs every inner `.exe` from that directory in a dedicated Certum SimplySign job, builds the NSIS installer from the signed app directory, signs the final installer in Certum, refreshes the updater metadata for the signed installer bytes, uploads the signed installer plus updater metadata to the GitHub release for `vojtechportes/card-notes-app`, and verifies that the published release includes the installer, `latest.yml`, and the installer blockmap.
+
+Required GitHub Actions repository variables:
+
+- `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`: public Google Desktop OAuth client ID.
+- `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`: public Microsoft native/public application client ID.
+
+The release workflow maps these variables only into the Windows job that builds the Electron app directory. The signed and installer-packaging jobs reuse that built directory and do not require the variables.
 
 Required GitHub Actions credentials:
 

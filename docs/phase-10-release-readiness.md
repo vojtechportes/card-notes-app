@@ -24,7 +24,9 @@ Follow `electron/OAUTH.md`. Record the registration IDs and reviewer without rec
 - Microsoft: native/public client, loopback callback ending `/oauth/callback/one-drive`, `openid`, `profile`, `email`, `offline_access`, and delegated `Files.ReadWrite.AppFolder`. Reject `Files.Read`, `Files.Read.All`, and other full-drive scopes.
 - Both: no client secret; development and packaged redirect behavior; cancellation, timeout, state mismatch, refresh, revocation, and wrong-account checks.
 
-Release builds require `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID` and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`. Run `npm run package:release` only in the controlled release environment, then sign and verify artifacts using the root release workflow documentation.
+Release builds require `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID` and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`. Store them as GitHub Actions repository variables with those exact names. The release workflow exposes them only to the Windows app-directory build, validates that both are present, embeds them, and then verifies the packaged executable without inheriting either build-time environment value.
+
+For local release verification, export both public IDs in the active PowerShell session before running `npm run verify:phase-10:package` or `npm run package:release`. Run release packaging only in the controlled release environment, then sign and verify artifacts using the root release workflow documentation. Never configure provider client secrets.
 
 ## Relay deployment and monitoring gate
 

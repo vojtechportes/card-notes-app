@@ -2,7 +2,7 @@
 
 NoteStack uses native/public OAuth applications and the system browser. It never ships a desktop client secret.
 
-Release builds must provide these public client IDs while running the Electron build. The build embeds them into the packaged main-process code:
+Electron launch and packaging commands require these public client IDs. The Electron build embeds them into the packaged main-process code:
 
 - `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`
 - `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`
@@ -11,6 +11,23 @@ Register loopback redirects (`http://127.0.0.1:{ephemeral-port}/oauth/callback/g
 
 The application reports `oauth-configuration-missing` when the selected provider has no registered client ID. Users are never asked to enter client IDs, secrets, tokens, or redirect URLs.
 
-package:release verifies that both identities were embedded before creating release artifacts. Development builds may read the same environment variables at runtime.
+For local development, export both client IDs in the PowerShell session before starting Electron:
 
-package:dir and packaged installer flows launch the built Electron executable in a non-interactive verification mode that exercises signed provider identity validation, loopback callbacks, PKCE exchange, OS secure storage, and the authenticated broker for both providers.
+```powershell
+$env:NOTESTACK_GOOGLE_OAUTH_CLIENT_ID = "<google-client-id>"
+$env:NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID = "<microsoft-client-id>"
+npm run dev:electron
+```
+
+If the GitHub CLI is authenticated for the repository, the public IDs can be read from repository variables without copying them into source files:
+
+```powershell
+$env:NOTESTACK_GOOGLE_OAUTH_CLIENT_ID = (gh variable get NOTESTACK_GOOGLE_OAUTH_CLIENT_ID).Trim()
+$env:NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID = (gh variable get NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID).Trim()
+```
+
+GitHub Actions repository variables are not automatically exposed to workflow processes. The release workflow maps both variables into only the Windows app-directory build job. Client IDs are public identifiers, but the workflow and build scripts never print their values.
+
+The generic workspace build remains available without OAuth configuration. Electron development, directory packaging, and installer packaging verify that both identities were embedded before launching Electron or electron-builder.
+
+Packaged OAuth verification removes both build-time environment variables before launching the built executable. This proves the installed application uses its bundled identities while exercising signed provider identity validation, loopback callbacks, PKCE exchange, OS secure storage, and the authenticated broker for both providers.

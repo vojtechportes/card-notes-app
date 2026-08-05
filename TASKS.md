@@ -771,6 +771,14 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add focused Electron and frontend coverage for preference retrieval, persistence, IPC propagation, updater configuration, localized rendering, and checkbox interaction.
   - Run Prettier on all modified code, then verify focused tests, lint, and builds.
 
+- [x] TMSC-30. Wire OAuth client IDs into Electron builds
+  - Map the Google and Microsoft OAuth client ID repository variables into the Windows release build without exposing their values.
+  - Fail fast when Electron is launched or packaged without embedded provider identities while keeping ordinary workspace builds available to contributors.
+  - Verify packaged applications use bundled client IDs instead of inheriting build-time environment values.
+  - Add focused regression coverage for identity embedding, validation, workflow wiring, and packaged verification.
+  - Document GitHub Actions and local PowerShell configuration according to `AGENTS.md`.
+  - Run Prettier on all modified code, then verify Electron tests, lint, build, and packaging gates.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
