@@ -115,7 +115,9 @@ jobs:
     needs: update-package-version
     runs-on: windows-latest
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      NOTESTACK_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_GOOGLE_OAUTH_CLIENT_ID }}
+      NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID }}
 
     steps:
       - name: Check out repository
@@ -123,6 +125,19 @@ jobs:
         with:
           ref: ${{ needs.update-package-version.outputs.commit-sha }}
 
+      - name: Validate OAuth client identities
+        shell: pwsh
+        run: |
+          $requiredVariables = @(
+            "NOTESTACK_GOOGLE_OAUTH_CLIENT_ID",
+            "NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID"
+          )
+
+          foreach ($variableName in $requiredVariables) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
+              throw "$variableName repository variable is missing."
+            }
+          }
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -197,7 +212,7 @@ jobs:
       - sign-windows-app-directory
     runs-on: windows-latest
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
     steps:
       - name: Check out repository

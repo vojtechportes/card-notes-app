@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createPackagedOAuthVerificationEnvironment } from './create-packaged-oauth-verification-environment.util.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const executablePath = path.resolve(
@@ -14,6 +15,10 @@ const executablePath = path.resolve(
 if (!existsSync(executablePath)) {
   throw new Error('The packaged NoteStack executable was not found.')
 }
+
+const packagedEnvironment = createPackagedOAuthVerificationEnvironment(
+  process.env
+)
 
 const verificationRoots = await Promise.all(
   ['device-a', 'device-b'].map((deviceName) =>
@@ -32,7 +37,7 @@ try {
       const resultPath = path.join(verificationRoot, 'result')
       const childProcess = spawn(executablePath, [], {
         env: {
-          ...process.env,
+          ...packagedEnvironment,
           NOTESTACK_PACKAGED_INSTANCE_ID: `device-${index + 1}`,
           NOTESTACK_PACKAGED_OAUTH_VERIFICATION_ROOT: verificationRoot,
           NOTESTACK_VERIFY_PACKAGED_OAUTH: '1',
