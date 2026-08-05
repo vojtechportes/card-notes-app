@@ -30,6 +30,6 @@ The package gate launches two isolated packaged processes concurrently. Each pro
 
 ## Release-blocking findings
 
-Activation is blocked if any automated gate fails; broad Microsoft drive scopes are registered; a client secret is embedded; `safeStorage` encryption is unavailable; relay logs contain route/device identifiers or request data; remote corruption advances a cursor as successfully applied; provider/relay outage loses a local outbox mutation; or staging cannot demonstrate workspace isolation, replay rejection, rotation, and fallback reconciliation.
+Activation is blocked if any automated gate fails; broad Microsoft drive scopes are registered; a Microsoft client secret is embedded or the extractable Google Desktop credential is exposed outside the build artifact and Google token endpoint; `safeStorage` encryption is unavailable; relay logs contain route/device identifiers or request data; remote corruption advances a cursor as successfully applied; provider/relay outage loses a local outbox mutation; or staging cannot demonstrate workspace isolation, replay rejection, rotation, and fallback reconciliation.
 
 The relay is an availability optimization, not a correctness authority. Provider cursors and local outbox state remain authoritative, so relay loss must never authorize rollback, deletion, or cursor advancement.

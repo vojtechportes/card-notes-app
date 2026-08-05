@@ -21,6 +21,10 @@ export const verifyPackagedOAuthProvider = async (
   const configuration: OAuthProviderConfiguration = {
     authorizationEndpoint: 'https://verification.notestack/authorize',
     clientId: `packaged-${provider}-client`,
+    clientSecret:
+      provider === OAuthProviderEnum.GoogleDrive
+        ? 'packaged-google-client-secret'
+        : null,
     issuerPrefixes: ['https://verification.notestack'],
     jwksEndpoint: 'https://verification.notestack/jwks',
     provider,
@@ -39,7 +43,10 @@ export const verifyPackagedOAuthProvider = async (
   }
   const credentialStore = new SecureCredentialStore(dataRoot, safeStorage)
   let authorizationNonce = ''
+  let verificationNow = Date.now()
+  let sawAuthorizationClientSecret = false
   let sawPkceVerifier = false
+  let sawRefreshClientSecret = false
   const service = new OAuthService({
     configurations: new Map([[provider, configuration]]),
     createLoopbackListener: createOAuthLoopbackListener,
@@ -56,7 +63,17 @@ export const verifyPackagedOAuthProvider = async (
       }
 
       const body = new URLSearchParams(init?.body?.toString())
-      sawPkceVerifier = Boolean(body.get('code_verifier'))
+      const hasExpectedClientSecret =
+        body.get('client_secret') === configuration.clientSecret
+
+      if (body.get('grant_type') === 'authorization_code') {
+        sawAuthorizationClientSecret = hasExpectedClientSecret
+        sawPkceVerifier = Boolean(body.get('code_verifier'))
+      }
+
+      if (body.get('grant_type') === 'refresh_token') {
+        sawRefreshClientSecret = hasExpectedClientSecret
+      }
 
       return new Response(
         JSON.stringify({
@@ -73,6 +90,7 @@ export const verifyPackagedOAuthProvider = async (
         { status: 200 }
       )
     },
+    now: () => verificationNow,
     openExternal: async (authorizationUrl) => {
       const url = new URL(authorizationUrl)
       const callbackUrl = new URL(url.searchParams.get('redirect_uri')!)
@@ -90,7 +108,15 @@ export const verifyPackagedOAuthProvider = async (
 
   const state = await service.connect({ provider })
 
-  if (state.status !== 'connected' || !sawPkceVerifier) {
+  verificationNow += 600_000
+  await service.getAccessCredential(provider)
+
+  if (
+    state.status !== 'connected' ||
+    !sawAuthorizationClientSecret ||
+    !sawPkceVerifier ||
+    !sawRefreshClientSecret
+  ) {
     throw new Error('packaged-oauth-connect-failed')
   }
 

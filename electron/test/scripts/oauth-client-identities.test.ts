@@ -113,6 +113,7 @@ test('removes build-time OAuth identities from packaged verification', () => {
   const environment = createPackagedOAuthVerificationEnvironment({
     ...validEnvironment,
     notestack_google_oauth_client_id: 'lowercase-duplicate',
+    NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: 'google-client-secret',
     PATH: 'verification-path',
   })
 
@@ -136,7 +137,49 @@ test('release workflow and Electron commands enforce OAuth configuration', () =>
     workflow,
     /NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID: \$\{\{ vars\.NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID \}\}/
   )
-  assert.match(workflow, /Validate OAuth client identities/)
+  assert.match(
+    workflow,
+    /NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET \}\}/
+  )
+  assert.doesNotMatch(
+    workflow,
+    /NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ vars\./
+  )
+  const windowsBuildJobStart = workflow.indexOf(
+    '  build-windows-app-directory:'
+  )
+  const windowsBuildStepsStart = workflow.indexOf(
+    '\n    steps:',
+    windowsBuildJobStart
+  )
+
+  assert.notEqual(windowsBuildJobStart, -1)
+  assert.notEqual(windowsBuildStepsStart, -1)
+
+  const windowsBuildJobHeader = workflow.slice(
+    windowsBuildJobStart,
+    windowsBuildStepsStart
+  )
+
+  assert.doesNotMatch(
+    windowsBuildJobHeader,
+    /NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET/
+  )
+  assert.match(
+    workflow,
+    /name: Validate OAuth build configuration\s+env:\s+NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET \}\}/
+  )
+  assert.match(
+    workflow,
+    /name: Build unsigned Electron app directory\s+env:\s+NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET \}\}/
+  )
+  assert.equal(
+    workflow.match(
+      /NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET \}\}/g
+    )?.length,
+    2
+  )
+  assert.match(workflow, /Validate OAuth build configuration/)
 
   for (const scriptName of [
     'dev',
@@ -149,6 +192,11 @@ test('release workflow and Electron commands enforce OAuth configuration', () =>
       /npm run verify:oauth-registration/
     )
   }
+
+  assert.match(
+    packageJson.scripts['verify:oauth-registration'],
+    /verify-oauth-client-secret/
+  )
 
   assert.doesNotMatch(
     packageJson.scripts['package:prepackaged'],

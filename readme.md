@@ -16,7 +16,7 @@ Run the desktop app in three terminals:
 
 The backend health endpoint is available at `/api/health`, and Swagger is exposed at `/api/docs`. The separately deployable content-free relay can be run with `npm run dev:notification-service`; its protocol and deployment runbook live in `notification-service/README.md`.
 
-Before running `npm run dev:electron`, export the public Google and Microsoft OAuth client IDs as `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID` and `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID` in that PowerShell session. See `electron/OAUTH.md` for provider registration, local GitHub CLI retrieval, and packaging details. Do not configure client secrets.
+Before running `npm run dev:electron`, export the public Google and Microsoft OAuth client IDs plus the Google Desktop OAuth client secret in that PowerShell session. See `electron/OAUTH.md` for provider registration, secure local injection, and packaging details. Microsoft remains a public client without a secret.
 
 ## Build and Package
 
@@ -38,7 +38,11 @@ Required GitHub Actions repository variables:
 - `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`: public Google Desktop OAuth client ID.
 - `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`: public Microsoft native/public application client ID.
 
-The release workflow maps these variables only into the Windows job that builds the Electron app directory. The signed and installer-packaging jobs reuse that built directory and do not require the variables.
+Required GitHub Actions repository secret:
+
+- `NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET`: Google Desktop OAuth client secret. The packaged value is extractable and is not an application-identity security boundary.
+
+The release workflow maps the two public variables and the Google repository secret only into the Windows job that builds the Electron app directory. The signed and installer-packaging jobs reuse that built directory and do not require the build credentials.
 
 Required GitHub Actions credentials:
 

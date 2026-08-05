@@ -493,7 +493,7 @@ Implementation may select a managed WebSocket/durable-state platform or a conven
 - Ship registered Google and Microsoft public/native application identities; users do not enter client IDs or secrets.
 - Use system-browser Authorization Code with PKCE.
 - Validate state, PKCE verifier, redirect target, callback timeout, and account/provider identity.
-- Desktop applications contain no client secret.
+- Embed only the Google-issued Desktop OAuth client secret required by its token endpoint; treat it as extractable, never as proof of app identity, and keep Microsoft secretless.
 - Initialize no provider OAuth flow or credential storage until explicit enablement and provider selection.
 - Store refresh credentials only through OS-backed secure storage owned by Electron.
 - Keep access credentials short-lived and in memory.
