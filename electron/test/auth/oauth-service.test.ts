@@ -878,3 +878,85 @@ test('missing initial refresh tokens receive a dedicated diagnostic', async () =
     'oauth-authorization-code-response-refresh-token-missing'
   )
 })
+
+test('authorization-code invalid requests expose a fixed request-field detail', async () => {
+  const rawDescription = 'Missing required parameter: client_secret'
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => ({
+      cancel: () => undefined,
+      redirectUri: 'http://127.0.0.1:32123',
+      result: Promise.resolve({ code: 'callback-code-must-not-leak' }),
+    }),
+    credentialStore: new MemoryCredentialStore(),
+    fetchImplementation: async () =>
+      new Response(
+        JSON.stringify({
+          error: 'invalid_request',
+          error_description: rawDescription,
+        }),
+        { status: 400 }
+      ),
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  const state = await service.connect({
+    provider: OAuthProviderEnum.GoogleDrive,
+  })
+  const serializedState = JSON.stringify(state)
+
+  assert.equal(state.errorCode, 'oauth-reconnect-required')
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-authorization-code-exchange-invalid-request-missing-client-secret'
+  )
+  assert.doesNotMatch(serializedState, /Missing required parameter/)
+  assert.doesNotMatch(serializedState, /callback-code-must-not-leak/)
+})
+
+test('refresh-token invalid requests enforce operation-compatible details', async () => {
+  const credentialStore = new MemoryCredentialStore()
+  credentialStore.save(OAuthProviderEnum.GoogleDrive, {
+    account: {
+      accountId: 'account-1',
+      displayName: null,
+      provider: OAuthProviderEnum.GoogleDrive,
+      tenantId: null,
+    },
+    refreshToken: 'stored-refresh-token-must-not-leak',
+  })
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => {
+      throw new Error('listener-not-expected')
+    },
+    credentialStore,
+    fetchImplementation: async () =>
+      new Response(
+        JSON.stringify({
+          error: 'invalid_request',
+          error_description: 'Missing required parameter: refresh_token',
+        }),
+        { status: 400 }
+      ),
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  await assert.rejects(
+    service.getAccessCredential(OAuthProviderEnum.GoogleDrive),
+    /oauth-reconnect-required/
+  )
+
+  const state = service.getState()
+
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-refresh-token-exchange-invalid-request-missing-refresh-token'
+  )
+  assert.doesNotMatch(
+    JSON.stringify(state),
+    /stored-refresh-token-must-not-leak/
+  )
+})

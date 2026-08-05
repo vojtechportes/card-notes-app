@@ -1,4 +1,5 @@
 import type { OAuthDiagnosticCode } from '../types/oauth-diagnostic-code.js'
+import type { OAuthProviderTokenError } from '../types/oauth-provider-token-error.js'
 import type { OAuthTokenOperation } from '../types/oauth-token-operation.js'
 
 type OAuthTokenFailureReason =
@@ -35,11 +36,15 @@ const reasonByProviderError: Record<
 
 export const getOAuthTokenDiagnosticCode = (
   operation: OAuthTokenOperation,
-  providerError: string | null
+  providerError: OAuthProviderTokenError
 ): OAuthDiagnosticCode => {
-  const reason = Object.hasOwn(reasonByProviderError, providerError ?? '')
-    ? reasonByProviderError[providerError as OAuthProviderErrorCode]
+  const reason = Object.hasOwn(reasonByProviderError, providerError.code ?? '')
+    ? reasonByProviderError[providerError.code as OAuthProviderErrorCode]
     : 'provider-rejected'
+
+  if (reason === 'invalid-request' && providerError.invalidRequestDetail) {
+    return `oauth-${operation}-exchange-invalid-request-${providerError.invalidRequestDetail}`
+  }
 
   return `oauth-${operation}-exchange-${reason}`
 }

@@ -22,7 +22,7 @@ import { getOAuthTokenDiagnosticCode } from '../utils/get-oauth-token-diagnostic
 import { getPublicOAuthErrorCode } from '../utils/get-public-oauth-error-code.util.js'
 import { mapOAuthAccount } from '../utils/map-oauth-account.util.js'
 import { parseOAuthIdToken } from '../utils/parse-oauth-id-token.util.js'
-import { readOAuthProviderErrorCode } from '../utils/read-oauth-provider-error-code.util.js'
+import { readOAuthProviderError } from '../utils/read-oauth-provider-error.util.js'
 import { validateOAuthIdToken } from '../utils/validate-oauth-id-token.util.js'
 import { verifyOAuthIdTokenSignature } from '../utils/verify-oauth-id-token-signature.util.js'
 
@@ -401,7 +401,7 @@ export class OAuthService implements OAuthServiceContract {
     }
 
     if (!response.ok) {
-      const providerError = await readOAuthProviderErrorCode(response)
+      const providerError = await readOAuthProviderError(response, operation)
 
       throw new OAuthTokenRequestError(
         'oauth-reconnect-required',
