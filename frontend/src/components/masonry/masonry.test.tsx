@@ -19,7 +19,7 @@ describe('Masonry', () => {
     setWindowWidth(1024)
   })
 
-  it('distributes children across responsive columns', () => {
+  it('renders children in source order within balanced CSS columns', () => {
     setWindowWidth(800)
 
     const { container } = render(
@@ -32,13 +32,32 @@ describe('Masonry', () => {
     )
 
     const masonry = getMasonryRoot(container)
+    const masonryStyle = getComputedStyle(masonry as HTMLElement)
 
-    expect(masonry?.children).toHaveLength(2)
-    expect(masonry?.children[0]?.textContent).toBe('AlphaGamma')
-    expect(masonry?.children[1]?.textContent).toBe('BetaDelta')
+    expect(masonry?.children).toHaveLength(4)
+    expect(masonry?.textContent).toBe('AlphaBetaGammaDelta')
+    expect(masonryStyle.columnCount).toBe('2')
+    expect(masonryStyle.columnGap).toBe('12px')
   })
 
-  it('updates column distribution after window resize', () => {
+  it('keeps each item intact and applies vertical spacing', () => {
+    const { container } = render(
+      <Masonry columns={2} gap={16}>
+        <span>Alpha</span>
+      </Masonry>
+    )
+
+    const masonry = getMasonryRoot(container)
+    const item = masonry?.firstElementChild as HTMLElement | null
+    const itemStyle = getComputedStyle(item as HTMLElement)
+
+    expect(itemStyle.breakInside).toBe('avoid')
+    expect(itemStyle.display).toBe('inline-block')
+    expect(itemStyle.marginBottom).toBe('16px')
+    expect(itemStyle.width).toBe('100%')
+  })
+
+  it('updates the CSS column count after window resize', () => {
     setWindowWidth(320)
 
     const { container } = render(
@@ -50,7 +69,7 @@ describe('Masonry', () => {
 
     const masonry = getMasonryRoot(container)
 
-    expect(masonry?.children).toHaveLength(1)
+    expect(getComputedStyle(masonry as HTMLElement).columnCount).toBe('1')
 
     setWindowWidth(800)
 
@@ -58,6 +77,6 @@ describe('Masonry', () => {
       window.dispatchEvent(new Event('resize'))
     })
 
-    expect(masonry?.children).toHaveLength(2)
+    expect(getComputedStyle(masonry as HTMLElement).columnCount).toBe('2')
   })
 })

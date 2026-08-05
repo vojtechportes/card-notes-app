@@ -21,3 +21,4 @@
 - [x] B111. Fix notes toolbar sticky offset below the window title bar
 - [x] B112. Start the local backend on an available port and connect the frontend to it
 - [x] B113. Import Excel in-cell images from duplicate XLSX image columns
+- [x] B114. Fix uneven masonry columns leaving a large vertical gap

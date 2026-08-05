@@ -6,6 +6,5 @@ export interface IMasonryProps {
   columns?: number | ResponsiveColumns
   gap?: number | string
   className?: string
-  columnClassName?: string
   itemClassName?: string
 }

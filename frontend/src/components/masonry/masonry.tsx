@@ -1,17 +1,14 @@
 import {
   type FC,
   type PropsWithChildren,
-  type ReactNode,
   Children,
   useEffect,
-  useMemo,
   useState,
 } from 'react'
 import Box from '@mui/material/Box'
 import { normalizeSize } from './utils/normalize-size.util'
-import { type BreakpointKey, type IMasonryProps } from './types'
+import { type IMasonryProps } from './types'
 import { getColumnCount } from './utils/get-column-count.util'
-import { getBreakpoint } from './utils/get-breakpoint.util'
 import { getItemKey } from './utils/get-item-key.util'
 
 export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
@@ -19,10 +16,8 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
   columns = { xs: 1, sm: 1, md: 2, lg: 3 },
   gap = 8,
   className,
-  columnClassName,
   itemClassName,
 }) => {
-  const [breakpoint, setBreakpoint] = useState<BreakpointKey | undefined>()
   const [columnCount, setColumnCount] = useState<number>(() => {
     if (typeof window === 'undefined') {
       return typeof columns === 'number' ? columns : (columns.xs ?? 1)
@@ -34,7 +29,6 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
   useEffect(() => {
     const updateColumnCount = (): void => {
       setColumnCount(getColumnCount(columns, window.innerWidth))
-      setBreakpoint(getBreakpoint(columns, window.innerWidth))
     }
 
     updateColumnCount()
@@ -46,58 +40,31 @@ export const Masonry: FC<PropsWithChildren<IMasonryProps>> = ({
     }
   }, [columns])
 
-  const childArray = useMemo(() => Children.toArray(children), [children])
-
-  const distributedChildren = useMemo(() => {
-    const nextColumns = Array.from(
-      { length: columnCount },
-      () => [] as ReactNode[]
-    )
-
-    childArray.forEach((child, index) => {
-      nextColumns[index % columnCount]?.push(child)
-    })
-
-    return nextColumns
-  }, [childArray, columnCount])
-
+  const childArray = Children.toArray(children)
   const resolvedGap = normalizeSize(gap)
 
   return (
     <Box
       className={className}
       sx={{
-        alignItems: 'flex-start',
-        display: 'flex',
-        gap: resolvedGap,
+        columnCount,
+        columnGap: resolvedGap,
         width: '100%',
-        // ...(breakpoint === 'xs' && {
-        //   margin: 'auto',
-        //   maxWidth: '100%',
-        // }),
       }}
     >
-      {distributedChildren.map((columnItems, columnIndex) => (
+      {childArray.map((child, index) => (
         <Box
-          key={columnIndex}
-          className={columnClassName}
+          key={getItemKey(child, index)}
+          className={itemClassName}
           sx={{
-            display: 'flex',
-            flex: '1 1 0',
-            flexDirection: 'column',
-            gap: resolvedGap,
-            minWidth: 0,
+            breakInside: 'avoid',
+            display: 'inline-block',
+            marginBottom: resolvedGap,
+            verticalAlign: 'top',
+            width: '100%',
           }}
         >
-          {columnItems.map((child, itemIndex) => (
-            <Box
-              key={getItemKey(child, itemIndex)}
-              className={itemClassName}
-              sx={{ width: '100%' }}
-            >
-              {child}
-            </Box>
-          ))}
+          {child}
         </Box>
       ))}
     </Box>
