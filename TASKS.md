@@ -787,6 +787,14 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add focused Electron and frontend coverage for persistence, bridge security, routing, localization, and user interaction.
   - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
 
+- [x] TMSC-32. Add sanitized OAuth diagnostics
+  - Preserve broad OAuth connection errors while attaching a closed, in-memory diagnostic code for token-exchange failures.
+  - Classify authorization-code and refresh-token failures without exposing codes, tokens, secrets, client IDs, account details, or provider response text.
+  - Show the last session-only OAuth diagnostic in a read-only Developer settings section through the existing sandboxed bridge.
+  - Keep components slim and follow the naming, ownership, localization, and one-utility-per-file rules in `AGENTS.md`.
+  - Add focused Electron and frontend coverage for classification, leakage prevention, state lifecycle, and rendering.
+  - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

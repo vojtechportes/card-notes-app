@@ -14,6 +14,7 @@ interface OAuthStateController {
 
 const unavailableState: OAuthPublicState = {
   account: null,
+  diagnosticCode: null,
   errorCode: null,
   provider: null,
   status: 'disconnected',

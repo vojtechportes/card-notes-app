@@ -8,7 +8,34 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../../../i18n'
 import type { NoteStackDeveloperToolsBridge } from '../../../../types/notestack-developer-tools-bridge'
+import type { NoteStackOAuthBridge } from '../../../../types/notestack-oauth-bridge'
+import { OAuthProviderEnum } from '../../../../types/oauth-provider-enum'
+import type { OAuthPublicState } from '../../../../types/oauth-public-state'
 import { DeveloperSettingsPage } from './developer-settings-page'
+
+const createOAuthBridge = (
+  initialState: OAuthPublicState
+): NoteStackOAuthBridge & {
+  emit: (state: OAuthPublicState) => void
+} => {
+  let listener: ((state: OAuthPublicState) => void) | null = null
+
+  return {
+    cancel: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    emit: (state) => listener?.(state),
+    getState: vi.fn().mockResolvedValue(initialState),
+    reconnect: vi.fn(),
+    subscribe: vi.fn().mockImplementation((nextListener) => {
+      listener = nextListener
+
+      return () => {
+        listener = null
+      }
+    }),
+  }
+}
 
 const createBridge = (
   enabled = false
@@ -28,6 +55,7 @@ describe('DeveloperSettingsPage', () => {
   afterEach(() => {
     cleanup()
     delete window.noteStackDeveloperTools
+    delete window.noteStackOAuth
   })
 
   it('shows a desktop-only message when the Electron bridge is unavailable', () => {
@@ -97,5 +125,54 @@ describe('DeveloperSettingsPage', () => {
         'The developer action could not be completed. Try again.'
       )
     ).toBeTruthy()
+  })
+
+  it('shows the last sanitized OAuth diagnostic without sensitive provider data', async () => {
+    window.noteStackDeveloperTools = createBridge()
+    window.noteStackOAuth = createOAuthBridge({
+      account: null,
+      diagnosticCode: 'oauth-authorization-code-exchange-invalid-grant',
+      errorCode: 'oauth-reconnect-required',
+      provider: OAuthProviderEnum.GoogleDrive,
+      status: 'reconnect-required',
+    })
+
+    render(<DeveloperSettingsPage />)
+
+    expect(await screen.findByText('Provider: Google Drive')).toBeTruthy()
+    expect(screen.getByText('oauth-reconnect-required')).toBeTruthy()
+    expect(
+      screen.getByText('oauth-authorization-code-exchange-invalid-grant')
+    ).toBeTruthy()
+    expect(screen.queryByText(/provider description/i)).toBeNull()
+  })
+
+  it('updates OAuth diagnostics from the existing bridge subscription', async () => {
+    const oauthBridge = createOAuthBridge({
+      account: null,
+      diagnosticCode: null,
+      errorCode: null,
+      provider: null,
+      status: 'disconnected',
+    })
+    window.noteStackDeveloperTools = createBridge()
+    window.noteStackOAuth = oauthBridge
+
+    render(<DeveloperSettingsPage />)
+
+    expect(await screen.findByText('Provider: None recorded')).toBeTruthy()
+
+    oauthBridge.emit({
+      account: null,
+      diagnosticCode: 'oauth-refresh-token-exchange-invalid-client',
+      errorCode: 'oauth-reconnect-required',
+      provider: OAuthProviderEnum.OneDrive,
+      status: 'reconnect-required',
+    })
+
+    expect(
+      await screen.findByText('oauth-refresh-token-exchange-invalid-client')
+    ).toBeTruthy()
+    expect(screen.getByText('Provider: Microsoft OneDrive')).toBeTruthy()
   })
 })

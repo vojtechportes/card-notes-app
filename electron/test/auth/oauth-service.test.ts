@@ -633,3 +633,240 @@ test('disconnect attempts supported revocation and always removes local credenti
   assert.match(revocationBody, /token=refresh-token-to-revoke/)
   assert.equal(credentialStore.load(OAuthProviderEnum.GoogleDrive), null)
 })
+
+test('authorization-code failures expose only an allowlisted diagnostic', async () => {
+  const sensitiveDescription = 'provider-description-must-not-leak'
+  const sensitiveToken = 'provider-token-must-not-leak'
+  const callbackCode = 'callback-code-must-not-leak'
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => ({
+      cancel: () => undefined,
+      redirectUri: 'http://127.0.0.1:32123/oauth/callback/google-drive',
+      result: Promise.resolve({ code: callbackCode }),
+    }),
+    credentialStore: new MemoryCredentialStore(),
+    fetchImplementation: async () =>
+      new Response(
+        JSON.stringify({
+          access_token: sensitiveToken,
+          error: 'invalid_grant',
+          error_description: sensitiveDescription,
+        }),
+        { status: 400 }
+      ),
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  const state = await service.connect({
+    provider: OAuthProviderEnum.GoogleDrive,
+  })
+  const serializedState = JSON.stringify(state)
+
+  assert.equal(state.errorCode, 'oauth-reconnect-required')
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-authorization-code-exchange-invalid-grant'
+  )
+  assert.equal(state.status, 'reconnect-required')
+  assert.doesNotMatch(serializedState, new RegExp(sensitiveDescription))
+  assert.doesNotMatch(serializedState, new RegExp(sensitiveToken))
+  assert.doesNotMatch(serializedState, new RegExp(callbackCode))
+  assert.doesNotMatch(serializedState, /google-client/)
+})
+
+test('unknown and oversized provider failures collapse to a safe diagnostic', async () => {
+  for (const body of [
+    JSON.stringify({ error: 'provider-private-error' }),
+    JSON.stringify({ error: 'invalid_client', padding: 'x'.repeat(9_000) }),
+  ]) {
+    const service = new OAuthService({
+      configurations,
+      createLoopbackListener: async () => ({
+        cancel: () => undefined,
+        redirectUri: 'http://127.0.0.1:32123/oauth/callback/google-drive',
+        result: Promise.resolve({ code: 'callback-code' }),
+      }),
+      credentialStore: new MemoryCredentialStore(),
+      fetchImplementation: async () => new Response(body, { status: 400 }),
+      now: () => now,
+      openExternal: async () => undefined,
+    })
+
+    const state = await service.connect({
+      provider: OAuthProviderEnum.GoogleDrive,
+    })
+
+    assert.equal(
+      state.diagnosticCode,
+      'oauth-authorization-code-exchange-provider-rejected'
+    )
+    assert.doesNotMatch(JSON.stringify(state), /provider-private-error/)
+  }
+})
+
+test('successful token responses distinguish invalid JSON and invalid shape', async () => {
+  const responses = [
+    {
+      body: 'not-json',
+      diagnosticCode: 'oauth-authorization-code-response-invalid-json',
+      errorCode: 'oauth-unavailable',
+    },
+    {
+      body: 'null',
+      diagnosticCode: 'oauth-authorization-code-response-invalid-shape',
+      errorCode: 'oauth-unavailable',
+    },
+    {
+      body: JSON.stringify({ token_type: 'Bearer' }),
+      diagnosticCode: 'oauth-authorization-code-response-invalid-shape',
+      errorCode: 'oauth-reconnect-required',
+    },
+  ] as const
+
+  for (const { body, diagnosticCode, errorCode } of responses) {
+    const service = new OAuthService({
+      configurations,
+      createLoopbackListener: async () => ({
+        cancel: () => undefined,
+        redirectUri: 'http://127.0.0.1:32123/oauth/callback/google-drive',
+        result: Promise.resolve({ code: 'callback-code' }),
+      }),
+      credentialStore: new MemoryCredentialStore(),
+      fetchImplementation: async () => new Response(body, { status: 200 }),
+      now: () => now,
+      openExternal: async () => undefined,
+    })
+
+    const state = await service.connect({
+      provider: OAuthProviderEnum.GoogleDrive,
+    })
+
+    assert.equal(state.diagnosticCode, diagnosticCode)
+    assert.equal(state.errorCode, errorCode)
+  }
+})
+
+test('refresh-token failures retain the safe exchange diagnostic', async () => {
+  const credentialStore = new MemoryCredentialStore()
+  credentialStore.save(OAuthProviderEnum.GoogleDrive, {
+    account: {
+      accountId: 'account-1',
+      displayName: null,
+      provider: OAuthProviderEnum.GoogleDrive,
+      tenantId: null,
+    },
+    refreshToken: 'stored-refresh-token',
+  })
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => {
+      throw new Error('listener-not-expected')
+    },
+    credentialStore,
+    fetchImplementation: async () =>
+      new Response(
+        JSON.stringify({
+          error: 'invalid_client',
+          error_description: 'sensitive-provider-description',
+        }),
+        { status: 401 }
+      ),
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  await assert.rejects(
+    service.getAccessCredential(OAuthProviderEnum.GoogleDrive),
+    /oauth-reconnect-required/
+  )
+
+  const state = service.getState()
+
+  assert.equal(state.errorCode, 'oauth-reconnect-required')
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-refresh-token-exchange-invalid-client'
+  )
+  assert.doesNotMatch(JSON.stringify(state), /sensitive-provider-description/)
+  assert.doesNotMatch(JSON.stringify(state), /stored-refresh-token/)
+})
+test('authorization-code network failures use a fixed session diagnostic', async () => {
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => ({
+      cancel: () => undefined,
+      redirectUri: 'http://127.0.0.1:32123/oauth/callback/google-drive',
+      result: Promise.resolve({ code: 'callback-code' }),
+    }),
+    credentialStore: new MemoryCredentialStore(),
+    fetchImplementation: async () => {
+      throw new Error('network-details-must-not-leak')
+    },
+    now: () => now,
+    openExternal: async () => undefined,
+  })
+
+  const state = await service.connect({
+    provider: OAuthProviderEnum.GoogleDrive,
+  })
+
+  assert.equal(state.errorCode, 'oauth-unavailable')
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-authorization-code-exchange-network-error'
+  )
+  assert.doesNotMatch(JSON.stringify(state), /network-details-must-not-leak/)
+
+  const cancelledState = service.cancel()
+
+  assert.equal(cancelledState.diagnosticCode, null)
+})
+
+test('missing initial refresh tokens receive a dedicated diagnostic', async () => {
+  const configuration = configurations.get(OAuthProviderEnum.GoogleDrive)!
+  let authorizationUrl = ''
+  const service = new OAuthService({
+    configurations,
+    createLoopbackListener: async () => ({
+      cancel: () => undefined,
+      redirectUri: 'http://127.0.0.1:32123/oauth/callback/google-drive',
+      result: Promise.resolve({ code: 'callback-code' }),
+    }),
+    credentialStore: new MemoryCredentialStore(),
+    fetchImplementation: async (url) => {
+      if (url.toString() === configuration.jwksEndpoint) {
+        return new Response(JSON.stringify({ keys: [publicJwk] }), {
+          status: 200,
+        })
+      }
+
+      const nonce = new URL(authorizationUrl).searchParams.get('nonce')!
+
+      return new Response(
+        JSON.stringify({
+          access_token: 'short-lived-access-token',
+          expires_in: 3600,
+          id_token: createIdToken(configuration, nonce),
+          token_type: 'Bearer',
+        }),
+        { status: 200 }
+      )
+    },
+    now: () => now,
+    openExternal: async (url) => {
+      authorizationUrl = url
+    },
+  })
+
+  const state = await service.connect({
+    provider: OAuthProviderEnum.GoogleDrive,
+  })
+
+  assert.equal(state.errorCode, 'oauth-reconnect-required')
+  assert.equal(
+    state.diagnosticCode,
+    'oauth-authorization-code-response-refresh-token-missing'
+  )
+})
