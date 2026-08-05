@@ -1,4 +1,5 @@
 import type { NoteStackOAuthBridge } from './notestack-oauth-bridge'
+import type { NoteStackDeveloperToolsBridge } from './notestack-developer-tools-bridge'
 import type { NoteStackStartupBridge } from './notestack-startup-bridge'
 import type { NoteStackUpdaterBridge } from './notestack-updater'
 import type { NoteStackWindowControlsBridge } from '../components/window-title-bar/types/notestack-window-controls-bridge'
@@ -6,6 +7,7 @@ import type { NoteStackWindowControlsBridge } from '../components/window-title-b
 declare global {
   interface Window {
     noteStackOAuth?: NoteStackOAuthBridge
+    noteStackDeveloperTools?: NoteStackDeveloperToolsBridge
     noteStackStartup?: NoteStackStartupBridge
     noteStackUpdater?: NoteStackUpdaterBridge
     noteStackWindowControls?: NoteStackWindowControlsBridge

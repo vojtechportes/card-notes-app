@@ -1,5 +1,6 @@
 export const settingsSubPageRoutes = {
   dataManagement: 'data-management',
+  developer: 'developer',
   exportImport: 'export-import',
   general: 'general',
   noteLabels: 'note-labels',

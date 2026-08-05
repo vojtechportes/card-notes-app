@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import type { NoteStackOAuthBridge } from '../src/auth/types/notestack-oauth-bridge'
+import type { NoteStackDeveloperToolsBridge } from '../src/developer-tools/types/notestack-developer-tools-bridge'
 import { OAuthProviderEnum } from '../src/auth/types/oauth-provider-enum'
 import type { NoteStackStartupBridge } from '../src/startup/types/notestack-startup-bridge'
 import type { NoteStackUpdaterBridge } from '../src/updater/updater-contract'
@@ -17,6 +18,10 @@ class IpcRendererMock extends EventEmitter {
 
   invoke(channel: string): Promise<unknown> {
     this.invocations.push(channel)
+
+    if (channel === 'developer-tools:get-preferences') {
+      return Promise.resolve({ enabled: false })
+    }
 
     if (channel === 'oauth:get-state') {
       return Promise.resolve({
@@ -73,6 +78,9 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     },
   })
 
+  const developerToolsBridge = exposed.get(
+    'noteStackDeveloperTools'
+  ) as NoteStackDeveloperToolsBridge
   const oauthBridge = exposed.get('noteStackOAuth') as NoteStackOAuthBridge
   const startupBridge = exposed.get(
     'noteStackStartup'
@@ -84,10 +92,16 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     'noteStackWindowControls'
   ) as NoteStackWindowControlsBridge
 
+  assert.ok(developerToolsBridge)
   assert.ok(oauthBridge)
   assert.ok(startupBridge)
   assert.ok(updaterBridge)
   assert.ok(windowControlsBridge)
+  assert.deepEqual(await developerToolsBridge.getPreferences(), {
+    enabled: false,
+  })
+  await developerToolsBridge.setEnabled(true)
+  await developerToolsBridge.openDeveloperTools()
   assert.deepEqual(await oauthBridge.getState(), {
     account: null,
     errorCode: null,
@@ -147,6 +161,9 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
 
   assert.deepEqual(receivedWindowStates, [{ isMaximized: true }])
   assert.deepEqual(ipcRenderer.invocations, [
+    'developer-tools:get-preferences',
+    'developer-tools:set-enabled',
+    'developer-tools:open',
     'oauth:get-state',
     'oauth:connect',
     'oauth:reconnect',

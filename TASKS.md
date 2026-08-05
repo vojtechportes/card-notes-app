@@ -779,6 +779,14 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Document GitHub Actions and local PowerShell configuration according to `AGENTS.md`.
   - Run Prettier on all modified code, then verify Electron tests, lint, build, and packaging gates.
 
+- [x] TMSC-31. Add developer settings
+  - Add an always-visible Developer settings page with a persisted, local-only opt-in that defaults to disabled.
+  - Reveal an action to open Developer Tools only after the user enables developer options.
+  - Enforce the opt-in in the Electron main process through a narrow sandboxed IPC bridge.
+  - Keep developer preferences outside synchronized backend settings and follow the ownership, naming, and one-utility-per-file rules in `AGENTS.md`.
+  - Add focused Electron and frontend coverage for persistence, bridge security, routing, localization, and user interaction.
+  - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

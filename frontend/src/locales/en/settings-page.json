@@ -30,6 +30,10 @@
       "dataManagement": {
         "title": "Data Management",
         "description": "Manage actions that affect your saved notes, including clearing your note collection."
+      },
+      "developer": {
+        "title": "Developer",
+        "description": "Enable local troubleshooting tools for this NoteStack installation."
       }
     },
     "sections": {
@@ -56,6 +60,10 @@
       "noteTypes": {
         "title": "Templates",
         "description": "Create, rename, delete, and open templates to manage their fields."
+      },
+      "developer": {
+        "title": "Developer options",
+        "description": "Control access to local tools used for troubleshooting NoteStack."
       }
     },
     "synchronization": {
@@ -185,6 +193,25 @@
           "description": "A verified backup is created, then local synchronization metadata and pending synchronization work are cleared. Notes stay local.",
           "confirm": "Reset synchronization"
         }
+      }
+    },
+    "developer": {
+      "fields": {
+        "enabled": "Enable developer options"
+      },
+      "hints": {
+        "enabled": "This preference applies only to this device and remains disabled by default."
+      },
+      "warning": "Developer Tools may expose application data. Share diagnostic output only after reviewing it for sensitive information.",
+      "actions": {
+        "open": "Open Developer Tools"
+      },
+      "status": {
+        "loading": "Loading developer preferences...",
+        "desktopOnly": "Developer options are available only in the NoteStack desktop app."
+      },
+      "errors": {
+        "action": "The developer action could not be completed. Try again."
       }
     },
     "general": {

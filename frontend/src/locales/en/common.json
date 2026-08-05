@@ -26,7 +26,8 @@
       "exportImport": "Export / Import",
       "updates": "Updates",
       "synchronization": "Synchronization",
-      "dataManagement": "Data Management"
+      "dataManagement": "Data Management",
+      "developer": "Developer"
     }
   },
   "startup": {

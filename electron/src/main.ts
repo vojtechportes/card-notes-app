@@ -5,10 +5,12 @@ import {
   app,
   BrowserWindow,
   dialog,
+  ipcMain,
   net,
   powerMonitor,
   safeStorage,
   shell,
+  type WebContents,
 } from 'electron'
 import electronUpdater from 'electron-updater'
 import type { AppUpdater } from 'electron-updater'
@@ -46,12 +48,15 @@ import type { OAuthPublicState } from './auth/types/oauth-public-state.js'
 import { runPackagedOAuthVerification } from './auth/packaged/run-packaged-oauth-verification.util.js'
 import { getPackagedOAuthVerificationRoot } from './auth/packaged/get-packaged-oauth-verification-root.util.js'
 import { writePackagedOAuthVerificationResult } from './auth/packaged/write-packaged-oauth-verification-result.util.js'
+import { getInvokingWindow } from './window-controls/get-invoking-window.util.js'
 import { registerWindowControlsIpc } from './window-controls/register-window-controls-ipc.js'
 import { registerWindowControlsStateEvents } from './window-controls/register-window-controls-state-events.js'
 import { createSyncTriggerSchedule } from './sync/create-sync-trigger-schedule.js'
 import type { SyncTriggerSchedule } from './sync/create-sync-trigger-schedule.js'
 import { createSyncQuitHandler } from './sync/utils/create-sync-quit-handler.util.js'
 import { sendSyncTrigger } from './sync/utils/send-sync-trigger.util.js'
+import { DeveloperToolsPreferencesStore } from './developer-tools/developer-tools-preferences-store.js'
+import { registerDeveloperToolsIpc } from './developer-tools/register-developer-tools-ipc.js'
 
 const { autoUpdater } = electronUpdater
 const windowsAutoUpdater = autoUpdater as AppUpdater & {
@@ -88,6 +93,9 @@ const backendHost = process.env.HOST ?? process.env.BACKEND_HOST ?? '127.0.0.1'
 const applicationDataRoot = getApplicationDataRoot(app.getPath('appData'))
 const updaterPreferencesStore = new UpdaterPreferencesStore(
   path.join(applicationDataRoot, 'updater-preferences.json')
+)
+const developerToolsPreferencesStore = new DeveloperToolsPreferencesStore(
+  path.join(applicationDataRoot, 'developer-tools-preferences.json')
 )
 let backendPort: number | null = null
 let backendHealthUrl: string | null = null
@@ -226,6 +234,10 @@ async function startApplication(): Promise<void> {
     })
 
     registerUpdaterIpc(updaterService)
+    registerDeveloperToolsIpc(developerToolsPreferencesStore, {
+      getInvokingWindow: (sender) => getInvokingWindow(sender as WebContents),
+      ipcMain,
+    })
     registerWindowControlsIpc()
     registerStartupIpc(backendStartupController, {
       exit: () => app.quit(),
