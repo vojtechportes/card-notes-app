@@ -1,6 +1,7 @@
-﻿import { Stack, Typography } from '@mui/material'
+import { Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { DeveloperToolsSection } from '../developer-tools-section/developer-tools-section'
+import { OAuthDiagnosticsSection } from '../oauth-diagnostics-section/oauth-diagnostics-section'
 
 export const DeveloperSettingsPage = () => {
   const { t } = useTranslation()
@@ -17,6 +18,7 @@ export const DeveloperSettingsPage = () => {
       </Stack>
 
       <DeveloperToolsSection />
+      <OAuthDiagnosticsSection />
     </Stack>
   )
 }

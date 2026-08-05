@@ -212,6 +212,16 @@
       },
       "errors": {
         "action": "The developer action could not be completed. Try again."
+      },
+      "diagnostics": {
+        "title": "OAuth diagnostics",
+        "description": "Review the last sanitized OAuth failure recorded during this app session.",
+        "desktopOnly": "OAuth diagnostics are available only in the NoteStack desktop app.",
+        "provider": "Provider: {{value}}",
+        "errorCode": "Public error code",
+        "diagnosticCode": "Detailed diagnostic code",
+        "none": "None recorded",
+        "safety": "These codes do not include credentials, account details, provider response text, or client configuration. They are cleared when NoteStack restarts."
       }
     },
     "general": {

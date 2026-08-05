@@ -1,3 +1,4 @@
+import { OAuthTokenRequestError } from '../errors/oauth-token-request.error.js'
 import {
   OAUTH_CALLBACK_TIMEOUT_MS,
   OAUTH_EXPIRY_SKEW_MS,
@@ -12,13 +13,16 @@ import type { OAuthProviderEnum } from '../types/oauth-provider-enum.js'
 import type { OAuthPublicState } from '../types/oauth-public-state.js'
 import type { OAuthServiceContract } from '../types/oauth-service-contract.js'
 import type { OAuthServiceDependencies } from '../types/oauth-service-dependencies.js'
+import type { OAuthTokenOperation } from '../types/oauth-token-operation.js'
 import type { OAuthTokenResponse } from '../types/oauth-token-response.js'
 import type { StoredOAuthCredential } from '../types/stored-oauth-credential.js'
 import { createPkceChallenge } from '../utils/create-pkce-challenge.util.js'
 import { createRandomBase64Url } from '../utils/create-random-base64-url.util.js'
+import { getOAuthTokenDiagnosticCode } from '../utils/get-oauth-token-diagnostic-code.util.js'
 import { getPublicOAuthErrorCode } from '../utils/get-public-oauth-error-code.util.js'
 import { mapOAuthAccount } from '../utils/map-oauth-account.util.js'
 import { parseOAuthIdToken } from '../utils/parse-oauth-id-token.util.js'
+import { readOAuthProviderErrorCode } from '../utils/read-oauth-provider-error-code.util.js'
 import { validateOAuthIdToken } from '../utils/validate-oauth-id-token.util.js'
 import { verifyOAuthIdTokenSignature } from '../utils/verify-oauth-id-token-signature.util.js'
 
@@ -35,6 +39,7 @@ export class OAuthService implements OAuthServiceContract {
   private activeListener: OAuthLoopbackListener | null = null
   private state: OAuthPublicState = {
     account: null,
+    diagnosticCode: null,
     errorCode: null,
     provider: null,
     status: 'disconnected',
@@ -51,6 +56,7 @@ export class OAuthService implements OAuthServiceContract {
     this.activeListener = null
     this.setState({
       account: null,
+      diagnosticCode: null,
       errorCode: 'oauth-cancelled',
       provider: this.state.provider,
       status: 'disconnected',
@@ -88,6 +94,7 @@ export class OAuthService implements OAuthServiceContract {
     this.accessTokens.delete(provider)
     this.setState({
       account: null,
+      diagnosticCode: null,
       errorCode: null,
       provider: null,
       status: 'disconnected',
@@ -152,7 +159,8 @@ export class OAuthService implements OAuthServiceContract {
           grant_type: 'refresh_token',
           refresh_token: storedCredential.refreshToken,
           scope: this.getConfiguration(provider).scopes.join(' '),
-        })
+        }),
+        'refresh-token'
       )
 
       if (
@@ -175,7 +183,7 @@ export class OAuthService implements OAuthServiceContract {
       }
 
       return this.mapAccessCredential(provider, accessToken)
-    } catch {
+    } catch (error) {
       this.accessTokens.delete(provider)
 
       if (
@@ -187,6 +195,8 @@ export class OAuthService implements OAuthServiceContract {
 
       this.setState({
         account: storedCredential.account,
+        diagnosticCode:
+          error instanceof OAuthTokenRequestError ? error.diagnosticCode : null,
         errorCode: 'oauth-reconnect-required',
         provider,
         status: 'reconnect-required',
@@ -230,6 +240,7 @@ export class OAuthService implements OAuthServiceContract {
     this.activeAttemptId = attemptId
     this.setState({
       account: null,
+      diagnosticCode: null,
       errorCode: null,
       provider: options.provider,
       status: 'connecting',
@@ -267,7 +278,8 @@ export class OAuthService implements OAuthServiceContract {
           code_verifier: verifier,
           grant_type: 'authorization_code',
           redirect_uri: listener.redirectUri,
-        })
+        }),
+        'authorization-code'
       )
       const account = await this.validateAccount(
         configuration,
@@ -277,7 +289,10 @@ export class OAuthService implements OAuthServiceContract {
       )
 
       if (!tokenResponse.refresh_token) {
-        throw new Error('oauth-reconnect-required')
+        throw new OAuthTokenRequestError(
+          'oauth-reconnect-required',
+          'oauth-authorization-code-response-refresh-token-missing'
+        )
       }
 
       const credential: StoredOAuthCredential = {
@@ -293,6 +308,7 @@ export class OAuthService implements OAuthServiceContract {
       this.cacheAccessToken(options.provider, tokenResponse)
       this.setState({
         account,
+        diagnosticCode: null,
         errorCode: null,
         provider: options.provider,
         status: 'connected',
@@ -363,9 +379,11 @@ export class OAuthService implements OAuthServiceContract {
 
     return account
   }
+
   private async requestToken(
     configuration: OAuthProviderConfiguration,
-    body: URLSearchParams
+    body: URLSearchParams,
+    operation: OAuthTokenOperation
   ): Promise<OAuthTokenResponse> {
     let response: Response
 
@@ -376,24 +394,60 @@ export class OAuthService implements OAuthServiceContract {
         method: 'POST',
       })
     } catch {
-      throw new Error('oauth-unavailable')
+      throw new OAuthTokenRequestError(
+        'oauth-unavailable',
+        `oauth-${operation}-exchange-network-error`
+      )
     }
 
     if (!response.ok) {
-      throw new Error('oauth-reconnect-required')
+      const providerError = await readOAuthProviderErrorCode(response)
+
+      throw new OAuthTokenRequestError(
+        'oauth-reconnect-required',
+        getOAuthTokenDiagnosticCode(operation, providerError)
+      )
     }
 
-    const tokenResponse = (await response.json()) as Partial<OAuthTokenResponse>
+    let tokenResponse: unknown
+    let invalidResponsePublicErrorCode:
+      'oauth-reconnect-required' | 'oauth-unavailable' =
+      'oauth-reconnect-required'
+
+    if (operation === 'authorization-code') {
+      invalidResponsePublicErrorCode = 'oauth-unavailable'
+    }
+
+    try {
+      tokenResponse = await response.json()
+    } catch {
+      throw new OAuthTokenRequestError(
+        invalidResponsePublicErrorCode,
+        `oauth-${operation}-response-invalid-json`
+      )
+    }
+
+    if (tokenResponse === null) {
+      throw new OAuthTokenRequestError(
+        invalidResponsePublicErrorCode,
+        `oauth-${operation}-response-invalid-shape`
+      )
+    }
+
+    const typedTokenResponse = tokenResponse as Partial<OAuthTokenResponse>
 
     if (
-      !tokenResponse.access_token ||
-      !tokenResponse.expires_in ||
-      !tokenResponse.token_type
+      !typedTokenResponse.access_token ||
+      !typedTokenResponse.expires_in ||
+      !typedTokenResponse.token_type
     ) {
-      throw new Error('oauth-reconnect-required')
+      throw new OAuthTokenRequestError(
+        'oauth-reconnect-required',
+        `oauth-${operation}-response-invalid-shape`
+      )
     }
 
-    return tokenResponse as OAuthTokenResponse
+    return typedTokenResponse as OAuthTokenResponse
   }
 
   private getCredentialOperationId(provider: OAuthProviderEnum): symbol {
@@ -484,9 +538,12 @@ export class OAuthService implements OAuthServiceContract {
     error: unknown
   ): OAuthPublicState {
     const errorCode = getPublicOAuthErrorCode(error)
+    const diagnosticCode =
+      error instanceof OAuthTokenRequestError ? error.diagnosticCode : null
 
     this.setState({
       account: null,
+      diagnosticCode,
       errorCode,
       provider,
       status:
