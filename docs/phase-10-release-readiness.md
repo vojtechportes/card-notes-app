@@ -20,7 +20,7 @@ The backend resilience suite uses two independent SQLite/device runtimes against
 
 Follow `electron/OAUTH.md`. Record the registration IDs and reviewer without recording credentials.
 
-- Google: native/public client, loopback callback ending `/oauth/callback/google-drive`, `openid`, profile/email claims, and `https://www.googleapis.com/auth/drive.appdata`. Complete consent-screen verification where required.
+- Google: native/public client, bare ephemeral loopback callback `http://127.0.0.1:{ephemeral-port}`, `openid`, profile/email claims, and `https://www.googleapis.com/auth/drive.appdata`. Complete consent-screen verification where required.
 - Microsoft: native/public client, loopback callback ending `/oauth/callback/one-drive`, `openid`, `profile`, `email`, `offline_access`, and delegated `Files.ReadWrite.AppFolder`. Reject `Files.Read`, `Files.Read.All`, and other full-drive scopes.
 - Both: no client secret; development and packaged redirect behavior; cancellation, timeout, state mismatch, refresh, revocation, and wrong-account checks.
 
