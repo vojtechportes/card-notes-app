@@ -1,6 +1,6 @@
 {
   "name": "notestack",
-  "version": "1.14.0-alpha.8",
+  "version": "1.14.0-alpha.9",
   "private": true,
   "workspaces": [
     "backend",

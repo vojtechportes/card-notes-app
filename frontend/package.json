@@ -1,6 +1,6 @@
 {
   "name": "@notestack/frontend",
-  "version": "1.14.0-alpha.8",
+  "version": "1.14.0-alpha.9",
   "private": true,
   "type": "module",
   "scripts": {
