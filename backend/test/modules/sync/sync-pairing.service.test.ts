@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { v4 as uuidV4 } from 'uuid'
 import type { AssetsService } from '../../../src/modules/assets/assets.service'
 import { DatabaseService } from '../../../src/modules/database/database.service'
+import type { RuntimeDiagnosticsService } from '../../../src/modules/runtime-diagnostics/runtime-diagnostics.service'
 import { FakeSyncProviderAdapter } from '../../../src/modules/sync/fake-provider/fake-sync-provider.adapter'
 import { SyncConflictRepository } from '../../../src/modules/sync/sync-conflict.repository'
 import { SyncOrchestrationRepository } from '../../../src/modules/sync/sync-orchestration.repository'
@@ -35,6 +36,7 @@ let repository: SyncPairingRepository
 let orchestrationRepository: SyncOrchestrationRepository
 let service: SyncPairingService
 let reconciliationService: SyncReconciliationService
+let recordPairingFailure: ReturnType<typeof vi.fn>
 
 const getWorkspaceId = (): string =>
   repository.getWorkspaceIdentity().workspaceId
@@ -145,12 +147,17 @@ beforeEach(() => {
         : oneDriveAdapter,
   }
 
+  recordPairingFailure = vi.fn()
+
   service = new SyncPairingService(
     databaseService,
     repository,
     orchestrationRepository,
     reconciliationService,
-    factory as never
+    factory as never,
+    {
+      recordPairingFailure,
+    } as unknown as RuntimeDiagnosticsService
   )
 })
 
@@ -764,6 +771,12 @@ describe(SyncPairingService.name, () => {
       status: 'failed',
       errorCode: 'pairing-failed',
       backupPath: expect.stringContaining('before-sync-pairing'),
+    })
+    expect(recordPairingFailure).toHaveBeenCalledWith({
+      error: expect.any(SyncProviderError),
+      errorCode: 'pairing-failed',
+      operation: 'confirm',
+      provider: SyncProviderEnum.OneDrive,
     })
     expect(orchestrationRepository.getAccountState()).toMatchObject({
       activeProvider: SyncProviderEnum.GoogleDrive,

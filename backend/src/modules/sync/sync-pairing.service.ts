@@ -6,6 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common'
 import { DatabaseService } from '../database/database.service'
+import { RuntimeDiagnosticsService } from '../runtime-diagnostics/runtime-diagnostics.service'
 import { SyncOrchestrationRepository } from './sync-orchestration.repository'
 import { SyncPairingRepository } from './sync-pairing.repository'
 import { SyncProviderFactory } from './sync-provider.factory'
@@ -38,7 +39,9 @@ export class SyncPairingService implements OnModuleInit {
     @Inject(SyncReconciliationService)
     private readonly reconciliationService: SyncReconciliationService,
     @Inject(SyncProviderFactory)
-    private readonly providerFactory: SyncProviderFactoryContract
+    private readonly providerFactory: SyncProviderFactoryContract,
+    @Inject(RuntimeDiagnosticsService)
+    private readonly runtimeDiagnostics: RuntimeDiagnosticsService
   ) {}
 
   onModuleInit(): void {
@@ -212,6 +215,14 @@ export class SyncPairingService implements OnModuleInit {
         }
 
         const errorCode = this.classifyFailure(error)
+
+        this.runtimeDiagnostics.recordPairingFailure({
+          error,
+          errorCode,
+          operation: 'confirm',
+          provider: prepared.targetProvider,
+        })
+
         this.databaseService.restoreVerifiedBackup(backupPath)
         const restoredApplying = this.repository.setApplying(
           id,

@@ -802,6 +802,14 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Extend the sandboxed bridge and add focused Electron and frontend regression coverage.
   - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
 
+- [x] TMSC-34. Add runtime backend diagnostics
+  - Emit sanitized runtime API failures to backend stderr so Electron records them after startup.
+  - Preserve Nest HTTP response behavior while recording method, route template, status, error kind, and safe backend-relative stack frames.
+  - Record synchronization and pairing failures that are handled internally and would not reach the global HTTP filter.
+  - Exclude request data, provider responses, credentials, account details, identifiers, raw messages, and absolute paths.
+  - Add focused backend coverage and verify Electron continues capturing backend stderr for the child process lifetime.
+  - Run Prettier on all modified code, then verify focused tests, backend and Electron tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DatabaseService } from '../../../src/modules/database/database.service'
+import type { RuntimeDiagnosticsService } from '../../../src/modules/runtime-diagnostics/runtime-diagnostics.service'
 import { SyncOrchestrationRepository } from '../../../src/modules/sync/sync-orchestration.repository'
 import { SyncOrchestrationService } from '../../../src/modules/sync/sync-orchestration.service'
 import type { SyncProviderAdapter } from '../../../src/modules/sync/types/sync-provider-adapter'
@@ -24,6 +25,7 @@ let databaseService: DatabaseService
 let repository: SyncOrchestrationRepository
 let createAdapter: ReturnType<typeof vi.fn>
 let runReconciliation: ReturnType<typeof vi.fn>
+let recordSyncFailure: ReturnType<typeof vi.fn>
 let service: SyncOrchestrationService
 
 const activateSynchronization = (provider = 'google-drive'): void => {
@@ -50,6 +52,9 @@ const createService = (): SyncOrchestrationService => {
     reconciliationService,
     providerFactory as never,
     {
+      recordSyncFailure,
+    } as unknown as RuntimeDiagnosticsService,
+    {
       localDebounceMs: 4_000,
       localDebounceMaxMs: 30_000,
       observerIntervalMs: 1_000,
@@ -70,6 +75,7 @@ beforeEach(() => {
   repository = new SyncOrchestrationRepository(databaseService)
   createAdapter = vi.fn(() => ({}) as SyncProviderAdapter)
   runReconciliation = vi.fn().mockResolvedValue(successfulResult)
+  recordSyncFailure = vi.fn()
   service = createService()
 })
 
@@ -200,6 +206,12 @@ describe(SyncOrchestrationService.name, () => {
     expect(service.getStatus()).toMatchObject({
       state: SyncStatusStateEnum.Offline,
       lastErrorClassification: 'offline',
+    })
+    expect(recordSyncFailure).toHaveBeenCalledWith({
+      classification: 'offline',
+      error: expect.any(SyncProviderError),
+      provider: 'google-drive',
+      trigger: SyncTriggerEnum.Manual,
     })
 
     await vi.advanceTimersByTimeAsync(11_999)
