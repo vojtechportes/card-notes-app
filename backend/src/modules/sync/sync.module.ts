@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { AssetsModule } from '../assets/assets.module'
 import { DatabaseModule } from '../database/database.module'
+import { RuntimeDiagnosticsModule } from '../runtime-diagnostics/runtime-diagnostics.module'
 import { CredentialBrokerClient } from './credential-broker/credential-broker.client'
 import { GoogleNotificationCoordinator } from './google-drive/notification/google-notification.coordinator'
 import { GoogleNotificationRepository } from './google-drive/notification/google-notification.repository'
@@ -18,7 +19,7 @@ import { SyncReconciliationService } from './sync-reconciliation.service'
 import { SyncRemoteDocumentRepository } from './sync-remote-document.repository'
 
 @Module({
-  imports: [AssetsModule, DatabaseModule],
+  imports: [AssetsModule, DatabaseModule, RuntimeDiagnosticsModule],
   controllers: [SyncController],
   providers: [
     CredentialBrokerClient,

@@ -6,6 +6,7 @@ import {
   OnModuleInit,
   Optional,
 } from '@nestjs/common'
+import { RuntimeDiagnosticsService } from '../runtime-diagnostics/runtime-diagnostics.service'
 import { SyncOrchestrationRepository } from './sync-orchestration.repository'
 import { OneDriveDeltaScheduler } from './one-drive/one-drive-delta.scheduler'
 import { SyncProviderFactory } from './sync-provider.factory'
@@ -63,6 +64,8 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
     private readonly reconciliationService: SyncReconciliationService,
     @Inject(SyncProviderFactory)
     private readonly providerFactory: SyncProviderFactoryContract,
+    @Inject(RuntimeDiagnosticsService)
+    private readonly runtimeDiagnostics: RuntimeDiagnosticsService,
     @Optional() options: SyncOrchestrationOptions = {}
   ) {
     this.state = SyncStatusStateEnum.Disabled
@@ -377,6 +380,15 @@ export class SyncOrchestrationService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       const retryScheduled = this.handleFailure(error, scheduleRetry)
+      const classification =
+        this.lastErrorClassification ?? SyncErrorClassificationEnum.Unknown
+
+      this.runtimeDiagnostics.recordSyncFailure({
+        classification,
+        error,
+        provider: activeProvider,
+        trigger,
+      })
 
       return {
         status: this.getStatus(),
