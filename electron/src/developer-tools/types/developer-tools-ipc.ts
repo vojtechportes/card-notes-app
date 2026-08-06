@@ -1,3 +1,5 @@
+import type { BackendLogOpenResult } from '../../startup/types/backend-log-open-result.js'
+
 export interface DeveloperToolsWindow {
   isDestroyed: () => boolean
   webContents: {
@@ -21,4 +23,5 @@ export interface DeveloperToolsIpcRegistrar {
 export interface DeveloperToolsIpcDependencies {
   getInvokingWindow: (sender: unknown) => DeveloperToolsWindow | null
   ipcMain: DeveloperToolsIpcRegistrar
+  openBackendLog: () => Promise<BackendLogOpenResult>
 }

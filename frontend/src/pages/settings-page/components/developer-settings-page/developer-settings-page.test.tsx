@@ -41,10 +41,12 @@ const createBridge = (
   enabled = false
 ): NoteStackDeveloperToolsBridge & {
   getPreferences: ReturnType<typeof vi.fn>
+  openBackendLog: ReturnType<typeof vi.fn>
   openDeveloperTools: ReturnType<typeof vi.fn>
   setEnabled: ReturnType<typeof vi.fn>
 } => ({
   getPreferences: vi.fn().mockResolvedValue({ enabled }),
+  openBackendLog: vi.fn().mockResolvedValue('opened'),
   openDeveloperTools: vi.fn().mockResolvedValue(undefined),
   setEnabled: vi.fn().mockImplementation(async (nextEnabled: boolean) => ({
     enabled: nextEnabled,
@@ -85,12 +87,18 @@ describe('DeveloperSettingsPage', () => {
     expect(
       screen.queryByRole('button', { name: 'Open Developer Tools' })
     ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Open raw backend log' })
+    ).toBeNull()
 
     fireEvent.click(toggle)
 
     await waitFor(() => expect(bridge.setEnabled).toHaveBeenCalledWith(true))
     expect(
       await screen.findByRole('button', { name: 'Open Developer Tools' })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Open raw backend log' })
     ).toBeTruthy()
   })
 
@@ -109,6 +117,18 @@ describe('DeveloperSettingsPage', () => {
     )
   })
 
+  it('opens the raw backend log through the enabled developer bridge', async () => {
+    const bridge = createBridge(true)
+    window.noteStackDeveloperTools = bridge
+
+    render(<DeveloperSettingsPage />)
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open raw backend log' })
+    )
+
+    await waitFor(() => expect(bridge.openBackendLog).toHaveBeenCalledTimes(1))
+  })
   it('shows a localized error when a developer action fails', async () => {
     const bridge = createBridge(true)
     bridge.openDeveloperTools.mockRejectedValue(new Error('failed'))

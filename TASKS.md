@@ -795,6 +795,13 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add focused Electron and frontend coverage for classification, leakage prevention, state lifecycle, and rendering.
   - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
 
+- [x] TMSC-33. Add developer backend log access
+  - Add an explicitly labeled raw backend log action behind the persisted Developer options toggle.
+  - Enforce the opt-in in Electron main before revealing the existing backend log file.
+  - Warn that raw logs can contain sensitive application data and local paths.
+  - Extend the sandboxed bridge and add focused Electron and frontend regression coverage.
+  - Run Prettier on all modified code, then verify Electron and frontend tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

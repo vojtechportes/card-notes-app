@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { DeveloperToolsPreferences } from '../../../../types/developer-tools-preferences'
 import { getDeveloperToolsBridge } from './utils/get-developer-tools-bridge.util'
 
@@ -7,6 +7,7 @@ interface DeveloperToolsPreferencesController {
   enabled: boolean
   error: boolean
   loading: boolean
+  openBackendLog: () => Promise<void>
   openDeveloperTools: () => Promise<void>
   saving: boolean
   setEnabled: (enabled: boolean) => Promise<void>
@@ -46,6 +47,20 @@ export const useDeveloperToolsPreferences =
       }
     }, [])
 
+    const openBackendLog = useCallback(async () => {
+      setError(false)
+
+      try {
+        const result = await getDeveloperToolsBridge().openBackendLog()
+
+        if (result !== 'opened') {
+          setError(true)
+        }
+      } catch {
+        setError(true)
+      }
+    }, [])
+
     useEffect(() => {
       if (!window.noteStackDeveloperTools) {
         return
@@ -76,6 +91,7 @@ export const useDeveloperToolsPreferences =
       enabled: preferences?.enabled ?? false,
       error,
       loading: available && preferences === null && !error,
+      openBackendLog,
       openDeveloperTools,
       saving,
       setEnabled,

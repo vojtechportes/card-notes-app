@@ -25,6 +25,7 @@ const { contextBridge, ipcRenderer } = require('electron') as {
 const developerToolsIpcChannels = {
   getPreferences: 'developer-tools:get-preferences',
   open: 'developer-tools:open',
+  openBackendLog: 'developer-tools:open-backend-log',
   setEnabled: 'developer-tools:set-enabled',
 } as const
 
@@ -65,6 +66,8 @@ const windowControlsIpcChannels = {
 const developerToolsBridge: NoteStackDeveloperToolsBridge = {
   getPreferences: () =>
     ipcRenderer.invoke(developerToolsIpcChannels.getPreferences),
+  openBackendLog: () =>
+    ipcRenderer.invoke(developerToolsIpcChannels.openBackendLog),
   openDeveloperTools: () => ipcRenderer.invoke(developerToolsIpcChannels.open),
   setEnabled: (enabled: boolean) =>
     ipcRenderer.invoke(developerToolsIpcChannels.setEnabled, enabled),

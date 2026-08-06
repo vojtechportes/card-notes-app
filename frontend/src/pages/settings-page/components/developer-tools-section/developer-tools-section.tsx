@@ -1,4 +1,4 @@
-﻿import {
+import {
   Alert,
   Button,
   FormControlLabel,
@@ -19,6 +19,7 @@ export const DeveloperToolsSection = () => {
     enabled,
     error,
     loading,
+    openBackendLog,
     openDeveloperTools,
     saving,
     setEnabled,
@@ -34,6 +35,10 @@ export const DeveloperToolsSection = () => {
   const handleOpenDeveloperTools = useCallback(() => {
     void openDeveloperTools()
   }, [openDeveloperTools])
+
+  const handleOpenBackendLog = useCallback(() => {
+    void openBackendLog()
+  }, [openBackendLog])
 
   if (!available) {
     return (
@@ -74,9 +79,14 @@ export const DeveloperToolsSection = () => {
         {enabled ? (
           <Stack spacing={2} alignItems="flex-start">
             <Alert severity="warning">{t('settings.developer.warning')}</Alert>
-            <Button variant="outlined" onClick={handleOpenDeveloperTools}>
-              {t('settings.developer.actions.open')}
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button variant="outlined" onClick={handleOpenDeveloperTools}>
+                {t('settings.developer.actions.open')}
+              </Button>
+              <Button variant="outlined" onClick={handleOpenBackendLog}>
+                {t('settings.developer.actions.openBackendLog')}
+              </Button>
+            </Stack>
           </Stack>
         ) : null}
 

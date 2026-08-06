@@ -36,6 +36,10 @@ class IpcRendererMock extends EventEmitter {
       return Promise.resolve({ status: 'starting', phase: 'initial' })
     }
 
+    if (channel === 'developer-tools:open-backend-log') {
+      return Promise.resolve('opened')
+    }
+
     if (channel === 'startup:open-backend-log') {
       return Promise.resolve('opened')
     }
@@ -101,6 +105,7 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
     enabled: false,
   })
   await developerToolsBridge.setEnabled(true)
+  assert.equal(await developerToolsBridge.openBackendLog(), 'opened')
   await developerToolsBridge.openDeveloperTools()
   assert.deepEqual(await oauthBridge.getState(), {
     account: null,
@@ -163,6 +168,7 @@ test('sandboxed preload exposes narrow bridges without local runtime imports', a
   assert.deepEqual(ipcRenderer.invocations, [
     'developer-tools:get-preferences',
     'developer-tools:set-enabled',
+    'developer-tools:open-backend-log',
     'developer-tools:open',
     'oauth:get-state',
     'oauth:connect',
