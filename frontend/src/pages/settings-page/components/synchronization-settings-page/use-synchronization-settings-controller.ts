@@ -53,7 +53,6 @@ export const useSynchronizationSettingsController = (
 
         const operation = await preparePairingMutation.mutateAsync({
           provider,
-          expectedAccountId: oauthState.account.accountId,
           retainPendingWork: Boolean(status?.pendingMutationCount),
         })
 
@@ -135,10 +134,7 @@ export const useSynchronizationSettingsController = (
 
     void runSafely(async () => {
       const provider = status.provider as OAuthProviderEnum
-      await oauth.reconnect({
-        provider,
-        expectedAccountId: status.accountId ?? undefined,
-      })
+      await oauth.reconnect({ provider })
       await runSyncMutation.mutateAsync()
     })
   }, [oauth, runSafely, runSyncMutation, status])

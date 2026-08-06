@@ -73,6 +73,17 @@ describe('synchronization API contract', () => {
         },
       },
     })
+    expect(document.components?.schemas?.PrepareSyncPairingDto).toMatchObject({
+      required: ['provider'],
+      properties: {
+        provider: { enum: ['google-drive', 'one-drive'] },
+        retainPendingWork: { type: 'boolean' },
+        workspaceId: { type: 'string' },
+      },
+    })
+    expect(
+      document.components?.schemas?.PrepareSyncPairingDto.properties
+    ).not.toHaveProperty('expectedAccountId')
     expect(document.components?.schemas?.SyncCommandDto).toMatchObject({
       properties: {
         command: {

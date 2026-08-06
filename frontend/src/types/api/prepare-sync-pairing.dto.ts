@@ -3,7 +3,6 @@
 
 export type PrepareSyncPairingDto = {
   provider: 'google-drive' | 'one-drive'
-  expectedAccountId?: string
   workspaceId?: string
   retainPendingWork?: boolean
 }

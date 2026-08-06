@@ -810,6 +810,13 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Add focused backend coverage and verify Electron continues capturing backend stderr for the child process lifetime.
   - Run Prettier on all modified code, then verify focused tests, backend and Electron tests, lint, and builds.
 
+- [x] TMSC-35. Separate OAuth and synchronization account identities
+  - Keep OAuth OIDC account continuity owned by Electron and provider-native account continuity owned by the backend.
+  - Remove the invalid pairing comparison between OAuth account IDs and provider-native account IDs.
+  - Preserve provider identity checks during pairing confirmation, active binding validation, repair, and OAuth reconnect.
+  - Regenerate the frontend API contract and add focused backend and frontend regression coverage.
+  - Run Prettier on all modified code, then verify relevant tests, lint, and builds.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.

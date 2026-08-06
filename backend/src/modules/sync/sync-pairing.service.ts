@@ -101,7 +101,6 @@ export class SyncPairingService implements OnModuleInit {
       identity.workspaceId
     )
     const providerIdentity = await adapter.getIdentity()
-    this.assertAccount(input.expectedAccountId, providerIdentity.accountId)
     if (
       account.activeProvider === input.provider &&
       account.providerAccountId &&
