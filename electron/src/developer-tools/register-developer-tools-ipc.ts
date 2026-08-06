@@ -27,4 +27,12 @@ export const registerDeveloperToolsIpc = (
       preferencesStore.getPreferences()
     )
   })
+
+  dependencies.ipcMain.handle(developerToolsIpcChannels.openBackendLog, () => {
+    if (!preferencesStore.getPreferences().enabled) {
+      throw new Error('developer-tools-disabled')
+    }
+
+    return dependencies.openBackendLog()
+  })
 }

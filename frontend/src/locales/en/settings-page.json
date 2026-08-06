@@ -202,9 +202,10 @@
       "hints": {
         "enabled": "This preference applies only to this device and remains disabled by default."
       },
-      "warning": "Developer Tools may expose application data. Share diagnostic output only after reviewing it for sensitive information.",
+      "warning": "Developer tools and raw backend logs may expose application data, credentials, account details, and local paths. Review logs carefully before sharing them.",
       "actions": {
-        "open": "Open Developer Tools"
+        "open": "Open Developer Tools",
+        "openBackendLog": "Open raw backend log"
       },
       "status": {
         "loading": "Loading developer preferences...",

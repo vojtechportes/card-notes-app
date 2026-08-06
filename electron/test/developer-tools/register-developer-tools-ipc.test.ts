@@ -43,6 +43,7 @@ test('developer tools IPC uses the invoking sender and current persisted prefere
         handlers.set(channel, handler)
       },
     },
+    openBackendLog: () => Promise.resolve('opened'),
   }
 
   registerDeveloperToolsIpc(preferencesStore, dependencies)
@@ -69,6 +70,51 @@ test('developer tools IPC uses the invoking sender and current persisted prefere
   assert.equal(preferenceReads, 3)
 })
 
+test('developer tools IPC only opens the backend log while enabled', async () => {
+  const handlers = new Map<string, DeveloperToolsIpcHandler>()
+  let enabled = false
+  let openBackendLogCalls = 0
+  const preferencesStore = {
+    getPreferences: () => ({ enabled }),
+    setEnabled: (nextEnabled: boolean) => {
+      enabled = nextEnabled
+
+      return { enabled }
+    },
+  }
+
+  registerDeveloperToolsIpc(preferencesStore, {
+    getInvokingWindow: () => null,
+    ipcMain: {
+      handle: (channel, handler) => {
+        handlers.set(channel, handler)
+      },
+    },
+    openBackendLog: () => {
+      openBackendLogCalls += 1
+
+      return Promise.resolve('opened')
+    },
+  })
+
+  assert.throws(
+    () =>
+      handlers.get(developerToolsIpcChannels.openBackendLog)?.({ sender: {} }),
+    /developer-tools-disabled/
+  )
+  assert.equal(openBackendLogCalls, 0)
+
+  handlers.get(developerToolsIpcChannels.setEnabled)?.({ sender: {} }, true)
+
+  assert.equal(
+    await handlers.get(developerToolsIpcChannels.openBackendLog)?.({
+      sender: {},
+    }),
+    'opened'
+  )
+  assert.equal(openBackendLogCalls, 1)
+})
+
 test('developer tools IPC rejects non-boolean preference payloads', () => {
   const handlers = new Map<string, DeveloperToolsIpcHandler>()
   const preferencesStore = {
@@ -83,6 +129,7 @@ test('developer tools IPC rejects non-boolean preference payloads', () => {
         handlers.set(channel, handler)
       },
     },
+    openBackendLog: () => Promise.resolve('opened'),
   })
 
   for (const value of [undefined, null, 1, 'true', {}]) {

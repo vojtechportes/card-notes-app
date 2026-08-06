@@ -237,6 +237,10 @@ async function startApplication(): Promise<void> {
     registerDeveloperToolsIpc(developerToolsPreferencesStore, {
       getInvokingWindow: (sender) => getInvokingWindow(sender as WebContents),
       ipcMain,
+      openBackendLog: () =>
+        openBackendLog(getBackendLogPath(), (logPath) => {
+          shell.showItemInFolder(logPath)
+        }),
     })
     registerWindowControlsIpc()
     registerStartupIpc(backendStartupController, {
