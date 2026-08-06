@@ -6,9 +6,6 @@ export class PrepareSyncPairingDto {
   provider!: SyncProviderEnum
 
   @ApiPropertyOptional({ type: String })
-  expectedAccountId?: string
-
-  @ApiPropertyOptional({ type: String })
   workspaceId?: string
 
   @ApiPropertyOptional({ type: Boolean, default: false })

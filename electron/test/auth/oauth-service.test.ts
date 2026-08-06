@@ -348,7 +348,7 @@ test('OneDrive refresh requests remain public-client requests', async () => {
 
   assert.equal(new URLSearchParams(refreshBody).has('client_secret'), false)
 })
-test('reconnect blocks an unexpected account and preserves existing credentials', async () => {
+test('reconnect ignores caller identity overrides and preserves the stored account', async () => {
   const credentialStore = new MemoryCredentialStore()
   const existingCredential: StoredOAuthCredential = {
     account: {
@@ -396,9 +396,11 @@ test('reconnect blocks an unexpected account and preserves existing credentials'
     },
   })
 
-  const state = await service.reconnect({
+  const forgedOptions = {
+    expectedAccountId: 'wrong-account',
     provider: OAuthProviderEnum.GoogleDrive,
-  })
+  }
+  const state = await service.reconnect(forgedOptions)
 
   assert.equal(state.errorCode, 'oauth-account-mismatch')
   assert.deepEqual(

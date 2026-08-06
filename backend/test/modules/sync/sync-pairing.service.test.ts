@@ -784,13 +784,12 @@ describe(SyncPairingService.name, () => {
     })
   })
 
-  it('rejects the wrong account before creating a pairing operation', async () => {
-    await expect(
-      service.prepare({
-        provider: SyncProviderEnum.GoogleDrive,
-        expectedAccountId: 'different-account',
-      })
-    ).rejects.toThrow('does not match the expected account')
+  it('uses the provider-native account identity for a new pairing', async () => {
+    const prepared = await service.prepare({
+      provider: SyncProviderEnum.GoogleDrive,
+    })
+
+    expect(prepared.accountId).toBe('fake-account')
   })
 
   it('detects a manually removed bound workspace during repair', async () => {

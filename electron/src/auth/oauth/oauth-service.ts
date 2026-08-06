@@ -66,7 +66,7 @@ export class OAuthService implements OAuthServiceContract {
   }
 
   connect(options: OAuthConnectOptions): Promise<OAuthPublicState> {
-    return this.runConnect(options)
+    return this.runConnect(options.provider)
   }
 
   reconnect(options: OAuthConnectOptions): Promise<OAuthPublicState> {
@@ -74,11 +74,10 @@ export class OAuthService implements OAuthServiceContract {
       options.provider
     )
 
-    return this.runConnect({
-      expectedAccountId:
-        options.expectedAccountId ?? storedCredential?.account.accountId,
-      provider: options.provider,
-    })
+    return this.runConnect(
+      options.provider,
+      storedCredential?.account.accountId
+    )
   }
 
   async disconnect(provider: OAuthProviderEnum): Promise<OAuthPublicState> {
@@ -213,20 +212,18 @@ export class OAuthService implements OAuthServiceContract {
   }
 
   private async runConnect(
-    options: OAuthConnectOptions
+    provider: OAuthProviderEnum,
+    expectedAccountId?: string
   ): Promise<OAuthPublicState> {
-    if (
-      this.activeAttemptId ||
-      this.disconnectingProviders.has(options.provider)
-    ) {
+    if (this.activeAttemptId || this.disconnectingProviders.has(provider)) {
       return this.getState()
     }
 
-    const configuration = this.getConfiguration(options.provider)
+    const configuration = this.getConfiguration(provider)
 
     if (!configuration.clientId) {
       return this.failConnect(
-        options.provider,
+        provider,
         new Error('oauth-configuration-missing')
       )
     }
@@ -242,13 +239,13 @@ export class OAuthService implements OAuthServiceContract {
       account: null,
       diagnosticCode: null,
       errorCode: null,
-      provider: options.provider,
+      provider,
       status: 'connecting',
     })
 
     try {
       listener = await this.dependencies.createLoopbackListener(
-        options.provider,
+        provider,
         state,
         OAUTH_CALLBACK_TIMEOUT_MS
       )
@@ -285,7 +282,7 @@ export class OAuthService implements OAuthServiceContract {
         configuration,
         tokenResponse,
         nonce,
-        options.expectedAccountId
+        expectedAccountId
       )
 
       if (!tokenResponse.refresh_token) {
@@ -304,18 +301,18 @@ export class OAuthService implements OAuthServiceContract {
         return this.getState()
       }
 
-      this.dependencies.credentialStore.save(options.provider, credential)
-      this.cacheAccessToken(options.provider, tokenResponse)
+      this.dependencies.credentialStore.save(provider, credential)
+      this.cacheAccessToken(provider, tokenResponse)
       this.setState({
         account,
         diagnosticCode: null,
         errorCode: null,
-        provider: options.provider,
+        provider,
         status: 'connected',
       })
     } catch (error) {
       if (this.activeAttemptId === attemptId) {
-        return this.failConnect(options.provider, error)
+        return this.failConnect(provider, error)
       }
 
       return this.getState()
