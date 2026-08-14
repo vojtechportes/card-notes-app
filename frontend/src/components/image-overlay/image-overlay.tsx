@@ -1,5 +1,6 @@
 import CloseIcon from '@mui/icons-material/Close'
 import { Box, IconButton, Modal, Stack } from '@mui/material'
+import { useCallback } from 'react'
 
 interface ImageOverlayProps {
   alt: string
@@ -16,8 +17,21 @@ export const ImageOverlay = ({
   open,
   src,
 }: ImageOverlayProps) => {
+  const stopInteractionPropagation = useCallback(
+    (event: React.SyntheticEvent) => {
+      event.stopPropagation()
+    },
+    []
+  )
+
   return (
-    <Modal aria-label={alt} onClose={onClose} open={open}>
+    <Modal
+      aria-label={alt}
+      onClick={stopInteractionPropagation}
+      onClose={onClose}
+      onKeyDown={stopInteractionPropagation}
+      open={open}
+    >
       <Box
         sx={{
           alignItems: 'center',
@@ -69,4 +83,3 @@ export const ImageOverlay = ({
     </Modal>
   )
 }
-
