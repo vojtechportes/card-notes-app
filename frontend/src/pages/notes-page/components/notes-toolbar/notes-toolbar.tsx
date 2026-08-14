@@ -5,6 +5,7 @@ import { windowTitleBarHeight } from '../../../../constants/window-title-bar'
 import { mediumDownMediaQuery, mediumUpMediaQuery } from '../../../../theme'
 import type { LabelDto, NoteTypeDto } from '../../../../types/api'
 import type { LabelMatchMode } from '../../types/label-match-mode'
+import type { NotesViewMode } from '../../types/notes-view-mode'
 import { AdvancedFilterPopover } from './components/advanced-filter-popover'
 import { NotesSearchField } from './components/notes-search-field'
 import { NotesToolbarActions } from './components/notes-toolbar-actions'
@@ -25,7 +26,9 @@ interface NotesToolbarProps {
   selectedNoteTypeIds: string[]
   sortBy: NoteSortBy
   sortDirection: NoteSortDirection
+  viewMode: NotesViewMode
   onAddNote: () => void
+  onClearFilters: () => void
   onLabelIdsChange: (labelIds: string[]) => void
   onLabelMatchModeChange: (matchMode: LabelMatchMode) => void
   onNoteTypeIdsChange: (noteTypeIds: string[]) => void
@@ -57,7 +60,9 @@ export const NotesToolbar = ({
   selectedNoteTypeIds,
   sortBy,
   sortDirection,
+  viewMode,
   onAddNote,
+  onClearFilters,
   onLabelIdsChange,
   onLabelMatchModeChange,
   onNoteTypeIdsChange,
@@ -75,11 +80,13 @@ export const NotesToolbar = ({
     defaultToolbarMetrics
   )
 
-  const activeFilterCount = selectedLabelIds.length + selectedNoteTypeIds.length
+  const clearableFilterCount =
+    selectedLabelIds.length +
+    (viewMode === 'card' ? selectedNoteTypeIds.length : 0)
   const filterButtonLabel =
-    activeFilterCount > 0
+    clearableFilterCount > 0
       ? t('notes.toolbar.filters.buttonWithCount', {
-          count: activeFilterCount,
+          count: clearableFilterCount,
         })
       : t('notes.toolbar.filters.button')
   const isCompactSticky = isSticky && isMediumDown
@@ -257,6 +264,8 @@ export const NotesToolbar = ({
         open={Boolean(filterAnchorEl)}
         selectedLabelIds={selectedLabelIds}
         selectedNoteTypeIds={selectedNoteTypeIds}
+        viewMode={viewMode}
+        onClearFilters={onClearFilters}
         onClose={() => setFilterAnchorEl(null)}
         onLabelIdsChange={onLabelIdsChange}
         onLabelMatchModeChange={onLabelMatchModeChange}

@@ -66,12 +66,25 @@ export const useNotesViewPreferences = ({
     )
   }, [preferences.dataGridColumnWidths, reconciledColumnWidths])
 
-  const setViewMode = useCallback((viewMode: NotesViewMode) => {
-    setPreferences((currentPreferences) => ({
-      ...currentPreferences,
-      viewMode,
-    }))
-  }, [])
+  const setViewMode = useCallback(
+    (viewMode: NotesViewMode) => {
+      setPreferences((currentPreferences) => ({
+        ...currentPreferences,
+        viewMode,
+      }))
+
+      const storedPreferences = readNotesViewPreferences(storage)
+
+      writeNotesViewPreferences(
+        {
+          ...storedPreferences,
+          viewMode,
+        },
+        storage
+      )
+    },
+    [storage]
+  )
 
   const setCardNoteTypeIds = useCallback((noteTypeIds: string[]) => {
     setPreferences((currentPreferences) => ({
