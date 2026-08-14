@@ -817,6 +817,87 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
   - Regenerate the frontend API contract and add focused backend and frontend regression coverage.
   - Run Prettier on all modified code, then verify relevant tests, lint, and builds.
 
+### Card and Data Grid note views
+
+Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the existing notes, note-template, column, label, and general-settings queries; do not add backend endpoints, database changes, or generated API contracts. Search, toolbar sorting, label matching, note detail, edit, delete, background, and confirmation behavior remain the existing source of truth. The first grid iteration is read-only: editing and deletion continue through the existing detail drawer.
+
+- [ ] TMSC-36. Add Notes-page view and filter preference models
+  - Add a Notes-owned `card` / `data-grid` view-mode type and a versioned local-storage payload owned by the Notes-page slice.
+  - Store the current view mode plus independent card-view and data-grid filter preferences. Card preferences allow zero or many template IDs; data-grid preferences contain exactly one template ID when templates are available. Keep selected label IDs and label match mode with each view so changing views cannot overwrite the other view's filtering semantics.
+  - Add data-grid column widths to the versioned local payload as a template-scoped map keyed first by note-template ID and then by stable column ID. Switching templates must restore that template's widths without changing another template's layout.
+  - Keep card view as the default when no valid preference exists.
+  - Parse storage defensively, deduplicate IDs, treat missing, non-finite, zero, and negative column widths as invalid, reject malformed or unsupported payloads, and fall back without breaking the Notes page when storage access or JSON parsing fails. Retain finite positive widths for normalization against the supported bounds.
+  - Keep storage keys, types, parsing, and normalization utilities inside the Notes-page slice. Follow kebab-case, one utility per file, one component per file, hook ordering, and the no-nested-ternary rule.
+
+- [ ] TMSC-37. Reconcile persisted filters against live options
+  - Do not validate or rewrite persisted IDs while note-template or label queries are still loading, and do not erase saved preferences because an option query failed.
+  - After the relevant queries succeed, intersect card template and label selections with the currently available IDs.
+  - For data-grid view, restore the saved template only when it still exists; otherwise select the first template in API order. If no templates exist, retain no template selection and render the planned localized empty state instead of issuing an unscoped grid notes query.
+  - Restrict data-grid label options to shared labels (`noteTypeId === null`) and labels owned by the selected template. Prune stale labels after restoration and immediately prune labels that become invalid when the data-grid template changes.
+  - Persist only the reconciled preferences so deleted templates and labels cannot survive as invisible active filters.
+  - Reconcile stored grid widths only after the relevant template and column queries succeed: remove entries for deleted templates or columns, retain widths for currently hidden but still-defined columns, and never erase widths because a column query is loading or failed.
+  - Treat the required data-grid template as view scope: data-grid Clear all clears labels but retains the selected template. Preserve the current card-view filter count and Clear all behavior.
+
+- [ ] TMSC-38. Add the view switch and mode-aware advanced filters
+  - Add an exclusive, accessible MUI `ToggleButtonGroup` in the upper-right of the Notes page header, matching the supplied layout reference.
+  - Use `ViewModuleIcon` for card view and `ViewListIcon` for data-grid view, ignore the ToggleButtonGroup's `null` deselection event, and persist every valid view change.
+  - Keep note-template checkboxes and zero-or-many selection in card view.
+  - Render the note-template choices as a radio group in data-grid view and prevent clearing the required template while at least one template exists.
+  - Pass only the current view's selected templates, labels, and label match mode into the toolbar and active-filter summary.
+  - In data-grid view, show only shared labels and labels owned by the selected template; card view continues to show all currently available labels.
+  - Preserve the existing sticky-toolbar behavior below the 1060px breakpoint and make the page-header toggle usable at narrow Electron window widths.
+  - Localize visible copy, tooltips, accessible labels, empty text, and revised filter instructions in `frontend/src/locales/en/notes-page.json`.
+
+- [ ] TMSC-39. Build the read-only note Data Grid
+  - Add a Notes-owned `note-data-grid` component using the installed MUI `DataGrid` package.
+  - Build columns from the selected template's field definitions, ordered by `sortOrder`, and omit fields with `isHidden` so the existing list-visibility setting also controls grid visibility.
+  - Resolve default `createdAt` and `updatedAt` values and render text, date, number, safe external link, label, single-image, and multi-image values consistently with existing card/detail behavior.
+  - Render every single-image thumbnail and every thumbnail or overflow tile in a multi-image gallery at exactly 48px by 48px. Let multi-image galleries wrap within the active column width and contribute to automatic row height; keep every displayed image independently clickable through the existing preview/overlay behavior.
+  - Keep `cardFieldDisplayCount` card-only. Extend the existing general text-truncation preference to Data Grid text and link cells: when `textTruncationLength` is null, render the full value with wrapping; when it is configured, apply the existing character truncation and wrap the resulting value. Note details remain untruncated.
+  - Update General Settings copy and affected tests so text truncation is described as applying to card and Data Grid list views. This intentionally supersedes the earlier card-only truncation behavior for the new grid renderer without changing the saved setting or backend contract.
+  - Keep the existing toolbar sort field/direction and advanced filters as the only sorting and filtering controls. Disable Data Grid column sorting, column filtering, column menus, toolbar features, and row selection so the grid does not duplicate Notes Toolbar behavior.
+  - Use exact type-based defaults when a column has no valid saved width: 270px for text and link, 104px for single-image and multi-image, 90px for number and date (including default date metadata), and 140px for labels. Do not use `flex`, content autosizing, or `autosizeOnMount`; disable automatic autosizing so wrapping and automatic row height handle overflow instead of widening columns.
+  - Keep column resizing enabled as the grid's only column interaction. Width precedence is: a missing, non-finite, zero, or negative value uses the current type default; a finite positive persisted value is clamped to MUI's 50px minimum and a documented Notes-owned upper bound; the resulting persisted/clamped value overrides the type default for that template and column. Persist completed changes through `onColumnWidthChange`, avoid writing continuously during drag movement, and call the grid API's `resetRowHeights()` after committed width changes so wrapped text, labels, and galleries are remeasured.
+  - Persisted manual widths override type defaults only for that template and stable column ID across navigation, reload, and template switching. Column rename or type changes retain the manual width because the ID is stable; invalid or missing widths use the current type default, finite out-of-range widths are clamped, deleted columns are pruned, and hidden but still-defined columns retain their widths.
+  - Configure the Community Data Grid with its all-results pagination model (`pageSize: -1`) and hide the pagination/footer UI so all filtered notes occupy one logical page, including when more than 100 rows match.
+  - Render the grid inside a bounded, responsive-height viewport rather than expanding the Notes page for every row. Use one vertical scroll owner, reserve a stable vertical scrollbar gutter whenever the grid is mounted, and keep horizontal scrolling available for templates with more columns than fit the viewport.
+  - Account for MUI Data Grid v9.9's dedicated `.MuiDataGrid-scrollbar--vertical` element: when rows overflow, keep its scrollbar track visible instead of relying only on `overflow-y: scroll` or an auto-hiding native overlay. Avoid nested/double vertical scrollbars.
+  - Keep the Data Grid column header pinned at the top of the bounded grid at all times. The internal row viewport must be the vertical scroll owner so rows scroll beneath the header; horizontal scrolling must keep headers aligned with their cells. Use the Data Grid's existing header/virtual-scroller structure rather than a brittle page-level sticky-header override.
+  - Use a memoized `getRowHeight={() => 'auto'}` with a reasonable `getEstimatedRowHeight` and multiline cell styles (`white-space: normal`, `overflow-wrap: anywhere`, bounded width, and vertical padding). Let text, links, labels, and image galleries wrap, do not use ellipsis, and keep `virtualizeColumnsWithAutoRowHeight` at its v9.9 default `false` so row height is measured across all columns.
+  - Keep cells read-only and make the complete row surface clickable through `onRowClick` to open the existing note detail drawer, including blank space and non-interactive cell areas. Add pointer and selected-row feedback. Links and each image/gallery control must stop row-click propagation while preserving their normal navigation or preview behavior.
+  - Render localized empty/loading/error states and expose an accessible cue that non-interactive row content opens note details. Support Enter/Space detail activation from focused non-interactive grid cells, guard interactive targets, and use the appropriate MUI event prevention so keyboard activation of links or gallery images never also opens the detail drawer.
+
+- [ ] TMSC-40. Integrate the two renderers with one Notes-page data pipeline
+  - Initialize the active view and its reconciled filter state before forming the notes query. Card view passes zero or many selected template IDs as it does today; data-grid view passes exactly the selected template ID.
+  - Continue applying label filtering before MiniSearch and pass the same resulting notes to either `NoteCardList` or `NoteDataGrid`.
+  - Ensure the selected data-grid template is included when loading the column map even when that template has zero notes; deriving required grid columns only from returned note rows is not sufficient.
+  - Preserve the current search, backend `createdAt` / `updatedAt` sort, visible-note count, create dialog, detail route, edit/delete/background actions, and query invalidation behavior across view changes.
+  - Avoid a transient unfiltered request while a required persisted data-grid template is still being validated. If necessary, add a narrowly scoped `enabled` option to `useNotesQuery` and cover it with a hook test.
+  - Keep the current card renderer unchanged except for the state and view-selection integration needed by this feature.
+
+- [ ] TMSC-41. Verify persisted views, filtering, and Data Grid behavior
+  - Add utility/hook tests for valid restoration, card-view defaulting, unavailable storage, malformed/version-mismatched payloads, ID deduplication, independent card/data-grid preferences, and template-scoped column-width restoration.
+  - Cover deferred reconciliation during loading, no preference erasure on query errors, stale template/label pruning after success, first-template fallback, no-template behavior, and label pruning after a grid template change.
+  - Add toolbar/component tests for accessible view switching, ignored `null` toggle changes, checkbox versus radio behavior, template-scoped grid labels, per-view active summaries, and grid Clear all retaining its required template.
+  - Add Data Grid tests for ordered non-hidden dynamic columns, every supported field type, empty templates with visible headers, empty/error states, one bounded scroll owner, a stable vertical scrollbar gutter, and conditional horizontal scrolling.
+  - Verify the header remains pinned during internal vertical row scrolling and stays aligned with cells during horizontal scrolling.
+  - Verify exact default widths for every field type and the complete precedence contract: missing/non-finite/zero/negative values fall back to the type default, finite values below 50px clamp to 50px, finite values above the Notes-owned maximum clamp to that maximum, and in-range persisted widths override defaults. Also cover stable-ID width retention after rename/type changes, template isolation, stale template/column pruning, hidden-column retention, and no preference overwrite while column queries load or fail.
+  - Verify 48px by 48px single-image and multi-image tiles, wrapped multi-image galleries, automatic row-height growth and remeasurement after committed column resize, full text/link wrapping when truncation is unset, configured text/link truncation with wrapping, wrapped labels, and the absence of ellipsis or content-driven auto-widening.
+  - Verify Data Grid sorting, filtering, column menus, toolbar features, autosizing, and row selection are disabled while manual column resizing remains available.
+  - Cover full-row pointer activation, Enter/Space on focused non-interactive cells, the accessible detail cue, selected-row feedback, guarded interactive targets, and pointer/keyboard event isolation for links and every displayed gallery image so interactive controls do not open note detail.
+  - Add a regression case with more than 100 filtered rows that verifies all-results configuration and the absence of pagination controls.
+  - Extend Notes-page integration coverage for search, label matching, toolbar sorting, renderer switching, persisted restoration, detail routing, and responsive header/sticky-toolbar behavior.
+  - Manually smoke-test large note sets and wide templates in the packaged Electron runtime for automatic row-height performance, pinned headers, bounded vertical scrolling, a non-auto-hiding MUI vertical scrollbar track, no double scrollbars, horizontal header/cell alignment, wrapped content and galleries, full-row interaction, and resize restoration. Automated DOM tests verify structure and styles but are not sufficient proof of native scrollbar visibility.
+  - Run Prettier on every modified file, then run focused frontend tests, the complete frontend test suite, frontend lint, and the frontend build.
+
+Assumptions for this slice:
+
+- "Shared labels and labels for that template" means labels whose `noteTypeId` is `null` or equals the selected data-grid template. It does not derive filter options from each Labels field's configured cross-template sources.
+- `ColumnDto.isHidden` remains the list-level visibility flag for both cards and the data grid. Grid-specific visibility settings are out of scope.
+- Search text, toolbar sort state, Data Grid sort/filter state, column order, column visibility, and Data Grid scroll position are not persisted. Template-scoped column widths are the only persisted Data Grid column state.
+- "Always visible" means the grid always reserves its vertical scrollbar gutter and, whenever rows overflow, the scrollbar track does not auto-hide. When all rows fit, the stable gutter remains but no inert scroll thumb is required.
+- Inline cell editing, server-side pagination, and an inline grid actions column are out of scope.
+
 ## Sub-Agent Execution Plan
 
 - Planning agent: validate the next implementation slice against `AGENTS.md`, identify scope, constraints, test checklist, and risks before coding.
