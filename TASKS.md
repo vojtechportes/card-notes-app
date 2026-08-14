@@ -829,7 +829,7 @@ Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the exi
   - Parse storage defensively, deduplicate IDs, treat missing, non-finite, zero, and negative column widths as invalid, reject malformed or unsupported payloads, and fall back without breaking the Notes page when storage access or JSON parsing fails. Retain finite positive widths for normalization against the supported bounds.
   - Keep storage keys, types, parsing, and normalization utilities inside the Notes-page slice. Follow kebab-case, one utility per file, one component per file, hook ordering, and the no-nested-ternary rule.
 
-- [ ] TMSC-37. Reconcile persisted filters against live options
+- [x] TMSC-37. Reconcile persisted filters against live options
   - Do not validate or rewrite persisted IDs while note-template or label queries are still loading, and do not erase saved preferences because an option query failed.
   - After the relevant queries succeed, intersect card template and label selections with the currently available IDs.
   - For data-grid view, restore the saved template only when it still exists; otherwise select the first template in API order. If no templates exist, retain no template selection and render the planned localized empty state instead of issuing an unscoped grid notes query.
