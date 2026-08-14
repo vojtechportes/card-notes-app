@@ -821,7 +821,7 @@ Detailed implementation plan: [TASK_PHASE-10.md](TASK_PHASE-10.md).
 
 Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the existing notes, note-template, column, label, and general-settings queries; do not add backend endpoints, database changes, or generated API contracts. Search, toolbar sorting, label matching, note detail, edit, delete, background, and confirmation behavior remain the existing source of truth. The first grid iteration is read-only: editing and deletion continue through the existing detail drawer.
 
-- [ ] TMSC-36. Add Notes-page view and filter preference models
+- [x] TMSC-36. Add Notes-page view and filter preference models
   - Add a Notes-owned `card` / `data-grid` view-mode type and a versioned local-storage payload owned by the Notes-page slice.
   - Store the current view mode plus independent card-view and data-grid filter preferences. Card preferences allow zero or many template IDs; data-grid preferences contain exactly one template ID when templates are available. Keep selected label IDs and label match mode with each view so changing views cannot overwrite the other view's filtering semantics.
   - Add data-grid column widths to the versioned local payload as a template-scoped map keyed first by note-template ID and then by stable column ID. Switching templates must restore that template's widths without changing another template's layout.
