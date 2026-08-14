@@ -30,8 +30,8 @@ import {
   useUpdateNoteBackgroundMutation,
 } from './hooks/use-notes-query'
 import { useNotesSearch } from './hooks/use-notes-search'
+import { useNotesViewPreferences } from './hooks/use-notes-view-preferences'
 import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
-import type { LabelMatchMode } from './types/label-match-mode'
 import { filterNotesByLabels } from './utils/filter-notes-by-labels.util'
 import { useLabelsQuery } from '../settings-page/hooks/use-labels-query'
 import { useNoteTypesQuery } from '../settings-page/hooks/use-note-types-query'
@@ -48,21 +48,52 @@ export const NotesPage = () => {
   const [activeNote, setActiveNote] = useState<NoteDto | undefined>()
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
-  const [selectedNoteTypeIds, setSelectedNoteTypeIds] = useState<string[]>([])
-  const [labelMatchMode, setLabelMatchMode] = useState<LabelMatchMode>('or')
   const [sortBy, setSortBy] = useState<NoteSortBy>(DEFAULT_SORT_BY)
   const [sortDirection, setSortDirection] = useState<NoteSortDirection>(
     DEFAULT_SORT_DIRECTION
   )
   const noteTypesQuery = useNoteTypesQuery()
   const labelsQuery = useLabelsQuery()
+  const allNoteTypeIds = useMemo(
+    () => (noteTypesQuery.data ?? []).map((noteType) => noteType.id),
+    [noteTypesQuery.data]
+  )
+  const reconciliationColumnsMapQuery =
+    useNoteTypeColumnsMapQuery(allNoteTypeIds)
+  const {
+    preferences,
+    setCardLabelIds,
+    setCardLabelMatchMode,
+    setCardNoteTypeIds,
+  } = useNotesViewPreferences({
+    areColumnsReady: reconciliationColumnsMapQuery.isSuccess,
+    areLabelsReady:
+      !labelsQuery.isLoading &&
+      !labelsQuery.isError &&
+      Boolean(labelsQuery.data),
+    areNoteTypesReady:
+      !noteTypesQuery.isLoading &&
+      !noteTypesQuery.isError &&
+      Boolean(noteTypesQuery.data),
+    columnsByNoteTypeId: reconciliationColumnsMapQuery.data,
+    labels: labelsQuery.data ?? [],
+    noteTypes: noteTypesQuery.data ?? [],
+  })
+  const {
+    labelIds,
+    labelMatchMode,
+    noteTypeIds: selectedNoteTypeIds,
+  } = preferences.card
   const notesQuery = useNotesQuery({
     noteTypeIds:
       selectedNoteTypeIds.length > 0 ? selectedNoteTypeIds : undefined,
     sortBy,
     sortDirection,
   })
+  const visibleNoteTypeIds = useMemo(() => {
+    return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
+  }, [notesQuery.data])
+  const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(visibleNoteTypeIds)
   const { mutate: deleteNote } = useDeleteNoteMutation()
   const { mutate: updateNoteBackground } = useUpdateNoteBackgroundMutation()
   const generalSettingsQuery = useGeneralSettingsQuery()
@@ -75,23 +106,15 @@ export const NotesPage = () => {
       {}
     )
   }, [noteTypesQuery.data])
-  const noteTypeIds = useMemo(() => {
-    return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
-  }, [notesQuery.data])
-  const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(noteTypeIds)
+
   const labelFilteredNotes = useMemo(() => {
     return filterNotesByLabels(
       notesQuery.data,
       noteTypeColumnsMapQuery.data,
-      selectedLabelIds,
+      labelIds,
       labelMatchMode
     )
-  }, [
-    labelMatchMode,
-    noteTypeColumnsMapQuery.data,
-    notesQuery.data,
-    selectedLabelIds,
-  ])
+  }, [labelMatchMode, noteTypeColumnsMapQuery.data, notesQuery.data, labelIds])
   const filteredNotes = useNotesSearch(
     labelFilteredNotes,
     searchQuery,
@@ -271,7 +294,7 @@ export const NotesPage = () => {
           labels={labelsQuery.data ?? []}
           noteTypes={noteTypesQuery.data ?? []}
           searchQuery={searchQuery}
-          selectedLabelIds={selectedLabelIds}
+          selectedLabelIds={labelIds}
           selectedNoteTypeIds={selectedNoteTypeIds}
           sortBy={sortBy}
           sortDirection={sortDirection}
@@ -279,11 +302,11 @@ export const NotesPage = () => {
             handleOpenNoteDialog()
           }}
           onLabelIdsChange={(labelIds) => {
-            setSelectedLabelIds([...new Set(labelIds)].sort())
+            setCardLabelIds(labelIds)
           }}
-          onLabelMatchModeChange={setLabelMatchMode}
+          onLabelMatchModeChange={setCardLabelMatchMode}
           onNoteTypeIdsChange={(noteTypeIds) => {
-            setSelectedNoteTypeIds([...noteTypeIds].sort())
+            setCardNoteTypeIds(noteTypeIds)
           }}
           onSearchQueryChange={setSearchQuery}
           onSortByChange={setSortBy}

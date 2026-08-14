@@ -324,6 +324,7 @@ const getRenderedSideDrawer = async () => {
 describe('NotesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     window.location.hash = '#/notes'
     useCreateNoteMutationMock.mockReturnValue({
       isPending: false,
@@ -385,6 +386,7 @@ describe('NotesPage', () => {
   afterEach(() => {
     cleanup()
     window.location.hash = ''
+    window.localStorage.clear()
   })
 
   it('fetches notes with the default toolbar sort state', () => {
@@ -395,6 +397,63 @@ describe('NotesPage', () => {
       sortBy: 'updatedAt',
       sortDirection: 'desc',
     })
+  })
+
+  it('keeps selected-template cards available when unrelated columns fail', async () => {
+    window.localStorage.setItem(
+      'notestack.notes.view-preferences',
+      JSON.stringify({
+        version: 1,
+        viewMode: 'card',
+        card: {
+          labelIds: [],
+          labelMatchMode: 'or',
+          noteTypeIds: ['note-type-1'],
+        },
+        dataGrid: {
+          labelIds: [],
+          labelMatchMode: 'or',
+          noteTypeId: 'note-type-1',
+        },
+        dataGridColumnWidths: {},
+      })
+    )
+    useNotesQueryMock.mockImplementation(({ noteTypeIds }) => ({
+      data: noteTypeIds?.includes('note-type-1') ? [notes[0]] : notes,
+      isError: false,
+      isLoading: false,
+    }))
+    useNoteTypeColumnsMapQueryMock.mockImplementation((noteTypeIds) => {
+      if (noteTypeIds.includes('note-type-2')) {
+        return {
+          data: {
+            'note-type-1': bookColumns,
+          },
+          isError: true,
+          isLoading: false,
+          isSuccess: false,
+        }
+      }
+
+      return {
+        data: {
+          'note-type-1': bookColumns,
+        },
+        isError: false,
+        isLoading: false,
+        isSuccess: true,
+      }
+    })
+    useNotesSearchMock.mockImplementation((visibleNotes) => visibleNotes)
+
+    renderNotesPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha note')).toBeTruthy()
+    })
+    expect(
+      screen.queryByText('Card configuration could not be loaded.')
+    ).toBeNull()
   })
 
   it('passes loaded notes, search text, and note template titles to the notes search hook', () => {

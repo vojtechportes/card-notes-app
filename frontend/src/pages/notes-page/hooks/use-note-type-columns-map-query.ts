@@ -37,5 +37,6 @@ export const useNoteTypeColumnsMapQuery = (noteTypeIds: string[]) => {
     data,
     isError: queryResults.some((result) => result.isError),
     isLoading: queryResults.some((result) => result.isLoading),
+    isSuccess: queryResults.every((result) => result.isSuccess),
   }
 }
