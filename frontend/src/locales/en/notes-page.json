@@ -29,13 +29,21 @@
         "button": "Filters",
         "buttonWithCount": "Filters ({{count}})",
         "title": "Advanced filters",
-        "description": "Filter notes by template and labels.",
+        "description": {
+          "card": "Filter cards by zero or more note templates and labels.",
+          "data-grid": "Choose the note template shown in the Data Grid and filter it by labels."
+        },
         "noteTypes": {
           "title": "Note templates",
           "status": {
             "loading": "Loading note templates...",
             "empty": "No note templates are available."
-          }
+          },
+          "description": {
+            "card": "Select any number of note templates, or leave all unselected to include every template.",
+            "data-grid": "Select the one note template required for the Data Grid."
+          },
+          "dataGridLabel": "Data Grid note template"
         },
         "labels": {
           "title": "Labels",
@@ -198,6 +206,17 @@
     },
     "updateDialog": {
       "title": "Edit note"
+    },
+    "viewSwitch": {
+      "label": "Notes view",
+      "card": {
+        "label": "Card view",
+        "tooltip": "Show notes as cards"
+      },
+      "dataGrid": {
+        "label": "Data Grid view",
+        "tooltip": "Show notes in the Data Grid"
+      }
     }
   }
 }

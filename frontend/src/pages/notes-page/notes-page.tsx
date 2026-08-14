@@ -16,6 +16,7 @@ import {
 import type { BackgroundEnumDto, NoteDto } from '../../types/api'
 import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog'
 import { NoteCardList } from './components/note-card-list/note-card-list'
+import { NotesPageHeader } from './components/notes-page-header/notes-page-header'
 import { NoteBackgroundMenuItem } from './components/note-background-menu-item/note-background-menu-item'
 import { NoteDetailPanel } from './components/note-detail-panel/note-detail-panel'
 import { NotesToolbar } from './components/notes-toolbar/notes-toolbar'
@@ -33,6 +34,7 @@ import { useNotesSearch } from './hooks/use-notes-search'
 import { useNotesViewPreferences } from './hooks/use-notes-view-preferences'
 import { useNoteTypeColumnsMapQuery } from './hooks/use-note-type-columns-map-query'
 import { filterNotesByLabels } from './utils/filter-notes-by-labels.util'
+import { getDataGridLabelOptions } from './utils/get-data-grid-label-options.util'
 import { useLabelsQuery } from '../settings-page/hooks/use-labels-query'
 import { useNoteTypesQuery } from '../settings-page/hooks/use-note-types-query'
 
@@ -61,10 +63,15 @@ export const NotesPage = () => {
   const reconciliationColumnsMapQuery =
     useNoteTypeColumnsMapQuery(allNoteTypeIds)
   const {
+    clearFilters,
     preferences,
     setCardLabelIds,
     setCardLabelMatchMode,
     setCardNoteTypeIds,
+    setDataGridLabelIds,
+    setDataGridLabelMatchMode,
+    setDataGridNoteTypeId,
+    setViewMode,
   } = useNotesViewPreferences({
     areColumnsReady: reconciliationColumnsMapQuery.isSuccess,
     areLabelsReady:
@@ -80,13 +87,39 @@ export const NotesPage = () => {
     noteTypes: noteTypesQuery.data ?? [],
   })
   const {
-    labelIds,
-    labelMatchMode,
-    noteTypeIds: selectedNoteTypeIds,
+    labelIds: cardLabelIds,
+    labelMatchMode: cardLabelMatchMode,
+    noteTypeIds: selectedCardNoteTypeIds,
   } = preferences.card
+  const isDataGridView = preferences.viewMode === 'data-grid'
+  const selectedNoteTypeIds = useMemo(() => {
+    if (!isDataGridView) {
+      return selectedCardNoteTypeIds
+    }
+
+    return preferences.dataGrid.noteTypeId
+      ? [preferences.dataGrid.noteTypeId]
+      : []
+  }, [isDataGridView, preferences.dataGrid.noteTypeId, selectedCardNoteTypeIds])
+  const selectedLabelIds = isDataGridView
+    ? preferences.dataGrid.labelIds
+    : cardLabelIds
+  const labelMatchMode = isDataGridView
+    ? preferences.dataGrid.labelMatchMode
+    : cardLabelMatchMode
+  const toolbarLabels = useMemo(() => {
+    if (!isDataGridView) {
+      return labelsQuery.data ?? []
+    }
+
+    return getDataGridLabelOptions(
+      labelsQuery.data ?? [],
+      preferences.dataGrid.noteTypeId
+    )
+  }, [isDataGridView, labelsQuery.data, preferences.dataGrid.noteTypeId])
   const notesQuery = useNotesQuery({
     noteTypeIds:
-      selectedNoteTypeIds.length > 0 ? selectedNoteTypeIds : undefined,
+      selectedCardNoteTypeIds.length > 0 ? selectedCardNoteTypeIds : undefined,
     sortBy,
     sortDirection,
   })
@@ -111,10 +144,15 @@ export const NotesPage = () => {
     return filterNotesByLabels(
       notesQuery.data,
       noteTypeColumnsMapQuery.data,
-      labelIds,
-      labelMatchMode
+      cardLabelIds,
+      cardLabelMatchMode
     )
-  }, [labelMatchMode, noteTypeColumnsMapQuery.data, notesQuery.data, labelIds])
+  }, [
+    cardLabelIds,
+    cardLabelMatchMode,
+    noteTypeColumnsMapQuery.data,
+    notesQuery.data,
+  ])
   const filteredNotes = useNotesSearch(
     labelFilteredNotes,
     searchQuery,
@@ -183,6 +221,50 @@ export const NotesPage = () => {
       navigate(`/notes/${note.id}`)
     },
     [navigate]
+  )
+
+  const handleClearFilters = useCallback(() => {
+    clearFilters(preferences.viewMode)
+  }, [clearFilters, preferences.viewMode])
+
+  const handleLabelIdsChange = useCallback(
+    (labelIds: string[]) => {
+      if (isDataGridView) {
+        setDataGridLabelIds(labelIds)
+        return
+      }
+
+      setCardLabelIds(labelIds)
+    },
+    [isDataGridView, setCardLabelIds, setDataGridLabelIds]
+  )
+
+  const handleLabelMatchModeChange = useCallback(
+    (nextLabelMatchMode: typeof labelMatchMode) => {
+      if (isDataGridView) {
+        setDataGridLabelMatchMode(nextLabelMatchMode)
+        return
+      }
+
+      setCardLabelMatchMode(nextLabelMatchMode)
+    },
+    [isDataGridView, setCardLabelMatchMode, setDataGridLabelMatchMode]
+  )
+
+  const handleNoteTypeIdsChange = useCallback(
+    (noteTypeIds: string[]) => {
+      if (isDataGridView) {
+        const noteTypeId = noteTypeIds[0]
+
+        if (noteTypeId) {
+          setDataGridNoteTypeId(noteTypeId)
+        }
+        return
+      }
+
+      setCardNoteTypeIds(noteTypeIds)
+    },
+    [isDataGridView, setCardNoteTypeIds, setDataGridNoteTypeId]
   )
 
   useEffect(() => {
@@ -278,36 +360,30 @@ export const NotesPage = () => {
   return (
     <>
       <Stack spacing={3}>
-        <Stack spacing={1}>
-          <Typography component="h2" variant="h4">
-            {t('notes.title')}
-          </Typography>
-          <Typography color="text.secondary">
-            {t('notes.description')}
-          </Typography>
-        </Stack>
+        <NotesPageHeader
+          viewMode={preferences.viewMode}
+          onViewModeChange={setViewMode}
+        />
 
         <NotesToolbar
           isLabelsLoading={labelsQuery.isLoading}
           isNoteTypesLoading={noteTypesQuery.isLoading}
           labelMatchMode={labelMatchMode}
-          labels={labelsQuery.data ?? []}
+          labels={toolbarLabels}
           noteTypes={noteTypesQuery.data ?? []}
           searchQuery={searchQuery}
-          selectedLabelIds={labelIds}
+          selectedLabelIds={selectedLabelIds}
           selectedNoteTypeIds={selectedNoteTypeIds}
           sortBy={sortBy}
           sortDirection={sortDirection}
+          viewMode={preferences.viewMode}
           onAddNote={() => {
             handleOpenNoteDialog()
           }}
-          onLabelIdsChange={(labelIds) => {
-            setCardLabelIds(labelIds)
-          }}
-          onLabelMatchModeChange={setCardLabelMatchMode}
-          onNoteTypeIdsChange={(noteTypeIds) => {
-            setCardNoteTypeIds(noteTypeIds)
-          }}
+          onClearFilters={handleClearFilters}
+          onLabelIdsChange={handleLabelIdsChange}
+          onLabelMatchModeChange={handleLabelMatchModeChange}
+          onNoteTypeIdsChange={handleNoteTypeIdsChange}
           onSearchQueryChange={setSearchQuery}
           onSortByChange={setSortBy}
           onSortDirectionChange={setSortDirection}

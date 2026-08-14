@@ -90,6 +90,26 @@ describe('useNotesViewPreferences', () => {
     expect(storage.setItem).not.toHaveBeenCalled()
   })
 
+  it('persists a valid view change while option queries are unavailable', () => {
+    const storage = createStorage()
+    const { result } = renderHook(() =>
+      useNotesViewPreferences(createOptions(storage))
+    )
+
+    act(() => {
+      result.current.setViewMode('card')
+    })
+
+    expect(result.current.preferences.viewMode).toBe('card')
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      NOTES_VIEW_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        ...storedPreferences,
+        viewMode: 'card',
+      })
+    )
+  })
+
   it('persists reconciled filters and widths after their queries succeed', async () => {
     const storage = createStorage()
     const { result } = renderHook(() =>

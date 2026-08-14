@@ -2,6 +2,7 @@ import { Button, Divider, Popover, Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import type { LabelDto, NoteTypeDto } from '../../../../../types/api'
 import type { LabelMatchMode } from '../../../types/label-match-mode'
+import type { NotesViewMode } from '../../../types/notes-view-mode'
 import { ActiveFilterSummary } from './active-filter-summary'
 import { LabelFilterSection } from './label-filter-section'
 import { NoteTypeFilterSection } from './note-type-filter-section'
@@ -16,6 +17,8 @@ interface AdvancedFilterPopoverProps {
   open: boolean
   selectedLabelIds: string[]
   selectedNoteTypeIds: string[]
+  viewMode: NotesViewMode
+  onClearFilters: () => void
   onClose: () => void
   onLabelIdsChange: (labelIds: string[]) => void
   onLabelMatchModeChange: (matchMode: LabelMatchMode) => void
@@ -32,13 +35,17 @@ export const AdvancedFilterPopover = ({
   open,
   selectedLabelIds,
   selectedNoteTypeIds,
+  viewMode,
+  onClearFilters,
   onClose,
   onLabelIdsChange,
   onLabelMatchModeChange,
   onNoteTypeIdsChange,
 }: AdvancedFilterPopoverProps) => {
   const { t } = useTranslation()
-  const activeFilterCount = selectedLabelIds.length + selectedNoteTypeIds.length
+  const clearableFilterCount =
+    selectedLabelIds.length +
+    (viewMode === 'card' ? selectedNoteTypeIds.length : 0)
 
   return (
     <Popover
@@ -54,7 +61,7 @@ export const AdvancedFilterPopover = ({
             {t('notes.toolbar.filters.title')}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            {t('notes.toolbar.filters.description')}
+            {t(`notes.toolbar.filters.description.${viewMode}`)}
           </Typography>
         </Stack>
 
@@ -64,6 +71,7 @@ export const AdvancedFilterPopover = ({
           isLoading={isNoteTypesLoading}
           noteTypes={noteTypes}
           selectedNoteTypeIds={selectedNoteTypeIds}
+          viewMode={viewMode}
           onNoteTypeIdsChange={onNoteTypeIdsChange}
         />
 
@@ -87,11 +95,8 @@ export const AdvancedFilterPopover = ({
 
         <Stack direction="row" justifyContent="space-between" spacing={1}>
           <Button
-            disabled={activeFilterCount === 0}
-            onClick={() => {
-              onLabelIdsChange([])
-              onNoteTypeIdsChange([])
-            }}
+            disabled={clearableFilterCount === 0}
+            onClick={onClearFilters}
             size="small"
           >
             {t('notes.toolbar.filters.actions.clear')}

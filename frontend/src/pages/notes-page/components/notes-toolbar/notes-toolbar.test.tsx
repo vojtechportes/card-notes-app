@@ -83,6 +83,7 @@ const createProps = () => ({
     },
   ],
   onAddNote: vi.fn(),
+  onClearFilters: vi.fn(),
   onLabelIdsChange: vi.fn<(labelIds: string[]) => void>(),
   onLabelMatchModeChange: vi.fn(),
   onNoteTypeIdsChange: vi.fn<(noteTypeIds: string[]) => void>(),
@@ -94,6 +95,7 @@ const createProps = () => ({
   selectedNoteTypeIds: [],
   sortBy: 'updatedAt' as NoteSortBy,
   sortDirection: 'desc' as NoteSortDirection,
+  viewMode: 'card' as const,
 })
 
 describe('NotesToolbar', () => {
@@ -407,7 +409,55 @@ describe('NotesToolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Filters (2)' }))
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
 
-    expect(props.onLabelIdsChange).toHaveBeenCalledWith([])
-    expect(props.onNoteTypeIdsChange).toHaveBeenCalledWith([])
+    expect(props.onClearFilters).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses a required radio selection and label-only clear semantics in Data Grid view', () => {
+    const props = {
+      ...createProps(),
+      selectedLabelIds: ['label-1'],
+      selectedNoteTypeIds: ['note-type-1'],
+      viewMode: 'data-grid' as const,
+    }
+    render(<NotesToolbar {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters (1)' }))
+
+    expect(
+      screen.getByRole('radiogroup', { name: 'Data Grid note template' })
+    ).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Books' })).toBeNull()
+    expect(
+      (screen.getByRole('radio', { name: 'Books' }) as HTMLInputElement).checked
+    ).toBe(true)
+    expect(screen.getByText('Active filters')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+
+    expect(props.onClearFilters).toHaveBeenCalledTimes(1)
+    expect(props.onNoteTypeIdsChange).not.toHaveBeenCalled()
+  })
+
+  it('selects exactly one note template in Data Grid view', () => {
+    const props = {
+      ...createProps(),
+      noteTypes: [
+        ...createProps().noteTypes,
+        {
+          createdAt: '2026-07-07T10:00:00.000Z',
+          id: 'note-type-2',
+          title: 'Movies',
+          updatedAt: '2026-07-07T10:00:00.000Z',
+        },
+      ],
+      selectedNoteTypeIds: ['note-type-1'],
+      viewMode: 'data-grid' as const,
+    }
+    render(<NotesToolbar {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Movies' }))
+
+    expect(props.onNoteTypeIdsChange).toHaveBeenCalledWith(['note-type-2'])
   })
 })

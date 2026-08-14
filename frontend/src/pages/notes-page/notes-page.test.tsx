@@ -963,4 +963,131 @@ describe('NotesPage', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/notes'))
     expect(document.querySelector('[data-test-name="side-drawer"]')).toBeNull()
   })
+
+  it('switches views accessibly and persists every valid view change', async () => {
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {
+        'note-type-1': bookColumns,
+        'note-type-2': movieColumns,
+      },
+      isError: false,
+      isLoading: false,
+      isSuccess: true,
+    })
+
+    renderNotesPage()
+
+    const cardViewButton = screen.getByRole('button', { name: 'Card view' })
+    const dataGridViewButton = screen.getByRole('button', {
+      name: 'Data Grid view',
+    })
+
+    expect(cardViewButton.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(cardViewButton)
+
+    expect(cardViewButton.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(dataGridViewButton)
+
+    await waitFor(() => {
+      expect(dataGridViewButton.getAttribute('aria-pressed')).toBe('true')
+      expect(
+        JSON.parse(
+          window.localStorage.getItem('notestack.notes.view-preferences') ??
+            '{}'
+        ).viewMode
+      ).toBe('data-grid')
+    })
+
+    fireEvent.click(cardViewButton)
+
+    await waitFor(() => {
+      expect(
+        JSON.parse(
+          window.localStorage.getItem('notestack.notes.view-preferences') ??
+            '{}'
+        ).viewMode
+      ).toBe('card')
+    })
+  })
+
+  it('shows radio templates and only template-scoped labels in Data Grid filters', async () => {
+    const scopedLabels: LabelDto[] = [
+      {
+        color: '#0070F2',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'shared-label',
+        name: 'shared',
+        noteTypeId: null,
+        title: 'Shared',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+      {
+        color: '#188918',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'book-label',
+        name: 'book',
+        noteTypeId: 'note-type-1',
+        title: 'Book label',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+      {
+        color: '#C35500',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'movie-label',
+        name: 'movie',
+        noteTypeId: 'note-type-2',
+        title: 'Movie label',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+    ]
+    useLabelsQueryMock.mockReturnValue({
+      data: scopedLabels,
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {
+        'note-type-1': bookColumns,
+        'note-type-2': movieColumns,
+      },
+      isError: false,
+      isLoading: false,
+      isSuccess: true,
+    })
+
+    renderNotesPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Data Grid view' }))
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole('button', { name: 'Data Grid view' })
+          .getAttribute('aria-pressed')
+      ).toBe('true')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+
+    await waitFor(() => {
+      expect(
+        (screen.getByRole('radio', { name: 'Books' }) as HTMLInputElement)
+          .checked
+      ).toBe(true)
+    })
+    expect(screen.queryByRole('checkbox', { name: 'Books' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Shared' })).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Book label' })).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Movie label' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Movies' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: 'Movie label' })).toBeTruthy()
+    })
+    expect(screen.getByRole('checkbox', { name: 'Shared' })).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'Book label' })).toBeNull()
+  })
 })

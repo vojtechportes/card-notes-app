@@ -838,7 +838,7 @@ Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the exi
   - Reconcile stored grid widths only after the relevant template and column queries succeed: remove entries for deleted templates or columns, retain widths for currently hidden but still-defined columns, and never erase widths because a column query is loading or failed.
   - Treat the required data-grid template as view scope: data-grid Clear all clears labels but retains the selected template. Preserve the current card-view filter count and Clear all behavior.
 
-- [ ] TMSC-38. Add the view switch and mode-aware advanced filters
+- [x] TMSC-38. Add the view switch and mode-aware advanced filters
   - Add an exclusive, accessible MUI `ToggleButtonGroup` in the upper-right of the Notes page header, matching the supplied layout reference.
   - Use `ViewModuleIcon` for card view and `ViewListIcon` for data-grid view, ignore the ToggleButtonGroup's `null` deselection event, and persist every valid view change.
   - Keep note-template checkboxes and zero-or-many selection in card view.
