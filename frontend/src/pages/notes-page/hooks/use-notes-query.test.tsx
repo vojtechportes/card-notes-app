@@ -80,6 +80,32 @@ describe('useNotesQuery', () => {
     expect(getNotes).toHaveBeenCalledWith(undefined, expect.any(AbortSignal))
   })
 
+  it('does not fetch until an explicitly disabled query is enabled', async () => {
+    const notes = [createNoteDto('note-1')]
+    vi.mocked(getNotes).mockResolvedValue(createResponse(notes))
+    const queryClient = createTestQueryClient()
+
+    const { rerender, result } = renderHook(
+      ({ enabled }) =>
+        useNotesQuery({ noteTypeIds: ['note-type-1'] }, { enabled }),
+      {
+        initialProps: { enabled: false },
+        wrapper: createWrapper(queryClient),
+      }
+    )
+
+    expect(getNotes).not.toHaveBeenCalled()
+
+    rerender({ enabled: true })
+
+    await waitFor(() => expect(result.current.data).toEqual(notes))
+    expect(getNotes).toHaveBeenCalledTimes(1)
+    expect(getNotes).toHaveBeenCalledWith(
+      { noteTypeIds: ['note-type-1'] },
+      expect.any(AbortSignal)
+    )
+  })
+
   it('keys notes lists by sort query', () => {
     expect(
       notesQueryKeys.list({ sortBy: 'createdAt', sortDirection: 'desc' })

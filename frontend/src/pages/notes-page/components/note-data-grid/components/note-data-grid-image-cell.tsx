@@ -22,9 +22,11 @@ export const NoteDataGridImageCell = ({
 }: NoteDataGridImageCellProps) => {
   const { t } = useTranslation()
   const imageValues = isNoteImageValueList(value) ? value : [value]
-  const visibleImages = isMultiImageColumn({ config, type: 'image' })
-    ? imageValues
-    : imageValues.slice(0, 1)
+  const isMultiImage = isMultiImageColumn({ config, type: 'image' })
+  const visibleImages = imageValues.slice(0, 1)
+  const remainingCount = isMultiImage
+    ? imageValues.length - visibleImages.length
+    : 0
 
   return (
     <Box
@@ -56,6 +58,29 @@ export const NoteDataGridImageCell = ({
           </Box>
         )
       })}
+
+      {remainingCount > 0 && (
+        <Box
+          aria-label={t('notes.card.moreImages', { count: remainingCount })}
+          sx={{
+            alignItems: 'center',
+            backgroundColor: 'divider',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            color: 'text.secondary',
+            display: 'flex',
+            flex: '0 0 48px',
+            height: 48,
+            justifyContent: 'center',
+            width: 48,
+          }}
+        >
+          <Typography fontWeight={600} variant="body2">
+            +{remainingCount}
+          </Typography>
+        </Box>
+      )}
 
       {visibleImages.length === 0 && (
         <Typography color="text.secondary" variant="body2">

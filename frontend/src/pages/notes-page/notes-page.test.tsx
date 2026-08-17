@@ -392,11 +392,14 @@ describe('NotesPage', () => {
   it('fetches notes with the default toolbar sort state', () => {
     renderNotesPage()
 
-    expect(useNotesQueryMock).toHaveBeenCalledWith({
-      noteTypeIds: undefined,
-      sortBy: 'updatedAt',
-      sortDirection: 'desc',
-    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
   })
 
   it('keeps selected-template cards available when unrelated columns fail', async () => {
@@ -482,11 +485,14 @@ describe('NotesPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Ascending' }))
 
-    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
-      noteTypeIds: undefined,
-      sortBy: 'createdAt',
-      sortDirection: 'asc',
-    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'createdAt',
+        sortDirection: 'asc',
+      },
+      { enabled: true }
+    )
   })
 
   it('passes selected note template filters into the notes query', () => {
@@ -495,11 +501,14 @@ describe('NotesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Books' }))
 
-    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
-      noteTypeIds: ['note-type-1'],
-      sortBy: 'updatedAt',
-      sortDirection: 'desc',
-    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: ['note-type-1'],
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
   })
 
   it('filters notes by labels before applying text search', () => {
@@ -569,11 +578,14 @@ describe('NotesPage', () => {
       },
       labels
     )
-    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
-      noteTypeIds: undefined,
-      sortBy: 'updatedAt',
-      sortDirection: 'desc',
-    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
   })
   it('combines note template and label filters before applying text search', () => {
     const labels: LabelDto[] = [
@@ -631,11 +643,14 @@ describe('NotesPage', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Books' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }))
 
-    expect(useNotesQueryMock).toHaveBeenLastCalledWith({
-      noteTypeIds: ['note-type-1'],
-      sortBy: 'updatedAt',
-      sortDirection: 'desc',
-    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: ['note-type-1'],
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
     expect(useNotesSearchMock).toHaveBeenLastCalledWith(
       [filteredBook],
       '',
@@ -1000,6 +1015,15 @@ describe('NotesPage', () => {
       ).toBe('data-grid')
     })
 
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: ['note-type-1'],
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
+
     fireEvent.click(cardViewButton)
 
     await waitFor(() => {
@@ -1010,6 +1034,14 @@ describe('NotesPage', () => {
         ).viewMode
       ).toBe('card')
     })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
   })
 
   it('shows radio templates and only template-scoped labels in Data Grid filters', async () => {
@@ -1089,5 +1121,244 @@ describe('NotesPage', () => {
     })
     expect(screen.getByRole('checkbox', { name: 'Shared' })).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: 'Book label' })).toBeNull()
+    await waitFor(() => {
+      expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+        {
+          noteTypeIds: ['note-type-2'],
+          sortBy: 'updatedAt',
+          sortDirection: 'desc',
+        },
+        { enabled: true }
+      )
+    })
+  })
+
+  it('gates a persisted Data Grid query until its template is reconciled', async () => {
+    window.localStorage.setItem(
+      'notestack.notes.view-preferences',
+      JSON.stringify({
+        version: 1,
+        viewMode: 'data-grid',
+        card: {
+          labelIds: [],
+          labelMatchMode: 'or',
+          noteTypeIds: [],
+        },
+        dataGrid: {
+          labelIds: [],
+          labelMatchMode: 'or',
+          noteTypeId: 'deleted-note-type',
+        },
+        dataGridColumnWidths: {},
+      })
+    )
+    useNotesQueryMock.mockImplementation(() => ({
+      data: [],
+      isError: false,
+      isLoading: false,
+    }))
+
+    renderNotesPage()
+
+    expect(useNotesQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ noteTypeIds: ['deleted-note-type'] }),
+      { enabled: false }
+    )
+    await waitFor(() => {
+      expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+        {
+          noteTypeIds: ['note-type-1'],
+          sortBy: 'updatedAt',
+          sortDirection: 'desc',
+        },
+        { enabled: true }
+      )
+    })
+    expect(
+      useNotesQueryMock.mock.calls.some(
+        ([query, options]) =>
+          options?.enabled === true && query.noteTypeIds === undefined
+      )
+    ).toBe(false)
+  })
+
+  it('uses the Data Grid labels before search and renders the same results', async () => {
+    const labels: LabelDto[] = [
+      {
+        color: '#0070F2',
+        createdAt: '2026-07-07T10:00:00.000Z',
+        id: 'shared-label',
+        name: 'shared',
+        noteTypeId: null,
+        title: 'Shared',
+        updatedAt: '2026-07-07T10:00:00.000Z',
+      },
+    ]
+    const labelColumn: ColumnDto = {
+      config: null,
+      createdAt: '2026-07-07T10:00:00.000Z',
+      id: 'labels-column',
+      isDefault: false,
+      isHidden: false,
+      isHiddenInDetail: false,
+      name: 'labels',
+      noteTypeId: 'note-type-1',
+      sortOrder: 6,
+      title: 'Labels',
+      type: 'labels',
+      updatedAt: '2026-07-07T10:00:00.000Z',
+    }
+    const matchingNote = {
+      ...notes[0],
+      values: { ...notes[0].values, 'labels-column': ['shared-label'] },
+    }
+    const nonMatchingNote = { ...notes[0], id: 'note-without-label' }
+    window.localStorage.setItem(
+      'notestack.notes.view-preferences',
+      JSON.stringify({
+        version: 1,
+        viewMode: 'data-grid',
+        card: { labelIds: [], labelMatchMode: 'or', noteTypeIds: [] },
+        dataGrid: {
+          labelIds: ['shared-label'],
+          labelMatchMode: 'and',
+          noteTypeId: 'note-type-1',
+        },
+        dataGridColumnWidths: {},
+      })
+    )
+    useLabelsQueryMock.mockReturnValue({
+      data: labels,
+      isError: false,
+      isLoading: false,
+    })
+    useNotesQueryMock.mockReturnValue({
+      data: [matchingNote, nonMatchingNote],
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: { 'note-type-1': [...bookColumns, labelColumn] },
+      isError: false,
+      isLoading: false,
+      isSuccess: true,
+    })
+    useNotesSearchMock.mockImplementation((visibleNotes) => visibleNotes)
+
+    renderNotesPage()
+
+    await waitFor(() => {
+      expect(useNotesSearchMock).toHaveBeenLastCalledWith(
+        [matchingNote],
+        '',
+        {
+          'note-type-1': 'Books',
+          'note-type-2': 'Movies',
+        },
+        labels
+      )
+    })
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: ['note-type-1'],
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: true }
+    )
+    expect(screen.getByRole('grid', { name: 'Notes Data Grid' })).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Alpha note'))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/notes/note-1'))
+    expect(screen.queryByText('note-without-label')).toBeNull()
+  })
+
+  it('loads Data Grid columns for a selected template with no notes', async () => {
+    window.localStorage.setItem(
+      'notestack.notes.view-preferences',
+      JSON.stringify({
+        version: 1,
+        viewMode: 'data-grid',
+        card: { labelIds: [], labelMatchMode: 'or', noteTypeIds: [] },
+        dataGrid: {
+          labelIds: [],
+          labelMatchMode: 'or',
+          noteTypeId: 'note-type-1',
+        },
+        dataGridColumnWidths: {},
+      })
+    )
+    useNotesQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
+    useNotesSearchMock.mockReturnValue([])
+
+    renderNotesPage()
+
+    await waitFor(() => {
+      expect(useNoteTypeColumnsMapQueryMock).toHaveBeenCalledWith([
+        'note-type-1',
+      ])
+    })
+    expect(
+      await screen.findByRole('columnheader', { name: 'Title' })
+    ).toBeTruthy()
+  })
+
+  it('keeps an empty Data Grid scoped when no note templates exist', async () => {
+    useNoteTypesQueryMock.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    })
+    useNoteTypeColumnsMapQueryMock.mockReturnValue({
+      data: {},
+      isError: false,
+      isLoading: false,
+      isSuccess: true,
+    })
+    useNotesSearchMock.mockReturnValue([])
+
+    renderNotesPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Data Grid view' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'No note template available' })
+    ).toBeTruthy()
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: false }
+    )
+  })
+
+  it('shows a Data Grid error instead of loading when filter prerequisites fail', async () => {
+    useLabelsQueryMock.mockReturnValue({
+      data: undefined,
+      isError: true,
+      isLoading: false,
+    })
+
+    renderNotesPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Data Grid view' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Data Grid unavailable' })
+    ).toBeTruthy()
+    expect(screen.queryByText('Loading notes...')).toBeNull()
+    expect(useNotesQueryMock).toHaveBeenLastCalledWith(
+      {
+        noteTypeIds: undefined,
+        sortBy: 'updatedAt',
+        sortDirection: 'desc',
+      },
+      { enabled: false }
+    )
   })
 })

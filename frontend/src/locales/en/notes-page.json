@@ -214,6 +214,10 @@
       "error": {
         "title": "Data Grid unavailable",
         "description": "The notes or Data Grid configuration could not be loaded."
+      },
+      "noTemplate": {
+        "title": "No note template available",
+        "description": "Create a note template before using the Data Grid."
       }
     },
     "viewSwitch": {

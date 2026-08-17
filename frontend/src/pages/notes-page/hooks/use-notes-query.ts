@@ -14,17 +14,26 @@ import type {
 } from '../../../types/api'
 import { notesQueryKeys } from '../constants/notes-query-keys'
 
+interface UseNotesQueryOptions {
+  enabled?: boolean
+}
+
 interface UpdateNoteBackgroundMutationVariables {
   id: string
   background: UpdateNoteBackgroundDto
 }
+
 interface UpdateNoteMutationVariables {
   id: string
   note: UpdateNoteDto
 }
 
-export const useNotesQuery = (query?: ListNotesQueryDto) => {
+export const useNotesQuery = (
+  query?: ListNotesQueryDto,
+  options?: UseNotesQueryOptions
+) => {
   return useQuery({
+    enabled: options?.enabled,
     queryKey: notesQueryKeys.list(query),
     queryFn: ({ signal }) =>
       getNotes(query, signal).then((response) => response.data),
@@ -70,6 +79,7 @@ export const useUpdateNoteBackgroundMutation = () => {
     },
   })
 }
+
 export const useDeleteNoteMutation = () => {
   const queryClient = useQueryClient()
 
