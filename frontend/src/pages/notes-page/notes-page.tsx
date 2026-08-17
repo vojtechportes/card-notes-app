@@ -15,7 +15,7 @@ import {
 } from '../../components/side-drawer'
 import type { BackgroundEnumDto, NoteDto } from '../../types/api'
 import { CreateUpdateDialog } from './components/create-update-dialog/create-update-dialog'
-import { NoteCardList } from './components/note-card-list/note-card-list'
+import { NotesListRenderer } from './components/notes-list-renderer/notes-list-renderer'
 import { NotesPageHeader } from './components/notes-page-header/notes-page-header'
 import { NoteBackgroundMenuItem } from './components/note-background-menu-item/note-background-menu-item'
 import { NoteDetailPanel } from './components/note-detail-panel/note-detail-panel'
@@ -68,10 +68,12 @@ export const NotesPage = () => {
     setCardLabelIds,
     setCardLabelMatchMode,
     setCardNoteTypeIds,
+    setDataGridColumnWidths,
     setDataGridLabelIds,
     setDataGridLabelMatchMode,
     setDataGridNoteTypeId,
     setViewMode,
+    areFiltersReconciled,
   } = useNotesViewPreferences({
     areColumnsReady: reconciliationColumnsMapQuery.isSuccess,
     areLabelsReady:
@@ -117,16 +119,31 @@ export const NotesPage = () => {
       preferences.dataGrid.noteTypeId
     )
   }, [isDataGridView, labelsQuery.data, preferences.dataGrid.noteTypeId])
-  const notesQuery = useNotesQuery({
-    noteTypeIds:
-      selectedCardNoteTypeIds.length > 0 ? selectedCardNoteTypeIds : undefined,
-    sortBy,
-    sortDirection,
-  })
+  const isNotesQueryEnabled =
+    areFiltersReconciled &&
+    (!isDataGridView || Boolean(preferences.dataGrid.noteTypeId))
+  const notesQuery = useNotesQuery(
+    {
+      noteTypeIds:
+        selectedNoteTypeIds.length > 0 ? selectedNoteTypeIds : undefined,
+      sortBy,
+      sortDirection,
+    },
+    { enabled: isNotesQueryEnabled }
+  )
   const visibleNoteTypeIds = useMemo(() => {
     return [...new Set((notesQuery.data ?? []).map((note) => note.noteTypeId))]
   }, [notesQuery.data])
-  const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(visibleNoteTypeIds)
+  const renderNoteTypeIds = useMemo(() => {
+    const selectedDataGridNoteTypeId = preferences.dataGrid.noteTypeId
+
+    if (!isDataGridView || !selectedDataGridNoteTypeId) {
+      return visibleNoteTypeIds
+    }
+
+    return [...new Set([...visibleNoteTypeIds, selectedDataGridNoteTypeId])]
+  }, [isDataGridView, preferences.dataGrid.noteTypeId, visibleNoteTypeIds])
+  const noteTypeColumnsMapQuery = useNoteTypeColumnsMapQuery(renderNoteTypeIds)
   const { mutate: deleteNote } = useDeleteNoteMutation()
   const { mutate: updateNoteBackground } = useUpdateNoteBackgroundMutation()
   const generalSettingsQuery = useGeneralSettingsQuery()
@@ -144,12 +161,12 @@ export const NotesPage = () => {
     return filterNotesByLabels(
       notesQuery.data,
       noteTypeColumnsMapQuery.data,
-      cardLabelIds,
-      cardLabelMatchMode
+      selectedLabelIds,
+      labelMatchMode
     )
   }, [
-    cardLabelIds,
-    cardLabelMatchMode,
+    labelMatchMode,
+    selectedLabelIds,
     noteTypeColumnsMapQuery.data,
     notesQuery.data,
   ])
@@ -159,12 +176,17 @@ export const NotesPage = () => {
     noteTypeTitleById,
     labelsQuery.data ?? []
   )
-  const isCardConfigurationLoading =
+  const hasPreferencePrerequisiteError =
+    noteTypesQuery.isError || labelsQuery.isError
+  const isViewConfigurationLoading =
+    (!areFiltersReconciled && !hasPreferencePrerequisiteError) ||
     noteTypeColumnsMapQuery.isLoading ||
+    noteTypesQuery.isLoading ||
     generalSettingsQuery.isLoading ||
     labelsQuery.isLoading
-  const hasCardConfigurationError =
+  const hasViewConfigurationError =
     noteTypeColumnsMapQuery.isError ||
+    noteTypesQuery.isError ||
     generalSettingsQuery.isError ||
     labelsQuery.isError
   const selectedNote = useMemo(
@@ -221,6 +243,29 @@ export const NotesPage = () => {
       navigate(`/notes/${note.id}`)
     },
     [navigate]
+  )
+
+  const handleDataGridColumnWidthChange = useCallback(
+    (columnId: string, width: number) => {
+      const noteTypeId = preferences.dataGrid.noteTypeId
+
+      if (!noteTypeId) {
+        return
+      }
+
+      setDataGridColumnWidths({
+        ...preferences.dataGridColumnWidths,
+        [noteTypeId]: {
+          ...preferences.dataGridColumnWidths[noteTypeId],
+          [columnId]: width,
+        },
+      })
+    },
+    [
+      preferences.dataGrid.noteTypeId,
+      preferences.dataGridColumnWidths,
+      setDataGridColumnWidths,
+    ]
   )
 
   const handleClearFilters = useCallback(() => {
@@ -280,8 +325,8 @@ export const NotesPage = () => {
       !noteId ||
       !selectedNote ||
       !generalSettingsQuery.data ||
-      isCardConfigurationLoading ||
-      hasCardConfigurationError ||
+      isViewConfigurationLoading ||
+      hasViewConfigurationError ||
       !selectedNoteColumns
     ) {
       return
@@ -339,8 +384,8 @@ export const NotesPage = () => {
     handleDeleteNote,
     handleOpenNoteDialog,
     handleUpdateNoteBackground,
-    hasCardConfigurationError,
-    isCardConfigurationLoading,
+    hasViewConfigurationError,
+    isViewConfigurationLoading,
     labelsQuery.data,
     navigate,
     noteId,
@@ -391,7 +436,7 @@ export const NotesPage = () => {
 
         <Stack spacing={0.75}>
           <Typography color="text.secondary" variant="body2">
-            {notesQuery.isLoading || isCardConfigurationLoading
+            {notesQuery.isLoading || isViewConfigurationLoading
               ? t('notes.status.loading')
               : t('notes.status.visibleCount', { count: filteredNotes.length })}
           </Typography>
@@ -400,31 +445,34 @@ export const NotesPage = () => {
               {t('notes.status.loadError')}
             </Typography>
           )}
-          {hasCardConfigurationError && (
+          {hasViewConfigurationError && !isDataGridView && (
             <Typography color="error" variant="body2">
               {t('notes.status.cardConfigError')}
             </Typography>
           )}
         </Stack>
 
-        {!notesQuery.isLoading &&
-          !notesQuery.isError &&
-          !isCardConfigurationLoading &&
-          !hasCardConfigurationError &&
-          generalSettingsQuery.data && (
-            <NoteCardList
-              columns={[]}
-              generalSettings={generalSettingsQuery.data}
-              labels={labelsQuery.data ?? []}
-              noteTypeColumnsById={noteTypeColumnsMapQuery.data}
-              notes={filteredNotes}
-              onDeleteNote={handleDeleteNote}
-              onEditNote={handleOpenNoteDialog}
-              onOpenNoteDetail={handleOpenNoteDetail}
-              onUpdateNoteBackground={handleUpdateNoteBackground}
-              selectedNoteId={noteId}
-            />
-          )}
+        <NotesListRenderer
+          columnWidths={
+            preferences.dataGridColumnWidths[
+              preferences.dataGrid.noteTypeId ?? ''
+            ] ?? {}
+          }
+          columnsByNoteTypeId={noteTypeColumnsMapQuery.data}
+          error={notesQuery.isError || hasViewConfigurationError}
+          generalSettings={generalSettingsQuery.data}
+          labels={labelsQuery.data ?? []}
+          loading={notesQuery.isLoading || isViewConfigurationLoading}
+          notes={filteredNotes}
+          selectedNoteId={noteId}
+          selectedNoteTypeId={preferences.dataGrid.noteTypeId}
+          viewMode={preferences.viewMode}
+          onColumnWidthChange={handleDataGridColumnWidthChange}
+          onDeleteNote={handleDeleteNote}
+          onEditNote={handleOpenNoteDialog}
+          onOpenNoteDetail={handleOpenNoteDetail}
+          onUpdateNoteBackground={handleUpdateNoteBackground}
+        />
       </Stack>
 
       <CreateUpdateDialog

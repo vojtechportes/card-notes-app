@@ -867,7 +867,7 @@ Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the exi
   - Keep cells read-only and make the complete row surface clickable through `onRowClick` to open the existing note detail drawer, including blank space and non-interactive cell areas. Add pointer and selected-row feedback. Links and each image/gallery control must stop row-click propagation while preserving their normal navigation or preview behavior.
   - Render localized empty/loading/error states and expose an accessible cue that non-interactive row content opens note details. Support Enter/Space detail activation from focused non-interactive grid cells, guard interactive targets, and use the appropriate MUI event prevention so keyboard activation of links or gallery images never also opens the detail drawer.
 
-- [ ] TMSC-40. Integrate the two renderers with one Notes-page data pipeline
+- [x] TMSC-40. Integrate the two renderers with one Notes-page data pipeline
   - Initialize the active view and its reconciled filter state before forming the notes query. Card view passes zero or many selected template IDs as it does today; data-grid view passes exactly the selected template ID.
   - Continue applying label filtering before MiniSearch and pass the same resulting notes to either `NoteCardList` or `NoteDataGrid`.
   - Ensure the selected data-grid template is included when loading the column map even when that template has zero notes; deriving required grid columns only from returned note rows is not sufficient.

@@ -140,7 +140,7 @@ describe('NoteDataGridCell', () => {
     expect(screen.getByText('Unavailable label')).toBeTruthy()
   })
 
-  it('renders every multi-image preview at 48 by 48 and keeps each clickable', async () => {
+  it('renders the first multi-image preview and a 48 by 48 remaining-count tile', async () => {
     const rowClick = vi.fn()
     const rowKeyDown = vi.fn()
 
@@ -153,6 +153,7 @@ describe('NoteDataGridCell', () => {
             altText: 'Second image',
             dataUrl: 'data:image/png;base64,ZmFrZTI=',
           },
+          { altText: 'Third image', dataUrl: 'data:image/png;base64,ZmFrZTM=' },
         ],
       },
       null,
@@ -160,21 +161,24 @@ describe('NoteDataGridCell', () => {
       rowKeyDown
     )
 
-    const previews = screen.getAllByRole('button')
-    expect(previews).toHaveLength(2)
-    previews.forEach((preview) => {
-      expect(getComputedStyle(preview.parentElement as Element).height).toBe(
-        '48px'
-      )
-      expect(getComputedStyle(preview.parentElement as Element).width).toBe(
-        '48px'
-      )
-    })
+    const preview = screen.getByRole('button', { name: 'First image' })
+    const remainingImages = screen.getByLabelText('2 more images')
 
-    const gallery = screen.getByTestId('note-data-grid-image-gallery')
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByText('+2')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Second image' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Third image' })).toBeNull()
+    expect(getComputedStyle(preview.parentElement as Element).height).toBe(
+      '48px'
+    )
+    expect(getComputedStyle(preview.parentElement as Element).width).toBe(
+      '48px'
+    )
+    expect(getComputedStyle(remainingImages).height).toBe('48px')
+    expect(getComputedStyle(remainingImages).width).toBe('48px')
 
-    fireEvent.click(previews[0])
-    fireEvent.keyDown(previews[0], { key: 'Enter' })
+    fireEvent.click(preview)
+    fireEvent.keyDown(preview, { key: 'Enter' })
     expect(rowClick).not.toHaveBeenCalled()
     expect(rowKeyDown).not.toHaveBeenCalled()
     expect(
@@ -188,12 +192,21 @@ describe('NoteDataGridCell', () => {
       ).toBeNull()
     })
 
-    fireEvent.click(gallery)
+    fireEvent.click(remainingImages)
     expect(rowClick).toHaveBeenCalledTimes(1)
+  })
 
-    fireEvent.click(previews[1])
-    expect(
-      screen.getByRole('presentation', { name: 'Second image' })
-    ).toBeTruthy()
+  it('does not render an overflow tile for one multi-image value', () => {
+    renderCell(
+      { ...baseColumn, config: { isMultiImage: true }, type: 'image' },
+      {
+        field: [
+          { altText: 'Only image', dataUrl: 'data:image/png;base64,ZmFrZQ==' },
+        ],
+      }
+    )
+
+    expect(screen.getByRole('button', { name: 'Only image' })).toBeTruthy()
+    expect(screen.queryByText(/^\+\d+$/)).toBeNull()
   })
 })
