@@ -72,6 +72,11 @@ describe('GeneralSection', () => {
       (screen.getByLabelText('Fields displayed on cards') as HTMLInputElement)
         .value
     ).toBe('3')
+    expect(
+      screen.getByText(
+        'Leave empty to show full text values on cards and in the Data Grid. Note details always show full text.'
+      )
+    ).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Text truncation character count'), {
       target: { value: '180' },

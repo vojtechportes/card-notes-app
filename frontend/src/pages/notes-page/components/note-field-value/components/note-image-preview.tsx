@@ -21,13 +21,26 @@ export const NoteImagePreview = ({
 }: NoteImagePreviewProps) => {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false)
 
-  const openOverlay = useCallback(() => {
-    if (!enableOverlay) {
-      return
-    }
+  const openOverlay = useCallback(
+    (event: React.MouseEvent) => {
+      if (!enableOverlay) {
+        return
+      }
 
-    setIsOverlayOpen(true)
-  }, [enableOverlay])
+      event.stopPropagation()
+      setIsOverlayOpen(true)
+    },
+    [enableOverlay]
+  )
+
+  const stopOverlayKeyPropagation = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (enableOverlay) {
+        event.stopPropagation()
+      }
+    },
+    [enableOverlay]
+  )
 
   const closeOverlay = useCallback(() => {
     setIsOverlayOpen(false)
@@ -39,6 +52,7 @@ export const NoteImagePreview = ({
         aria-label={enableOverlay ? alt : undefined}
         component={enableOverlay ? 'button' : 'div'}
         onClick={enableOverlay ? openOverlay : undefined}
+        onKeyDown={enableOverlay ? stopOverlayKeyPropagation : undefined}
         sx={{
           background: 'transparent',
           border: 0,

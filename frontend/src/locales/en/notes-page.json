@@ -207,6 +207,15 @@
     "updateDialog": {
       "title": "Edit note"
     },
+    "dataGrid": {
+      "label": "Notes Data Grid",
+      "loading": "Loading Data Grid notes...",
+      "detailCue": "Press Enter or Space from a non-interactive cell to open note details.",
+      "error": {
+        "title": "Data Grid unavailable",
+        "description": "The notes or Data Grid configuration could not be loaded."
+      }
+    },
     "viewSwitch": {
       "label": "Notes view",
       "card": {

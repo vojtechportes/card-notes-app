@@ -226,7 +226,7 @@
       }
     },
     "general": {
-      "summary": "These preferences stay shared across every note template and affect only note cards in the Notes list.",
+      "summary": "These preferences stay shared across every note template. Text truncation affects cards and the Data Grid; the field count applies only to cards.",
       "fields": {
         "textTruncationLength": "Text truncation character count",
         "cardFieldDisplayCount": "Fields displayed on cards",
@@ -234,7 +234,7 @@
       },
       "hints": {
         "optional": "Leave either field empty to keep that limit unset.",
-        "textTruncationLength": "Leave empty to show full text values on cards. Note details always show full text.",
+        "textTruncationLength": "Leave empty to show full text values on cards and in the Data Grid. Note details always show full text.",
         "cardFieldDisplayCount": "Leave empty to show all configured fields on cards."
       },
       "actions": {

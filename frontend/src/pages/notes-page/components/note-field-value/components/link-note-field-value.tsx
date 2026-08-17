@@ -19,6 +19,12 @@ export const LinkNoteFieldValue = ({
       <Typography
         component="a"
         href={safeExternalLink}
+        onClick={(event) => {
+          event.stopPropagation()
+        }}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+        }}
         rel="noreferrer noopener"
         sx={{
           color: 'primary.main',

@@ -848,7 +848,7 @@ Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the exi
   - Preserve the existing sticky-toolbar behavior below the 1060px breakpoint and make the page-header toggle usable at narrow Electron window widths.
   - Localize visible copy, tooltips, accessible labels, empty text, and revised filter instructions in `frontend/src/locales/en/notes-page.json`.
 
-- [ ] TMSC-39. Build the read-only note Data Grid
+- [x] TMSC-39. Build the read-only note Data Grid
   - Add a Notes-owned `note-data-grid` component using the installed MUI `DataGrid` package.
   - Build columns from the selected template's field definitions, ordered by `sortOrder`, and omit fields with `isHidden` so the existing list-visibility setting also controls grid visibility.
   - Resolve default `createdAt` and `updatedAt` values and render text, date, number, safe external link, label, single-image, and multi-image values consistently with existing card/detail behavior.
