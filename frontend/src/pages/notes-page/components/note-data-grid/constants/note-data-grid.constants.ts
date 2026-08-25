@@ -3,7 +3,7 @@ export const NOTE_DATA_GRID_MAX_COLUMN_WIDTH = 720
 
 export const NOTE_DATA_GRID_COLUMN_WIDTHS = {
   date: 90,
-  image: 104,
+  image: 124,
   labels: 140,
   link: 270,
   number: 90,
