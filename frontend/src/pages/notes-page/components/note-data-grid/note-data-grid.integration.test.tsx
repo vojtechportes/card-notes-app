@@ -69,6 +69,22 @@ describe('NoteDataGrid integration', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Title' })).toBeTruthy()
     expect(screen.getByText('No notes to show')).toBeTruthy()
+
+    const grid = screen.getByRole('grid')
+    const main = document.querySelector('.MuiDataGrid-mainContent')
+    const columnHeaders = document.querySelector('.MuiDataGrid-columnHeaders')
+    const virtualScroller = document.querySelector(
+      '.MuiDataGrid-virtualScroller'
+    )
+
+    expect(main).toBeTruthy()
+    expect(columnHeaders).toBeTruthy()
+    expect(virtualScroller).toBeTruthy()
+    expect(main?.contains(columnHeaders)).toBe(true)
+    expect(main?.contains(virtualScroller)).toBe(true)
+    expect(
+      document.querySelectorAll('.MuiDataGrid-scrollbar--vertical')
+    ).toHaveLength(1)
   })
 
   it('keeps more than 100 results in one logical grid page', async () => {
@@ -77,5 +93,9 @@ describe('NoteDataGrid integration', () => {
     await waitFor(() => {
       expect(screen.getByRole('grid').getAttribute('aria-rowcount')).toBe('102')
     })
+
+    expect(screen.queryByRole('button', { name: /next page/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /previous page/i })).toBeNull()
+    expect(screen.queryByText(/rows per page/i)).toBeNull()
   })
 })

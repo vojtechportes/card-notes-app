@@ -17,6 +17,7 @@ import {
   NOTE_DATA_GRID_MIN_COLUMN_WIDTH,
   NOTE_DATA_GRID_SCROLLBAR_GUTTER_WIDTH,
   NOTE_DATA_GRID_VIEWPORT_HEIGHT,
+  NOTE_DATA_GRID_VIEWPORT_MAX_HEIGHT,
 } from './constants/note-data-grid.constants'
 import { NoteDataGridCell } from './components/note-data-grid-cell'
 import { NoteDataGridLoadingOverlay } from './components/note-data-grid-loading-overlay'
@@ -124,7 +125,10 @@ export const NoteDataGrid = ({
   return (
     <Box
       sx={{
+        flex: 1,
         height: NOTE_DATA_GRID_VIEWPORT_HEIGHT,
+        maxHeight: NOTE_DATA_GRID_VIEWPORT_MAX_HEIGHT,
+        minHeight: 0,
         minWidth: 0,
         width: '100%',
       }}

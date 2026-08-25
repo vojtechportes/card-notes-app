@@ -57,6 +57,23 @@ describe('App routing', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/notes'))
   })
 
+  it('keeps the page scrollbar below the app bar', async () => {
+    window.location.hash = '#/notes'
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /Notes/ })).toBeTruthy()
+
+    const main = screen.getByRole('main')
+    const appBarSpacer = main.previousElementSibling
+    const contentColumn = main.parentElement
+
+    expect(appBarSpacer?.classList.contains('MuiToolbar-root')).toBe(true)
+    expect(getComputedStyle(appBarSpacer as Element).flexShrink).toBe('0')
+    expect(getComputedStyle(main).overflow).toBe('auto')
+    expect(getComputedStyle(contentColumn as Element).overflow).toBe('hidden')
+  })
+
   it('redirects the settings route to general settings', async () => {
     window.location.hash = '#/settings'
 

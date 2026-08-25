@@ -286,19 +286,33 @@ export const Layout: FC = () => {
       )}
 
       <Box
-        component="main"
-        sx={{ flexGrow: 1, height: '100%', minWidth: 0, overflow: 'auto' }}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          flexGrow: 1,
+          height: '100%',
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
       >
-        <Toolbar />
-        <Container maxWidth="xl" sx={{ py: 3 }}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/notes" replace />} />
-            <Route path="/notes" element={<NotesPage />} />
-            <Route path="/notes/:noteId" element={<NotesPage />} />
-            <Route path="/settings/*" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Container>
+        <Toolbar sx={{ flexShrink: 0 }} />
+        <Box
+          component="main"
+          sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto' }}
+        >
+          <Container
+            maxWidth="xl"
+            sx={{ boxSizing: 'border-box', height: '100%', py: 3 }}
+          >
+            <Routes>
+              <Route path="/" element={<Navigate to="/notes" replace />} />
+              <Route path="/notes" element={<NotesPage />} />
+              <Route path="/notes/:noteId" element={<NotesPage />} />
+              <Route path="/settings/*" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Container>
+        </Box>
       </Box>
       <SideDrawer />
     </Box>
