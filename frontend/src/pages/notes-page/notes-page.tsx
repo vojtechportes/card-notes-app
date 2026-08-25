@@ -404,7 +404,7 @@ export const NotesPage = () => {
 
   return (
     <>
-      <Stack spacing={3}>
+      <Stack spacing={3} sx={isDataGridView ? { height: '100%' } : undefined}>
         <NotesPageHeader
           viewMode={preferences.viewMode}
           onViewModeChange={setViewMode}

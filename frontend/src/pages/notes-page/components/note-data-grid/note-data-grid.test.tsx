@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../../../../components/app-providers/app-providers'
 import type { ColumnDto, NoteDto } from '../../../../types/api'
 import '../../../../i18n'
-import { NOTE_DATA_GRID_MAX_COLUMN_WIDTH } from './constants/note-data-grid.constants'
+import {
+  NOTE_DATA_GRID_MAX_COLUMN_WIDTH,
+  NOTE_DATA_GRID_VIEWPORT_HEIGHT,
+  NOTE_DATA_GRID_VIEWPORT_MAX_HEIGHT,
+} from './constants/note-data-grid.constants'
 import { NoteDataGrid } from './note-data-grid'
 
 interface CapturedGridColumn {
@@ -15,16 +19,22 @@ interface CapturedGridColumn {
 }
 
 interface CapturedGridProps {
+  'aria-describedby': string
+  'aria-label': string
   autosizeOnMount: boolean
   columns: CapturedGridColumn[]
   disableAutosize: boolean
   disableColumnFilter: boolean
   disableColumnMenu: boolean
+  disableColumnSelector: boolean
+  disableMultipleRowSelection: boolean
   disableRowSelectionOnClick: boolean
+  disableVirtualization: boolean
   getEstimatedRowHeight: () => number
   getRowClassName: (params: { id: string }) => string
   getRowHeight: () => string
   hideFooter: boolean
+  loading: boolean
   onCellKeyDown: (
     params: { row: NoteDto },
     event: KeyboardEvent & { defaultMuiPrevented?: boolean }
@@ -35,11 +45,15 @@ interface CapturedGridProps {
   }) => void
   onRowClick: (params: { row: NoteDto }) => void
   paginationModel: { page: number; pageSize: number }
+  rowSelection: boolean
   rows: NoteDto[]
   scrollbarSize: number
-  slots: { noRowsOverlay?: () => React.ReactNode }
+  slots: {
+    loadingOverlay?: () => React.ReactNode
+    noRowsOverlay?: () => React.ReactNode
+  }
   showToolbar: boolean
-  sx: Record<string, { width?: string }>
+  sx: Record<string, Record<string, unknown>>
 }
 
 const gridHarness = vi.hoisted(() => ({
@@ -50,11 +64,19 @@ const gridHarness = vi.hoisted(() => ({
 vi.mock('@mui/x-data-grid', () => ({
   DataGrid: (props: CapturedGridProps) => {
     gridHarness.props = props
+    const LoadingOverlay = props.slots.loadingOverlay
     const NoRowsOverlay = props.slots.noRowsOverlay
 
     return (
-      <div aria-label="mock-data-grid" role="grid">
-        {props.rows.length === 0 && NoRowsOverlay ? <NoRowsOverlay /> : null}
+      <div
+        aria-describedby={props['aria-describedby']}
+        aria-label={props['aria-label']}
+        role="grid"
+      >
+        {props.loading && LoadingOverlay ? <LoadingOverlay /> : null}
+        {!props.loading && props.rows.length === 0 && NoRowsOverlay ? (
+          <NoRowsOverlay />
+        ) : null}
       </div>
     )
   },
@@ -161,7 +183,12 @@ describe('NoteDataGrid', () => {
     expect(props.disableAutosize).toBe(true)
     expect(props.disableColumnFilter).toBe(true)
     expect(props.disableColumnMenu).toBe(true)
+    expect(props.disableColumnSelector).toBe(true)
+    expect(props.disableMultipleRowSelection).toBe(true)
     expect(props.disableRowSelectionOnClick).toBe(true)
+    expect(props.disableVirtualization).toBe(false)
+    expect(props.rowSelection).toBe(false)
+    expect('disableColumnResize' in props).toBe(false)
     expect(props.paginationModel).toEqual({ page: 0, pageSize: -1 })
     expect(props.hideFooter).toBe(true)
     expect(props.showToolbar).toBe(false)
@@ -169,6 +196,40 @@ describe('NoteDataGrid', () => {
     expect(props.sx['& .MuiDataGrid-main'].width).toBe(
       'calc(100% - ((1 - var(--DataGrid-hasScrollY)) * 14px))'
     )
+    expect(props.sx['& .MuiDataGrid-scrollbar--vertical']).toMatchObject({
+      overflowY: 'scroll',
+      scrollbarGutter: 'stable',
+    })
+    expect(props.sx['& .MuiDataGrid-virtualScroller']).toMatchObject({
+      overflowX: 'auto',
+    })
+    expect(props.sx['& .MuiDataGrid-cell']).toMatchObject({
+      overflowWrap: 'anywhere',
+      whiteSpace: 'normal',
+    })
+    expect(props.sx['& .MuiDataGrid-cell']).not.toHaveProperty(
+      'textOverflow',
+      'ellipsis'
+    )
+    const viewportClass = screen
+      .getByRole('grid')
+      .parentElement?.className.split(' ')
+      .find((className) => className.startsWith('css-'))
+    const viewportRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .map((rule) => rule.cssText)
+      .find((cssText) => cssText.startsWith(`.${viewportClass} {`))
+
+    expect(viewportClass).toBeTruthy()
+    expect(viewportRule).toContain('flex: 1 1 0%')
+    expect(viewportRule).toContain('min-width: 0px')
+    expect(viewportRule).toContain(`height: ${NOTE_DATA_GRID_VIEWPORT_HEIGHT}`)
+    expect(viewportRule).toContain(
+      `max-height: ${NOTE_DATA_GRID_VIEWPORT_MAX_HEIGHT}px`
+    )
+    expect(viewportRule).toContain('min-height: 0px')
+
+    expect(viewportRule).toContain('width: 100%')
     expect(props.getRowClassName({ id: 'note-1' })).toBe(
       'note-data-grid-row--selected'
     )
@@ -192,7 +253,7 @@ describe('NoteDataGrid', () => {
     expect(gridHarness.resetRowHeights).toHaveBeenCalledTimes(1)
   })
 
-  it('opens a row from click and non-interactive keyboard activation only', () => {
+  it('opens a row from pointer, Enter, and Space activation on non-interactive cells only', () => {
     const onOpenNoteDetail = vi.fn()
     const props = renderGrid(vi.fn(), onOpenNoteDetail)
 
@@ -212,6 +273,22 @@ describe('NoteDataGrid', () => {
     expect(keyboardEvent.defaultMuiPrevented).toBe(true)
     expect(onOpenNoteDetail).toHaveBeenCalledTimes(2)
 
+    props.onCellKeyDown({ row: note }, {
+      defaultMuiPrevented: false,
+      key: ' ',
+      preventDefault: vi.fn(),
+      target: cell,
+    } as unknown as KeyboardEvent & { defaultMuiPrevented?: boolean })
+    expect(onOpenNoteDetail).toHaveBeenCalledTimes(3)
+
+    props.onCellKeyDown({ row: note }, {
+      defaultMuiPrevented: false,
+      key: 'ArrowDown',
+      preventDefault: vi.fn(),
+      target: cell,
+    } as unknown as KeyboardEvent & { defaultMuiPrevented?: boolean })
+    expect(onOpenNoteDetail).toHaveBeenCalledTimes(3)
+
     const link = document.createElement('a')
     props.onCellKeyDown({ row: note }, {
       defaultMuiPrevented: false,
@@ -219,7 +296,16 @@ describe('NoteDataGrid', () => {
       preventDefault: vi.fn(),
       target: link,
     } as unknown as KeyboardEvent & { defaultMuiPrevented?: boolean })
-    expect(onOpenNoteDetail).toHaveBeenCalledTimes(2)
+    expect(onOpenNoteDetail).toHaveBeenCalledTimes(3)
+
+    expect(screen.getByRole('grid').getAttribute('aria-describedby')).toBe(
+      'note-data-grid-detail-cue'
+    )
+    expect(
+      document.getElementById('note-data-grid-detail-cue')?.textContent
+    ).toBe(
+      'Press Enter or Space from a non-interactive cell to open note details.'
+    )
   })
 
   it('renders localized empty and error states', () => {
@@ -259,5 +345,23 @@ describe('NoteDataGrid', () => {
       </AppProviders>
     )
     expect(screen.getByText('Data Grid unavailable')).toBeTruthy()
+
+    cleanup()
+    render(
+      <AppProviders>
+        <NoteDataGrid
+          columnWidths={{}}
+          columns={columns}
+          labels={[]}
+          loading
+          notes={[]}
+          onColumnWidthChange={vi.fn()}
+          onOpenNoteDetail={vi.fn()}
+          textTruncationLength={null}
+        />
+      </AppProviders>
+    )
+    expect(screen.getByText('Loading Data Grid notes...')).toBeTruthy()
+    expect(screen.queryByText('No notes to show')).toBeNull()
   })
 })

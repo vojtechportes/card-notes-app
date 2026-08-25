@@ -875,7 +875,7 @@ Implementation scope for TMSC-36 through TMSC-41 is frontend-only. Reuse the exi
   - Avoid a transient unfiltered request while a required persisted data-grid template is still being validated. If necessary, add a narrowly scoped `enabled` option to `useNotesQuery` and cover it with a hook test.
   - Keep the current card renderer unchanged except for the state and view-selection integration needed by this feature.
 
-- [ ] TMSC-41. Verify persisted views, filtering, and Data Grid behavior
+- [x] TMSC-41. Verify persisted views, filtering, and Data Grid behavior
   - Add utility/hook tests for valid restoration, card-view defaulting, unavailable storage, malformed/version-mismatched payloads, ID deduplication, independent card/data-grid preferences, and template-scoped column-width restoration.
   - Cover deferred reconciliation during loading, no preference erasure on query errors, stale template/label pruning after success, first-template fallback, no-template behavior, and label pruning after a grid template change.
   - Add toolbar/component tests for accessible view switching, ignored `null` toggle changes, checkbox versus radio behavior, template-scoped grid labels, per-view active summaries, and grid Clear all retaining its required template.

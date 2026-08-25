@@ -110,6 +110,33 @@ describe('useNotesViewPreferences', () => {
     )
   })
 
+  it('retains every stored width while column queries are loading or failed', async () => {
+    const storage = createStorage()
+    const { result } = renderHook(() =>
+      useNotesViewPreferences({
+        areColumnsReady: false,
+        areLabelsReady: true,
+        areNoteTypesReady: true,
+        columnsByNoteTypeId: {},
+        labels,
+        noteTypes,
+        storage,
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.areFiltersReconciled).toBe(true)
+    })
+
+    expect(result.current.preferences.dataGridColumnWidths).toEqual(
+      storedPreferences.dataGridColumnWidths
+    )
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      NOTES_VIEW_PREFERENCES_STORAGE_KEY,
+      expect.stringContaining('"deleted":{"old":200}')
+    )
+  })
+
   it('persists reconciled filters and widths after their queries succeed', async () => {
     const storage = createStorage()
     const { result } = renderHook(() =>
