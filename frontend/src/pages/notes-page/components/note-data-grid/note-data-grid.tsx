@@ -26,6 +26,7 @@ import { NoteDataGridState } from './components/note-data-grid-state'
 import { getVisibleNoteDataGridColumns } from './utils/get-visible-note-data-grid-columns.util'
 import { isInteractiveGridTarget } from './utils/is-interactive-grid-target.util'
 import { resolveNoteDataGridColumnWidth } from './utils/resolve-note-data-grid-column-width.util'
+import { dataGridStyles } from './styles/data-grid-styles'
 
 interface NoteDataGridProps {
   columnWidths: Record<string, number>
@@ -207,6 +208,7 @@ export const NoteDataGrid = ({
           '& .MuiDataGrid-virtualScroller': {
             overflowX: 'auto',
           },
+          ...dataGridStyles
         }}
       />
     </Box>
