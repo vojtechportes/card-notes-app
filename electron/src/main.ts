@@ -303,12 +303,16 @@ function isUpdaterEnabled(): boolean {
 }
 
 async function createMainWindow(): Promise<void> {
+  const isMacOs = process.platform === 'darwin'
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 420,
     minHeight: 640,
-    frame: false,
+    frame: isMacOs,
+    titleBarStyle: isMacOs ? 'hiddenInset' : undefined,
+    trafficLightPosition: isMacOs ? { x: 16, y: 16 } : undefined,
     icon: existsSync(applicationIconPath) ? applicationIconPath : undefined,
     webPreferences: {
       contextIsolation: true,

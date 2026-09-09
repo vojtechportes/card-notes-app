@@ -1,61 +1,77 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import YAML from "yaml";
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import YAML from 'yaml'
 
-const WINDOWS_PUBLISHER_NAME = "Open Source Developer Vojtech Porte\u0161";
+const WINDOWS_PUBLISHER_NAME = 'Open Source Developer Vojtech Porteš'
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const electronRoot = path.resolve(dirname, "..");
-const defaultBuilderConfigPath = path.join(electronRoot, "electron-builder.json");
+const dirname = path.dirname(fileURLToPath(import.meta.url))
+const electronRoot = path.resolve(dirname, '..')
+const defaultBuilderConfigPath = path.join(
+  electronRoot,
+  'electron-builder.json'
+)
 
 export const writeAppUpdatePublisher = async (
   appOutDir,
   builderConfigPath = defaultBuilderConfigPath,
+  platform = process.platform
 ) => {
-  const appUpdatePath = path.join(appOutDir, "resources", "app-update.yml");
+  const resourcesPath =
+    platform === 'darwin'
+      ? path.join(appOutDir, 'NoteStack.app', 'Contents', 'Resources')
+      : path.join(appOutDir, 'resources')
+  const appUpdatePath = path.join(resourcesPath, 'app-update.yml')
 
   if (!(await fileExists(appUpdatePath))) {
-    await writeAppUpdateConfig(appUpdatePath, builderConfigPath);
+    await writeAppUpdateConfig(appUpdatePath, builderConfigPath)
   }
 
-  const appUpdateContent = await readFile(appUpdatePath, "utf8");
-  const appUpdateDocument = YAML.parseDocument(appUpdateContent);
+  if (platform !== 'win32') {
+    return
+  }
 
-  appUpdateDocument.set("publisherName", WINDOWS_PUBLISHER_NAME);
+  const appUpdateContent = await readFile(appUpdatePath, 'utf8')
+  const appUpdateDocument = YAML.parseDocument(appUpdateContent)
 
-  await writeFile(appUpdatePath, appUpdateDocument.toString(), "utf8");
-};
+  appUpdateDocument.set('publisherName', WINDOWS_PUBLISHER_NAME)
+
+  await writeFile(appUpdatePath, appUpdateDocument.toString(), 'utf8')
+}
 
 export default async function afterPack(context) {
-  await writeAppUpdatePublisher(context.appOutDir);
+  await writeAppUpdatePublisher(
+    context.appOutDir,
+    defaultBuilderConfigPath,
+    context.electronPlatformName
+  )
 }
 
 const fileExists = async (filePath) => {
   try {
-    await access(filePath);
+    await access(filePath)
 
-    return true;
+    return true
   } catch (error) {
-    if (error?.code === "ENOENT") {
-      return false;
+    if (error?.code === 'ENOENT') {
+      return false
     }
 
-    throw error;
+    throw error
   }
-};
+}
 
 const writeAppUpdateConfig = async (appUpdatePath, builderConfigPath) => {
-  const builderConfig = JSON.parse(await readFile(builderConfigPath, "utf8"));
-  const publishConfig = getGithubPublishConfig(builderConfig.publish);
+  const builderConfig = JSON.parse(await readFile(builderConfigPath, 'utf8'))
+  const publishConfig = getGithubPublishConfig(builderConfig.publish)
 
   if (!publishConfig) {
     throw new Error(
-      "Unable to generate app-update.yml because electron-builder publish config is missing a GitHub provider.",
-    );
+      'Unable to generate app-update.yml because electron-builder publish config is missing a GitHub provider.'
+    )
   }
 
-  await mkdir(path.dirname(appUpdatePath), { recursive: true });
+  await mkdir(path.dirname(appUpdatePath), { recursive: true })
   await writeFile(
     appUpdatePath,
     YAML.stringify({
@@ -64,16 +80,16 @@ const writeAppUpdateConfig = async (appUpdatePath, builderConfigPath) => {
       releaseType: publishConfig.releaseType,
       repo: publishConfig.repo,
     }),
-    "utf8",
-  );
-};
+    'utf8'
+  )
+}
 
 const getGithubPublishConfig = (publishConfig) => {
   const publishConfigs = Array.isArray(publishConfig)
     ? publishConfig
-    : [publishConfig];
+    : [publishConfig]
 
   return publishConfigs.find((config) => {
-    return config?.provider === "github" && config.owner && config.repo;
-  });
-};
+    return config?.provider === 'github' && config.owner && config.repo
+  })
+}

@@ -115,7 +115,7 @@ jobs:
     needs: update-package-version
     runs-on: windows-latest
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
       NOTESTACK_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_GOOGLE_OAUTH_CLIENT_ID }}
       NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID }}
 
@@ -217,7 +217,7 @@ jobs:
       - sign-windows-app-directory
     runs-on: windows-latest
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
     steps:
       - name: Check out repository
@@ -308,13 +308,11 @@ jobs:
             electron/release/*.exe.blockmap
           if-no-files-found: error
 
-  publish-windows-installer:
+  prepare-windows-release-artifacts:
     needs:
       - update-package-version
       - sign-windows-installer
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -340,86 +338,228 @@ jobs:
       - name: Refresh updater metadata after signing
         run: npm run refresh:signed-release-artifacts --workspace electron
 
-      - name: Verify signed updater release artifacts
-        run: npm run verify:release-artifacts --workspace electron
+      - name: Verify signed Windows updater release artifacts
+        run: npm run verify:release-artifacts:windows --workspace electron
 
-      - name: Upload GitHub release assets
+      - name: Upload validated Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-windows-release-${{ needs.update-package-version.outputs.commit-sha }}
+          path: |
+            electron/release/latest.yml
+            electron/release/*.exe
+            electron/release/*.exe.blockmap
+          if-no-files-found: error
+
+  build-macos-release:
+    needs: update-package-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    env:
+      NOTESTACK_PACKAGE_ARCH: ${{ matrix.arch }}
+      NOTESTACK_PACKAGED_PLATFORM: darwin
+      NOTESTACK_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_GOOGLE_OAUTH_CLIENT_ID }}
+      NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID: ${{ vars.NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-package-version.outputs.commit-sha }}
+
+      - name: Validate macOS release secrets
+        shell: bash
+        env:
+          APPLE_API_ISSUER_SECRET: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID_SECRET: ${{ secrets.APPLE_API_KEY_ID }}
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_API_ISSUER_SECRET:?Set the APPLE_API_ISSUER repository secret.}"
+          : "${APPLE_API_KEY_BASE64:?Set the APPLE_API_KEY_BASE64 repository secret.}"
+          : "${APPLE_API_KEY_ID_SECRET:?Set the APPLE_API_KEY_ID repository secret.}"
+          : "${MACOS_CERTIFICATE_BASE64:?Set the MACOS_CERTIFICATE_BASE64 repository secret.}"
+          : "${MACOS_CERTIFICATE_PASSWORD:?Set the MACOS_CERTIFICATE_PASSWORD repository secret.}"
+          : "${NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET:?Set the NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET repository secret.}"
+
+      - name: Materialize scoped Apple credentials
+        shell: bash
+        env:
+          APPLE_API_ISSUER_SECRET: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID_SECRET: ${{ secrets.APPLE_API_KEY_ID }}
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/notestack-developer-id.p12"
+          api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID_SECRET}.p8"
+          printf '%s' "$MACOS_CERTIFICATE_BASE64" | /usr/bin/base64 -D > "$certificate_path"
+          printf '%s' "$APPLE_API_KEY_BASE64" | /usr/bin/base64 -D > "$api_key_path"
+          chmod 600 "$certificate_path" "$api_key_path"
+          {
+            echo "CSC_LINK=$certificate_path"
+            echo "CSC_KEY_PASSWORD=$MACOS_CERTIFICATE_PASSWORD"
+            echo "APPLE_API_KEY=$api_key_path"
+            echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID_SECRET"
+            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER_SECRET"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Apple signing and notarization environment
+        run: npm run verify:mac-release-environment --workspace electron
+
+      - name: Build application workspaces
+        env:
+          NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: npm run build
+
+      - name: Build, sign, and notarize macOS app, DMG, and ZIP
+        shell: bash
+        env:
+          NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: npm run "package:mac:${NOTESTACK_PACKAGE_ARCH}" --workspace electron
+
+      - name: Notarize and staple macOS DMG
+        run: npm run notarize:macos-dmg --workspace electron
+
+      - name: Locate packaged application
+        id: packaged-app
         shell: bash
         run: |
           set -euo pipefail
-          : "${GH_TOKEN:?GH_TOKEN is missing.}"
-
-          latest_yml_path="electron/release/latest.yml"
-          if [ ! -f "$latest_yml_path" ]; then
-            echo "::error::The updater manifest was not found at $latest_yml_path."
+          app_path="$(find electron/release -type d -name NoteStack.app -print -quit)"
+          if [ -z "$app_path" ]; then
+            echo "::error::The packaged NoteStack.app bundle was not found."
             exit 1
           fi
+          echo "path=$app_path" >> "$GITHUB_OUTPUT"
 
-          installer_file_name="$(sed -n 's/^path:[[:space:]]*//p' "$latest_yml_path" | head -1 | tr -d '\r')"
-          if [ -z "$installer_file_name" ]; then
-            echo "::error::The updater manifest does not include a path entry for the installer."
-            exit 1
-          fi
+      - name: Verify packaged backend and native dependency closure
+        env:
+          NOTESTACK_UNPACKED_ROOT: ${{ steps.packaged-app.outputs.path }}
+        run: npm run verify:packaged-backend --workspace electron
 
-          asset_paths=(
-            "$latest_yml_path"
-            "electron/release/$installer_file_name"
-            "electron/release/$installer_file_name.blockmap"
-          )
+      - name: Verify concurrent packaged OAuth flow
+        env:
+          NOTESTACK_UNPACKED_ROOT: ${{ steps.packaged-app.outputs.path }}
+        run: npm run verify:packaged-oauth --workspace electron
 
-          for asset_path in "${asset_paths[@]}"; do
-            if [ ! -f "$asset_path" ]; then
-              echo "::error::Expected release asset not found: $asset_path"
-              exit 1
-            fi
-          done
+      - name: Verify signatures, Gatekeeper, stapling, and Mach-O architecture
+        env:
+          NOTESTACK_UNPACKED_ROOT: ${{ steps.packaged-app.outputs.path }}
+        run: npm run verify:macos-package --workspace electron
 
-          gh release upload "${{ github.event.release.tag_name }}" "${asset_paths[@]}" --clobber --repo "${{ github.repository }}"
-
-      - name: Verify GitHub release updater assets
+      - name: Verify DMG copy-install and ZIP payload
         shell: bash
+        env:
+          NOTESTACK_UNPACKED_ROOT: ${{ steps.packaged-app.outputs.path }}
         run: |
           set -euo pipefail
-          : "${GH_TOKEN:?GH_TOKEN is missing.}"
+          version="$(node -p "require('./electron/package.json').version")"
+          dmg_path="electron/release/notestack-${version}-${NOTESTACK_PACKAGE_ARCH}.dmg"
+          zip_path="electron/release/notestack-${version}-${NOTESTACK_PACKAGE_ARCH}.zip"
+          mount_path="$RUNNER_TEMP/notestack-dmg-${NOTESTACK_PACKAGE_ARCH}"
+          install_path="$RUNNER_TEMP/notestack-install-${NOTESTACK_PACKAGE_ARCH}"
+          mkdir -p "$mount_path" "$install_path"
+          hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_path"
+          trap 'hdiutil detach "$mount_path" >/dev/null 2>&1 || true' EXIT
+          ditto "$mount_path/NoteStack.app" "$install_path/NoteStack.app"
+          codesign --verify --deep --strict "$install_path/NoteStack.app"
+          NOTESTACK_UNPACKED_ROOT="$install_path/NoteStack.app" npm run verify:packaged-oauth --workspace electron
+          unzip -l "$zip_path" | grep -Fq 'NoteStack.app/Contents/MacOS/NoteStack'
+          hdiutil detach "$mount_path"
+          trap - EXIT
 
-          release_json="$(gh api "repos/${{ github.repository }}/releases/${{ github.event.release.id }}")"
-          latest_url="$(printf '%s' "$release_json" | jq -r '.assets[] | select(.name == "latest.yml") | .browser_download_url' | head -1)"
+      - name: Preserve architecture-specific updater manifest
+        shell: bash
+        run: mv electron/release/latest-mac.yml "electron/release/latest-mac-${NOTESTACK_PACKAGE_ARCH}.yml"
 
-          if [ -z "$latest_url" ] || [ "$latest_url" = "null" ]; then
-            echo "::error::The published GitHub release is missing latest.yml."
-            exit 1
-          fi
+      - name: Upload validated macOS release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-macos-${{ matrix.arch }}-${{ needs.update-package-version.outputs.commit-sha }}
+          path: |
+            electron/release/latest-mac-${{ matrix.arch }}.yml
+            electron/release/notestack-*-${{ matrix.arch }}.dmg
+            electron/release/notestack-*-${{ matrix.arch }}.zip
+          if-no-files-found: error
 
-          latest_yml_content="$(curl --fail --location --silent --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/octet-stream' "$latest_url")"
-          expected_installer_name="$(printf '%s\n' "$latest_yml_content" | sed -n 's/^path:[[:space:]]*//p' | head -1 | tr -d '\r')"
-          manifest_version="$(printf '%s\n' "$latest_yml_content" | sed -n 's/^version:[[:space:]]*//p' | head -1 | tr -d '\r')"
+  publish-electron-release:
+    needs:
+      - update-package-version
+      - prepare-windows-release-artifacts
+      - build-macos-release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          if [ -z "$expected_installer_name" ]; then
-            echo "::error::The published latest.yml is missing the installer path."
-            exit 1
-          fi
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-package-version.outputs.commit-sha }}
 
-          if [ -z "$manifest_version" ]; then
-            echo "::error::The published latest.yml is missing the version field."
-            exit 1
-          fi
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-          release_version="${{ github.event.release.tag_name }}"
-          release_version="${release_version#v}"
-          if [ "$manifest_version" != "$release_version" ]; then
-            echo "::error::The published latest.yml version ($manifest_version) does not match the release tag version ($release_version)."
-            exit 1
-          fi
+      - name: Install release validation dependencies
+        run: npm ci --ignore-scripts
 
-          expected_blockmap_name="$expected_installer_name.blockmap"
-          asset_names="$(printf '%s' "$release_json" | jq -r '.assets[].name')"
+      - name: Download validated Windows assets
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-windows-release-${{ needs.update-package-version.outputs.commit-sha }}
+          path: electron/release
 
-          if ! printf '%s\n' "$asset_names" | grep -Fxq "$expected_installer_name"; then
-            echo "::error::The published GitHub release is missing the installer referenced by latest.yml: $expected_installer_name"
-            exit 1
-          fi
+      - name: Download validated Intel macOS assets
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-macos-x64-${{ needs.update-package-version.outputs.commit-sha }}
+          path: electron/release
 
-          if ! printf '%s\n' "$asset_names" | grep -Fxq "$expected_blockmap_name"; then
-            echo "::error::The published GitHub release is missing the blockmap referenced by latest.yml: $expected_blockmap_name"
-            exit 1
-          fi
+      - name: Download validated Apple Silicon macOS assets
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-macos-arm64-${{ needs.update-package-version.outputs.commit-sha }}
+          path: electron/release
+
+      - name: Merge architecture-specific macOS updater manifests
+        run: >-
+          npm run merge:mac-update-manifests --workspace electron --
+          electron/release/latest-mac-x64.yml
+          electron/release/latest-mac-arm64.yml
+          electron/release/latest-mac.yml
+
+      - name: Verify complete cross-platform release set
+        run: |
+          npm run verify:release-artifacts:windows --workspace electron
+          npm run verify:release-artifacts:mac --workspace electron
+
+      - name: Publish exact release assets with rollback on failure
+        run: >-
+          node electron/scripts/publish-release-assets.mjs
+          "${{ github.event.release.tag_name }}"
+          "${{ github.repository }}"
+          electron/release

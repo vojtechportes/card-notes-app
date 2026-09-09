@@ -6,13 +6,16 @@ import { fileURLToPath } from 'node:url'
 const require = createRequire(import.meta.url)
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const electronRoot = path.resolve(dirname, '..')
-const electronBuilderPackageJsonPath = require.resolve('electron-builder/package.json')
+const electronBuilderPackageJsonPath =
+  require.resolve('electron-builder/package.json')
 const electronBuilderCliPath = path.join(
   path.dirname(electronBuilderPackageJsonPath),
   'cli.js'
 )
 
-process.env.CSC_IDENTITY_AUTO_DISCOVERY ??= 'false'
+if (process.platform === 'win32') {
+  process.env.CSC_IDENTITY_AUTO_DISCOVERY ??= 'false'
+}
 
 const childProcess = spawn(
   process.execPath,

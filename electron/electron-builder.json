@@ -1,7 +1,6 @@
 {
   "appId": "com.cardnotes.app",
   "productName": "NoteStack",
-  "artifactName": "notestack-${version}-setup.${ext}",
   "directories": {
     "output": "release"
   },
@@ -40,6 +39,7 @@
   ],
   "afterPack": "scripts/write-app-update-publisher.mjs",
   "win": {
+    "artifactName": "notestack-${version}-setup.${ext}",
     "icon": "build/icon.ico",
     "target": [
       {
@@ -53,5 +53,30 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true
+  },
+  "mac": {
+    "artifactName": "notestack-${version}-${arch}.${ext}",
+    "category": "public.app-category.productivity",
+    "darkModeSupport": true,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "hardenedRuntime": true,
+    "icon": "build/icon.icns",
+    "minimumSystemVersion": "11.0",
+    "notarize": true,
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64", "arm64"]
+      }
+    ]
+  },
+  "dmg": {
+    "sign": false,
+    "title": "NoteStack ${version} (${arch})"
   }
 }

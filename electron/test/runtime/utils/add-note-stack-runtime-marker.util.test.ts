@@ -11,6 +11,10 @@ test('adds the NoteStack runtime marker while preserving URL state', () => {
   assert.equal(markedUrl.pathname, '/notes')
   assert.equal(markedUrl.searchParams.get('view'), 'cards')
   assert.equal(markedUrl.searchParams.get('notestack-runtime'), 'electron')
+  assert.equal(
+    markedUrl.searchParams.get('notestack-platform'),
+    process.platform
+  )
   assert.equal(markedUrl.hash, '#recent')
 })
 
