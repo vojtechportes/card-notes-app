@@ -7,10 +7,12 @@ import { WindowMaximizeIcon } from './components/window-maximize-icon'
 import { WindowMinimizeIcon } from './components/window-minimize-icon'
 import { WindowRestoreIcon } from './components/window-restore-icon'
 import { useWindowControls } from './hooks/use-window-controls'
+import { isMacOsRuntime } from './utils/is-mac-os-runtime.util'
 
 export const WindowTitleBar = () => {
   const { t } = useTranslation()
   const { close, isMaximized, minimize, toggleMaximize } = useWindowControls()
+  const isMacOs = isMacOsRuntime()
   const maximizeLabel = isMaximized
     ? t('windowControls.restore')
     : t('windowControls.maximize')
@@ -30,22 +32,26 @@ export const WindowTitleBar = () => {
         zIndex: (theme) => theme.zIndex.modal + 1,
       }}
     >
-      <WindowControlButton
-        label={t('windowControls.minimize')}
-        onClick={minimize}
-      >
-        <WindowMinimizeIcon />
-      </WindowControlButton>
-      <WindowControlButton label={maximizeLabel} onClick={toggleMaximize}>
-        {isMaximized ? <WindowRestoreIcon /> : <WindowMaximizeIcon />}
-      </WindowControlButton>
-      <WindowControlButton
-        isClose
-        label={t('windowControls.close')}
-        onClick={close}
-      >
-        <WindowCloseIcon />
-      </WindowControlButton>
+      {!isMacOs && (
+        <>
+          <WindowControlButton
+            label={t('windowControls.minimize')}
+            onClick={minimize}
+          >
+            <WindowMinimizeIcon />
+          </WindowControlButton>
+          <WindowControlButton label={maximizeLabel} onClick={toggleMaximize}>
+            {isMaximized ? <WindowRestoreIcon /> : <WindowMaximizeIcon />}
+          </WindowControlButton>
+          <WindowControlButton
+            isClose
+            label={t('windowControls.close')}
+            onClick={close}
+          >
+            <WindowCloseIcon />
+          </WindowControlButton>
+        </>
+      )}
     </Box>
   )
 }

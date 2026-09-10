@@ -55,6 +55,7 @@ describe('WindowTitleBar', () => {
   afterEach(() => {
     cleanup()
     delete window.noteStackWindowControls
+    window.history.replaceState({}, '', '/')
   })
 
   it('renders only the three localized window controls', () => {
@@ -67,6 +68,19 @@ describe('WindowTitleBar', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
   })
 
+  it('leaves window controls to the native macOS title bar', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?notestack-runtime=electron&notestack-platform=darwin'
+    )
+
+    renderTitleBar()
+
+    expect(screen.queryByRole('button', { name: 'Minimize' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Maximize' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
+  })
   it('invokes window actions and synchronizes maximize state', async () => {
     const harness = createWindowControlsHarness({ isMaximized: true })
     window.noteStackWindowControls = harness.bridge

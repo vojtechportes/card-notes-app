@@ -5,12 +5,18 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createPackagedOAuthVerificationEnvironment } from './create-packaged-oauth-verification-environment.util.mjs'
+import { resolvePackagedLayout } from './resolve-packaged-layout.util.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
-const executablePath = path.resolve(
-  dirname,
-  '../release/win-unpacked/NoteStack.exe'
-)
+const electronRoot = path.resolve(dirname, '..')
+const packagedPlatform =
+  process.env.NOTESTACK_PACKAGED_PLATFORM ?? process.platform
+const packagedLayout = resolvePackagedLayout({
+  electronRoot,
+  platform: packagedPlatform,
+  unpackedRoot: process.env.NOTESTACK_UNPACKED_ROOT,
+})
+const executablePath = packagedLayout.executablePath
 
 if (!existsSync(executablePath)) {
   throw new Error('The packaged NoteStack executable was not found.')

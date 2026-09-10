@@ -31,7 +31,14 @@
     "package:electron": "npm run package --workspace electron",
     "package:electron:release": "npm run package:release --workspace electron",
     "package:release": "npm run build && npm run package:electron:release",
-    "package:dir": "npm run build && npm run package:dir --workspace electron"
+    "package:dir": "npm run build && npm run package:dir --workspace electron",
+    "package:windows": "npm run build && npm run package:win --workspace electron",
+    "package:windows:release": "npm run build && npm run package:win:release --workspace electron",
+    "package:windows:dir": "npm run build && npm run package:win:dir --workspace electron",
+    "package:mac:x64": "npm run build && npm run package:mac:x64 --workspace electron",
+    "package:mac:arm64": "npm run build && npm run package:mac:arm64 --workspace electron",
+    "package:mac:dir:x64": "npm run build && npm run package:mac:dir:x64 --workspace electron",
+    "package:mac:dir:arm64": "npm run build && npm run package:mac:dir:arm64 --workspace electron"
   },
   "engines": {
     "node": ">=22.12.0"

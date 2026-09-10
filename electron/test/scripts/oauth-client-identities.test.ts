@@ -177,15 +177,23 @@ test('release workflow and Electron commands enforce OAuth configuration', () =>
     workflow.match(
       /NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET: \$\{\{ secrets\.NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET \}\}/g
     )?.length,
-    2
+    5
   )
   assert.match(workflow, /Validate OAuth build configuration/)
 
+  assert.equal(packageJson.scripts.package, 'npm run package:win')
+  assert.equal(packageJson.scripts['package:dir'], 'npm run package:win:dir')
+  assert.equal(
+    packageJson.scripts['package:release'],
+    'npm run package:win:release'
+  )
   for (const scriptName of [
     'dev',
-    'package',
-    'package:dir',
-    'package:release',
+    'package:win',
+    'package:win:dir',
+    'package:win:release',
+    'package:mac:x64',
+    'package:mac:arm64',
   ]) {
     assert.match(
       packageJson.scripts[scriptName],

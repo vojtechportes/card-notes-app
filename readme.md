@@ -22,59 +22,102 @@ Before running `npm run dev:electron`, export the public Google and Microsoft OA
 
 - `npm run build` builds the backend, frontend, Electron shell, and notification service.
 - `npm run deploy:check:notification-service` validates the Cloudflare relay bundle without publishing it.
-- `npm run package:dir` creates an unpacked Windows Electron build in `electron/release/win-unpacked`.
-- `npm run package` builds the full app and creates a Windows installer executable in `electron/release` without publishing release assets.
-- `npm run package:release` builds the full app and creates unsigned Windows installer plus updater artifacts for the GitHub release workflow.
-- `npm run verify:release-artifacts --workspace electron` verifies that the packaged Windows updater artifacts include the installer, `latest.yml`, and the installer blockmap.
-- `npm run refresh:signed-release-artifacts --workspace electron` regenerates the installer blockmap and `latest.yml` hash/size after the installer has been signed in CI.
-- Electron packaging stages the backend production runtime into `electron/.backend-runtime` before building the installer.
+- `npm run package`, `npm run package:release`, and `npm run package:dir` remain backwards-compatible Windows x64 aliases.
+- `npm run package:windows`, `npm run package:windows:release`, and `npm run package:windows:dir` are the explicit Windows x64 commands.
+- `npm run package:mac:x64` and `npm run package:mac:arm64` create architecture-specific macOS DMG and ZIP artifacts.
+- `npm run package:mac:dir:x64` and `npm run package:mac:dir:arm64` create unpacked architecture-specific Mac application bundles.
+- `npm run verify:release-artifacts:windows --workspace electron` validates `latest.yml`, the NSIS installer, its blockmap, size, and hash.
+- `npm run verify:release-artifacts:mac --workspace electron` validates the merged `latest-mac.yml`, both ZIP hashes/sizes, and both DMGs.
 
-## GitHub Release Automation
+Electron packaging stages the backend production dependency closure into `electron/.backend-runtime` and rebuilds `better-sqlite3` for the Electron target architecture. Each Mac architecture must be staged and built in its own clean job; `.backend-runtime` and packaged directories must never be shared between architectures or with Windows.
 
-Publishing a GitHub release triggers `.github/workflows/release-electron.yml`. The workflow builds an unsigned Windows `win-unpacked` app directory on Windows, signs every inner `.exe` from that directory in a dedicated Certum SimplySign job, builds the NSIS installer from the signed app directory, signs the final installer in Certum, refreshes the updater metadata for the signed installer bytes, uploads the signed installer plus updater metadata to the GitHub release for `vojtechportes/card-notes-app`, and verifies that the published release includes the installer, `latest.yml`, and the installer blockmap.
+The Mac commands can make unsigned local artifacts without release credentials. Those artifacts are development checks only: they must not be uploaded as public releases and do not satisfy Gatekeeper distribution requirements.
+
+## Supported desktop releases
+
+The stable desktop release supports:
+
+- Windows x64 through the existing NSIS installer.
+- macOS 11.0 or newer on Intel (`x64`) and Apple Silicon (`arm64`).
+
+Mac architectures are built independently. The release contains one DMG and ZIP per architecture and one merged `latest-mac.yml`. The literal `arm64` marker in the Apple Silicon ZIP name is required by the pinned `electron-updater` 6.8.9 `MacUpdater`; Intel uses the x64 ZIP fallback. Application identity remains `com.cardnotes.app`, product name remains `NoteStack`, updates remain in `vojtechportes/card-notes-app`, and persisted data remains under the `card-notes-app` child directory of Electron `appData` (`~/Library/Application Support` on macOS).
+
+## GitHub release automation
+
+Publishing a GitHub release triggers `.github/workflows/release-electron.yml` from one version-update commit. Windows and the two Mac architectures are prepared independently. No platform is uploaded publicly until all jobs have completed signing, notarization, runtime verification, and artifact validation.
+
+The Windows path remains unchanged: build an x64 app directory, sign nested executables through Certum SimplySign, create and sign the NSIS installer, refresh the signed bytes in `latest.yml` and its blockmap, and validate the complete set.
+
+The Mac matrix uses `macos-15-intel` for x64 and `macos-15` for arm64. Each job rebuilds `better-sqlite3`, signs the complete `.app` with a Developer ID Application identity and hardened runtime, notarizes the app with an App Store Connect API key, creates architecture-safe DMG/ZIP artifacts, separately notarizes and staples the DMG, and verifies:
+
+- the app and native SQLite Mach-O architecture;
+- the packaged backend dependency closure and health endpoint;
+- two concurrent isolated packaged OAuth runs;
+- deep/strict code signing, Gatekeeper assessment, and app/DMG stapling;
+- DMG mount/copy installation and ZIP application payload integrity.
+
+The final job merges the two updater manifests, validates Windows and macOS artifacts together, removes/replaces only the exact expected asset names for the release version, uploads them, and queries GitHub to prove every expected asset exists exactly once. If upload or post-upload verification fails, it removes only that exact expected set so a rerun has a deterministic recovery path. GitHub uploads are not transactional, so a release must not be announced as available until this final job succeeds.
+
+Expected public assets for version `<version>` are:
+
+- `latest.yml`
+- `notestack-<version>-setup.exe`
+- `notestack-<version>-setup.exe.blockmap`
+- `latest-mac.yml`
+- `notestack-<version>-x64.dmg`
+- `notestack-<version>-x64.zip`
+- `notestack-<version>-arm64.dmg`
+- `notestack-<version>-arm64.zip`
+
+## Release credentials
 
 Required GitHub Actions repository variables:
 
 - `NOTESTACK_GOOGLE_OAUTH_CLIENT_ID`: public Google Desktop OAuth client ID.
 - `NOTESTACK_MICROSOFT_OAUTH_CLIENT_ID`: public Microsoft native/public application client ID.
 
-Required GitHub Actions repository secret:
+Required shared application secret:
 
 - `NOTESTACK_GOOGLE_OAUTH_CLIENT_SECRET`: Google Desktop OAuth client secret. The packaged value is extractable and is not an application-identity security boundary.
 
-The release workflow maps the two public variables and the Google repository secret only into the Windows job that builds the Electron app directory. The signed and installer-packaging jobs reuse that built directory and do not require the build credentials.
+Required Windows signing secrets:
 
-Required GitHub Actions credentials:
+- `CERTUM_USER_ID`
+- `CERTUM_OTP_URI`
+- `CERTUM_CERT_FINGERPRINT`
 
-- `CERTUM_USER_ID`: Certum SimplySign login id.
-- `CERTUM_OTP_URI`: full `otpauth://` URI used to generate the SimplySign TOTP code.
-- `CERTUM_CERT_FINGERPRINT`: SHA-256 fingerprint of the Certum cloud code-signing certificate, without relying on a local private key. For the current local `.cer` file this is `A5A3ECF7F164A9E0D7997C33404D08601DD509F5D903DFEBCD59CF6EDE33593B`.
-- `GITHUB_TOKEN`: provided by GitHub Actions and used by the workflow as `GH_TOKEN` when uploading release assets.
+Required Mac signing/notarization secrets:
 
-Signer image requirement:
+- `MACOS_CERTIFICATE_BASE64`: base64-encoded Developer ID Application `.p12` certificate and private key.
+- `MACOS_CERTIFICATE_PASSWORD`: password for that `.p12`.
+- `APPLE_API_KEY_BASE64`: base64-encoded App Store Connect `.p8` API key.
+- `APPLE_API_KEY_ID`: App Store Connect API key ID.
+- `APPLE_API_ISSUER`: App Store Connect issuer ID.
 
-- The signing job currently runs in `ghcr.io/reactiveui/certum-signer:latest`, following the referenced ReactiveUI Certum flow. That image must be accessible to this repository and must expose `SS_DIST` for SimplySign Desktop, `JSIGN_JAR` for jsign, and `osslsigncode` for signature verification.
-- If that image is not accessible, publish a repo-owned signer image with SimplySign Desktop, jsign, OpenJDK, Xvfb, fluxbox, xdotool, OpenSC, OpenSSL, osslsigncode, Python 3, and the `SS_DIST` / `JSIGN_JAR` environment variables, then update the workflow container image.
+`GITHUB_TOKEN` is supplied by Actions for artifact publishing. Apple credentials are scoped to the Mac build job, materialized only below `RUNNER_TEMP`, permission-restricted, and never printed. Do not place certificate or API-key contents in repository files, logs, release artifacts, or support bundles.
 
-Certificate files:
+The Windows signing job uses `ghcr.io/reactiveui/certum-signer:latest`. It must expose `SS_DIST`, `JSIGN_JAR`, and `osslsigncode`. The Certum publisher name in `electron/scripts/write-app-update-publisher.mjs` remains Windows-only; macOS updater verification relies on the signed application update path.
 
-- The local `.cer` or `.pem` certificate files are not uploaded to GitHub and are not used as signing keys. Use one of them to confirm the public certificate fingerprint for `CERTUM_CERT_FINGERPRINT` and the publisher subject used by `electron-updater` for Windows updater verification.
-- The private signing key stays in Certum SimplySign cloud storage and is accessed through the SimplySign Desktop PKCS#11 token during CI. The current updater publisher name is configured from the certificate simple name as `Open Source Developer Vojtech Porteš`; update `electron/scripts/write-app-update-publisher.mjs` if Certum reissues the certificate with a different subject.
+## Release process and acceptance rehearsal
 
-Release process:
+1. Configure the OAuth, Certum, Developer ID Application, and App Store Connect credentials.
+2. Run `npm test`, `npm run lint`, `npm run build`, and the available local platform packaging checks.
+3. Create two private/draft fixture releases: an older signed/notarized version and a newer candidate. Retain them until both update rehearsals pass, then delete their assets and tags explicitly.
+4. On clean standard-user Intel and Apple Silicon Macs, install the older DMG without a Gatekeeper bypass. Verify first launch, quit/reopen, Dock reactivation, native traffic-light controls, note CRUD, images, import/export, persistence, OAuth, sync startup, and external links.
+5. Update in-app to the newer version and repeat the checks. Confirm `latest-mac.yml` selects the x64 ZIP on Intel and the `arm64` ZIP on Apple Silicon.
+6. Run `codesign --verify --deep --strict`, `spctl --assess`, `xcrun stapler validate`, and notarization-history/status checks against the candidate artifacts.
+7. Repeat the existing Windows clean install and older-to-newer update smoke test.
+8. Publish the real release, wait for `publish-electron-release` to succeed, and verify the eight exact assets above before announcing availability.
 
-1. Ensure the Certum identity verification is complete and the cloud code-signing certificate is issued.
-2. Confirm the signer image is accessible from GitHub Actions.
-3. Add or update the required GitHub repository secrets.
-4. Update the application version as needed.
-5. Create the Git tag and corresponding GitHub release.
-6. Publish the GitHub release to trigger the workflow.
-7. Wait for the workflow to build the unsigned app directory, sign inner app executables, build and sign the installer, refresh updater metadata, and upload release assets.
-8. Confirm the release assets include `notestack-<version>-setup.exe`, `notestack-<version>-setup.exe.blockmap`, and `latest.yml`.
-9. Install the uploaded build on one machine, then use the in-app updater on an older installed build to confirm update discovery and download behavior.
+Record the workflow run URL, release URL, x64/arm64 machine and OS versions, notarization submission IDs, clean-install results, update rehearsal versions, Windows regression result, tester, and date in the release notes. TMSC-42 is not operationally complete until this evidence exists.
 
-Known signing limitations:
+## Troubleshooting
 
-- The inner `win-unpacked` application executables are signed before NSIS installer creation, then the final NSIS installer is signed after packaging. Because final installer signing changes the installer bytes, CI refreshes `latest.yml` and the blockmap before upload.
-- SimplySign Desktop has no stable headless API. The CI action drives the GUI through Xvfb and xdotool, so release signing can be sensitive to UI timing, token state, TOTP clock drift, and signer image updates.
-- A newly issued certificate may still need reputation history before Windows SmartScreen warnings disappear.
+- Missing-secret failures name only the absent variable. Confirm repository secrets are configured; never echo their values.
+- A signing identity error usually means the `.p12` is not a Developer ID Application identity, its password is wrong, or the certificate has expired.
+- A notarization failure should be investigated with the submission ID and `xcrun notarytool log`; inspect diagnostics for unsigned nested binaries or rejected entitlements without posting credentials.
+- A wrong-architecture SQLite error means `.backend-runtime` was reused or `npm_config_arch` did not match the runner. Delete the staged runtime, rebuild on the matching runner, and confirm with `lipo -archs`.
+- If the wrong Mac update is chosen, confirm the merged manifest has exactly two ZIP entries and that only the Apple Silicon filename contains the literal `arm64` marker.
+- If publishing fails, rerun the workflow after correcting the cause. The publisher removes only the exact expected version asset set; do not broadly delete release assets.
+- SimplySign Desktop has no stable headless API. Windows signing can remain sensitive to UI timing, token state, TOTP clock drift, and signer-image updates.
+- Newly issued Windows certificates can require reputation history before SmartScreen warnings disappear.

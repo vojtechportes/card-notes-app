@@ -6,14 +6,20 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolvePackagedLayout } from './resolve-packaged-layout.util.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const electronRoot = path.resolve(dirname, '..')
-const unpackedRoot = process.env.NOTESTACK_UNPACKED_ROOT
-  ? path.resolve(process.env.NOTESTACK_UNPACKED_ROOT)
-  : path.join(electronRoot, 'release', 'win-unpacked')
-const executablePath = path.join(unpackedRoot, 'NoteStack.exe')
-const backendRoot = path.join(unpackedRoot, 'resources', 'backend')
+const packagedPlatform =
+  process.env.NOTESTACK_PACKAGED_PLATFORM ?? process.platform
+const packagedLayout = resolvePackagedLayout({
+  electronRoot,
+  platform: packagedPlatform,
+  unpackedRoot: process.env.NOTESTACK_UNPACKED_ROOT,
+})
+const unpackedRoot = packagedLayout.applicationRoot
+const executablePath = packagedLayout.executablePath
+const backendRoot = packagedLayout.backendRoot
 const backendEntryPath = path.join(backendRoot, 'dist', 'main.js')
 const uuidPackagePath = path.join(
   backendRoot,

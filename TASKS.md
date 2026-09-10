@@ -900,7 +900,8 @@ Assumptions for this slice:
 
 ### macOS distribution
 
-- [ ] TMSC-42. Add signed and notarized macOS releases
+- [~] TMSC-42. Add signed and notarized macOS releases
+  - Repository implementation is complete; Apple/GitHub credentials, signed x64/arm64 release artifacts, two-version update rehearsals, and clean-machine evidence remain required before this task can be marked done.
   - Treat macOS availability as a complete release path: a clean supported Mac must be able to install, launch, update, and use NoteStack without bypassing Gatekeeper. An unsigned local artifact is not completion.
   - Keep this work inside the Electron packaging/release slice: `electron/electron-builder.json`, root and Electron package commands, packaging/verification scripts, `.github/workflows/release-electron.yml`, macOS icon and entitlement assets, narrowly required Electron shell behavior, automated tests, and `readme.md`. Do not add backend/domain features or refactor unrelated frontend code.
   - Preserve the existing Windows x64 NSIS package, Certum inner-executable and installer signing, `latest.yml` metadata refresh, release upload, signature verification, and update path. Keep existing root packaging aliases working, or provide backwards-compatible and documented replacements while adding explicit Windows and macOS commands.
